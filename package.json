@@ -1,0 +1,12 @@
+{
+  "name": "ufc-picks-tracker",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test-scraper": "node test-ufcstats-scraper.js"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.12"
+  }
+}
