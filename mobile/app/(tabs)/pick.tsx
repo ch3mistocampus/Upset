@@ -2,19 +2,99 @@
  * Pick screen - make predictions for upcoming event
  */
 
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Animated } from 'react-native';
+import { useState, useRef } from 'react';
+import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../hooks/useAuth';
 import { useNextEvent, useBoutsForEvent, useUpsertPick, isEventLocked } from '../../hooks/useQueries';
+import { useToast } from '../../hooks/useToast';
+import { ErrorState } from '../../components/ErrorState';
+import { EmptyState } from '../../components/EmptyState';
+import { SkeletonFightCard } from '../../components/SkeletonFightCard';
 import { BoutWithPick, PickInsert } from '../../types/database';
+
+// Animated Fighter Button Component
+const FighterButton: React.FC<{
+  bout: BoutWithPick;
+  corner: 'red' | 'blue';
+  locked: boolean;
+  onPress: () => void;
+}> = ({ bout, corner, locked, onPress }) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.95,
+      useNativeDriver: true,
+      tension: 150,
+      friction: 3,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 150,
+      friction: 3,
+    }).start();
+  };
+
+  const isSelected = bout.pick?.picked_corner === corner;
+  const fighterName = corner === 'red' ? bout.red_name : bout.blue_name;
+  const cornerColor = corner === 'red' ? '#dc2626' : '#2563eb';
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <TouchableOpacity
+        style={[
+          styles.fighterButton,
+          isSelected && styles.fighterButtonSelected,
+          locked && styles.fighterButtonDisabled,
+        ]}
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={locked || bout.status !== 'scheduled'}
+        activeOpacity={0.9}
+      >
+        <View style={[styles.cornerIndicator, { backgroundColor: cornerColor }]} />
+        <Text
+          style={[
+            styles.fighterName,
+            isSelected && styles.fighterNameSelected,
+          ]}
+          numberOfLines={2}
+        >
+          {fighterName}
+        </Text>
+        {isSelected && (
+          <View style={styles.checkmark}>
+            <Text style={styles.checkmarkText}>✓</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
 
 export default function Pick() {
   const { user } = useAuth();
-  const { data: nextEvent, isLoading: eventLoading } = useNextEvent();
-  const { data: bouts, isLoading: boutsLoading } = useBoutsForEvent(
+  const toast = useToast();
+  const { data: nextEvent, isLoading: eventLoading, isError: eventError, refetch: refetchEvent } = useNextEvent();
+  const { data: bouts, isLoading: boutsLoading, isError: boutsError, refetch: refetchBouts } = useBoutsForEvent(
     nextEvent?.id || null,
     user?.id || null
   );
   const upsertPick = useUpsertPick();
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([refetchEvent(), refetchBouts()]);
+    setRefreshing(false);
+  };
 
   const locked = isEventLocked(nextEvent || null);
 
@@ -22,16 +102,21 @@ export default function Pick() {
     if (!user || !nextEvent) return;
 
     if (locked) {
-      Alert.alert('Picks Locked', 'Event has already started. Picks cannot be changed.');
+      toast.showError('Event has already started. Picks cannot be changed.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
 
     if (bout.status === 'canceled' || bout.status === 'replaced') {
-      Alert.alert('Fight Canceled', 'This fight has been canceled or replaced.');
+      toast.showError('This fight has been canceled or replaced.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
 
     try {
+      // Light haptic on pick selection
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
       const pick: PickInsert = {
         user_id: user.id,
         event_id: nextEvent.id,
@@ -40,41 +125,88 @@ export default function Pick() {
       };
 
       await upsertPick.mutateAsync(pick);
+
+      // Success haptic on save
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error: any) {
+      // Error haptic on failure
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
       if (error.message.includes('locked')) {
-        Alert.alert('Error', 'Picks are locked. Event has started.');
+        toast.showError('Picks are locked. Event has started.');
       } else {
-        Alert.alert('Error', 'Failed to save pick. Please try again.');
+        toast.showError('Failed to save pick. Please try again.');
       }
     }
   };
 
   if (eventLoading || boutsLoading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#d4202a" />
-      </View>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <SkeletonFightCard />
+        <SkeletonFightCard />
+        <SkeletonFightCard />
+        <SkeletonFightCard />
+        <SkeletonFightCard />
+      </ScrollView>
+    );
+  }
+
+  if (eventError) {
+    return (
+      <ErrorState
+        message="Failed to load upcoming events. Check your connection and try again."
+        onRetry={() => refetchEvent()}
+      />
+    );
+  }
+
+  if (boutsError) {
+    return (
+      <ErrorState
+        message="Failed to load fights. Check your connection and try again."
+        onRetry={() => refetchBouts()}
+      />
     );
   }
 
   if (!nextEvent) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.noDataText}>No upcoming events</Text>
-      </View>
+      <EmptyState
+        icon="calendar-outline"
+        title="No Upcoming Events"
+        message="There are no scheduled UFC events at the moment. Check back soon!"
+        actionLabel="Refresh"
+        onAction={onRefresh}
+      />
     );
   }
 
   if (!bouts || bouts.length === 0) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.noDataText}>No fights available</Text>
-      </View>
+      <EmptyState
+        icon="radio-outline"
+        title="No Fights Available"
+        message="The fight card hasn't been released yet. Check back closer to the event date."
+        actionLabel="Refresh"
+        onAction={onRefresh}
+      />
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor="#d4202a"
+          colors={['#d4202a']}
+        />
+      }
+    >
       {/* Event Header */}
       <View style={styles.header}>
         <Text style={styles.eventName}>{nextEvent.name}</Text>
@@ -108,61 +240,23 @@ export default function Pick() {
           {/* Fighters */}
           <View style={styles.fighters}>
             {/* Red Corner */}
-            <TouchableOpacity
-              style={[
-                styles.fighterButton,
-                bout.pick?.picked_corner === 'red' && styles.fighterButtonSelected,
-                locked && styles.fighterButtonDisabled,
-              ]}
+            <FighterButton
+              bout={bout}
+              corner="red"
+              locked={locked}
               onPress={() => handlePickFighter(bout, 'red')}
-              disabled={locked || bout.status !== 'scheduled'}
-            >
-              <View style={[styles.cornerIndicator, { backgroundColor: '#dc2626' }]} />
-              <Text
-                style={[
-                  styles.fighterName,
-                  bout.pick?.picked_corner === 'red' && styles.fighterNameSelected,
-                ]}
-                numberOfLines={2}
-              >
-                {bout.red_name}
-              </Text>
-              {bout.pick?.picked_corner === 'red' && (
-                <View style={styles.checkmark}>
-                  <Text style={styles.checkmarkText}>✓</Text>
-                </View>
-              )}
-            </TouchableOpacity>
+            />
 
             {/* VS */}
             <Text style={styles.vs}>VS</Text>
 
             {/* Blue Corner */}
-            <TouchableOpacity
-              style={[
-                styles.fighterButton,
-                bout.pick?.picked_corner === 'blue' && styles.fighterButtonSelected,
-                locked && styles.fighterButtonDisabled,
-              ]}
+            <FighterButton
+              bout={bout}
+              corner="blue"
+              locked={locked}
               onPress={() => handlePickFighter(bout, 'blue')}
-              disabled={locked || bout.status !== 'scheduled'}
-            >
-              <View style={[styles.cornerIndicator, { backgroundColor: '#2563eb' }]} />
-              <Text
-                style={[
-                  styles.fighterName,
-                  bout.pick?.picked_corner === 'blue' && styles.fighterNameSelected,
-                ]}
-                numberOfLines={2}
-              >
-                {bout.blue_name}
-              </Text>
-              {bout.pick?.picked_corner === 'blue' && (
-                <View style={styles.checkmark}>
-                  <Text style={styles.checkmarkText}>✓</Text>
-                </View>
-              )}
-            </TouchableOpacity>
+            />
           </View>
 
           {/* Result (if available) */}

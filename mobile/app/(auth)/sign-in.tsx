@@ -9,15 +9,16 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
 } from 'react-native';
 import { useAuth } from '../../hooks/useAuth';
+import { useToast } from '../../hooks/useToast';
 
 export default function SignIn() {
   const { signInWithOTP, verifyOTP } = useAuth();
+  const toast = useToast();
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,7 +26,7 @@ export default function SignIn() {
 
   const handleSendOTP = async () => {
     if (!email) {
-      Alert.alert('Error', 'Please enter your email');
+      toast.showError('Please enter your email');
       return;
     }
 
@@ -33,9 +34,9 @@ export default function SignIn() {
     try {
       await signInWithOTP(email);
       setOtpSent(true);
-      Alert.alert('Success', 'Check your email for the verification code');
+      toast.showSuccess('Check your email for the verification code');
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to send code');
+      toast.showError(error.message || 'Failed to send code');
     } finally {
       setLoading(false);
     }
@@ -43,7 +44,7 @@ export default function SignIn() {
 
   const handleVerifyOTP = async () => {
     if (!otp) {
-      Alert.alert('Error', 'Please enter the verification code');
+      toast.showError('Please enter the verification code');
       return;
     }
 
@@ -52,7 +53,7 @@ export default function SignIn() {
       await verifyOTP(email, otp);
       // Auth state change will trigger redirect in index.tsx
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Invalid code');
+      toast.showError(error.message || 'Invalid code');
     } finally {
       setLoading(false);
     }

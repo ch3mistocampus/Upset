@@ -173,10 +173,55 @@ export function useUpsertPick() {
 
       return data;
     },
+    // Optimistic update - update UI immediately before server responds
+    onMutate: async (newPick: PickInsert) => {
+      // Cancel outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: ['bouts', newPick.event_id, newPick.user_id] });
+
+      // Snapshot the previous value
+      const previousBouts = queryClient.getQueryData<BoutWithPick[]>(['bouts', newPick.event_id, newPick.user_id]);
+
+      // Optimistically update the cache
+      if (previousBouts) {
+        queryClient.setQueryData<BoutWithPick[]>(
+          ['bouts', newPick.event_id, newPick.user_id],
+          previousBouts.map((bout) =>
+            bout.id === newPick.bout_id
+              ? {
+                  ...bout,
+                  pick: {
+                    id: bout.pick?.id || 'temp-id',
+                    user_id: newPick.user_id,
+                    event_id: newPick.event_id,
+                    bout_id: newPick.bout_id,
+                    picked_corner: newPick.picked_corner,
+                    picked_method: null,
+                    picked_round: null,
+                    status: 'active' as const,
+                    locked_at: null,
+                    score: null,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                  },
+                }
+              : bout
+          )
+        );
+      }
+
+      // Return context with snapshot
+      return { previousBouts };
+    },
+    onError: (err, newPick, context) => {
+      // Rollback to previous value on error
+      if (context?.previousBouts) {
+        queryClient.setQueryData(['bouts', newPick.event_id, newPick.user_id], context.previousBouts);
+      }
+    },
     onSuccess: (data) => {
-      // Invalidate relevant queries
-      queryClient.invalidateQueries({ queryKey: ['picks', data.event_id] });
-      queryClient.invalidateQueries({ queryKey: ['bouts', data.event_id] });
+      // Invalidate relevant queries to refetch fresh data
+      queryClient.invalidateQueries({ queryKey: ['picks', data.event_id, data.user_id] });
+      queryClient.invalidateQueries({ queryKey: ['bouts', data.event_id, data.user_id] });
     },
   });
 }

@@ -182,6 +182,7 @@ export interface Pick {
   locked_at: string | null;
   status: 'active' | 'graded' | 'voided';
   score: number | null;
+  updated_at: string;
 }
 
 export interface PickInsert {
@@ -196,6 +197,7 @@ export interface PickInsert {
   locked_at?: string | null;
   status?: 'active' | 'graded' | 'voided';
   score?: number | null;
+  updated_at?: string;
 }
 
 export interface PickUpdate {
@@ -204,6 +206,7 @@ export interface PickUpdate {
   picked_round?: number | null;
   status?: 'active' | 'graded' | 'voided';
   score?: number | null;
+  updated_at?: string;
 }
 
 // UserStats

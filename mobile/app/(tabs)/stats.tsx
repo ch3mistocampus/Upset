@@ -2,34 +2,78 @@
  * Stats screen - accuracy, streaks, recent events
  */
 
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useUserStats, useRecentPicksSummary } from '../../hooks/useQueries';
+import { ErrorState } from '../../components/ErrorState';
+import { EmptyState } from '../../components/EmptyState';
+import { SkeletonStats } from '../../components/SkeletonStats';
+import { AccuracyRing } from '../../components/AccuracyRing';
+import { MiniChart } from '../../components/MiniChart';
 
 export default function Stats() {
   const { user } = useAuth();
-  const { data: stats, isLoading: statsLoading } = useUserStats(user?.id || null);
-  const { data: recentSummary, isLoading: summaryLoading } = useRecentPicksSummary(
+  const { data: stats, isLoading: statsLoading, isError: statsError, refetch: refetchStats } = useUserStats(user?.id || null);
+  const { data: recentSummary, isLoading: summaryLoading, isError: summaryError, refetch: refetchSummary } = useRecentPicksSummary(
     user?.id || null,
     5
   );
 
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([refetchStats(), refetchSummary()]);
+    setRefreshing(false);
+  };
+
   if (statsLoading || summaryLoading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#d4202a" />
-      </View>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <SkeletonStats />
+        <SkeletonStats />
+      </ScrollView>
+    );
+  }
+
+  if (statsError || summaryError) {
+    return (
+      <ErrorState
+        message="Failed to load your stats. Check your connection and try again."
+        onRetry={() => {
+          refetchStats();
+          refetchSummary();
+        }}
+      />
     );
   }
 
   const hasStats = stats && stats.total_picks > 0;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor="#d4202a"
+          colors={['#d4202a']}
+        />
+      }
+    >
       {/* Overall Stats */}
       <View style={styles.card}>
         <Text style={styles.cardLabel}>OVERALL STATS</Text>
 
+        {/* Accuracy Ring - Visual centerpiece */}
+        <View style={styles.accuracyRingContainer}>
+          <AccuracyRing percentage={hasStats ? stats.accuracy_pct : 0} label="Accuracy" />
+        </View>
+
+        {/* Stats Grid below ring */}
         <View style={styles.statsGrid}>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{stats?.total_picks || 0}</Text>
@@ -42,10 +86,8 @@ export default function Stats() {
           </View>
 
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, styles.accuracyValue]}>
-              {hasStats ? `${stats.accuracy_pct.toFixed(1)}%` : '0%'}
-            </Text>
-            <Text style={styles.statLabel}>Accuracy</Text>
+            <Text style={styles.statValue}>{stats?.total_picks ? stats.total_picks - stats.correct_winner : 0}</Text>
+            <Text style={styles.statLabel}>Missed</Text>
           </View>
         </View>
       </View>
@@ -80,6 +122,17 @@ export default function Stats() {
         <View style={styles.card}>
           <Text style={styles.cardLabel}>RECENT EVENTS</Text>
 
+          {/* Mini Chart - Visual trend */}
+          <View style={styles.chartContainer}>
+            <MiniChart
+              data={recentSummary.map((summary) => ({
+                eventName: summary.event.name,
+                accuracy: summary.total > 0 ? (summary.correct / summary.total) * 100 : 0,
+              }))}
+            />
+          </View>
+
+          {/* Detailed list */}
           {recentSummary.map((summary, index) => {
             const accuracy =
               summary.total > 0
@@ -125,12 +178,11 @@ export default function Stats() {
 
       {/* Empty State */}
       {!hasStats && (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>No Stats Yet</Text>
-          <Text style={styles.emptyText}>
-            Make some picks and check back after the event to see your results!
-          </Text>
-        </View>
+        <EmptyState
+          icon="stats-chart-outline"
+          title="No Stats Yet"
+          message="Make some picks and check back after the event to see your results and track your accuracy!"
+        />
       )}
     </ScrollView>
   );
@@ -159,9 +211,18 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginBottom: 16,
   },
+  accuracyRingContainer: {
+    alignItems: 'center',
+    marginVertical: 16,
+  },
   statsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    marginTop: 16,
+  },
+  chartContainer: {
+    marginVertical: 12,
+    marginHorizontal: -8,
   },
   statItem: {
     alignItems: 'center',

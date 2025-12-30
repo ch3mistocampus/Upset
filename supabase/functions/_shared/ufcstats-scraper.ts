@@ -74,14 +74,14 @@ export async function scrapeEventsList() {
     const $ = load(html);
     const events: any[] = [];
 
-    // UFCStats lists events in a table
-    $("table.b-statistics__table tbody tr").each((_, row) => {
+    // UFCStats lists events in a table (class changed from b-statistics__table to b-statistics__table-events)
+    $("table.b-statistics__table-events tbody tr").each((_, row) => {
       const $row = $(row);
       const link = $row.find("a.b-link").first();
       const eventUrl = link.attr("href");
       const eventName = link.text().trim();
       const dateText = $row.find("span.b-statistics__date").text().trim();
-      const location = $row.find("td.b-statistics__table-col").eq(1).text().trim();
+      const location = $row.find("td").eq(1).text().trim();
 
       if (eventUrl && eventName) {
         // Extract event ID from URL (e.g., http://ufcstats.com/event-details/abc123)
@@ -120,18 +120,24 @@ export async function scrapeEventCard(eventUrl: string) {
     $("table.b-fight-details__table tbody tr").each((index, row) => {
       const $row = $(row);
 
-      // Get fight link
-      const fightLink = $row.find("a.b-flag").attr("href");
-      if (!fightLink) return;
-
-      const fightId = fightLink.split("/").pop() || "";
-
       // Get fighter names (red corner first, blue corner second)
-      const fighters = $row.find("p.b-fight-details__table-text a");
+      const fighters = $row.find("p.b-fight-details__table-text a.b-link");
+      if (fighters.length < 2) return; // Skip rows without both fighters
+
       const redFighterLink = fighters.eq(0).attr("href") || "";
       const blueFighterLink = fighters.eq(1).attr("href") || "";
       const redName = fighters.eq(0).text().trim();
       const blueName = fighters.eq(1).text().trim();
+
+      // Get fight link from "View Matchup" link or construct from fighter IDs
+      let fightLink = $row.find("a[data-link]").attr("data-link");
+      if (!fightLink) {
+        // Try finding any fight details link in the row
+        fightLink = $row.find("a[href*='/fight-details/']").attr("href");
+      }
+
+      // If still no link, construct a placeholder (will be updated when results are available)
+      const fightId = fightLink ? fightLink.split("/").pop() || `${index}` : `${index}`;
 
       // Weight class
       const weightClass = $row.find("td.b-fight-details__table-col").eq(6).text().trim();

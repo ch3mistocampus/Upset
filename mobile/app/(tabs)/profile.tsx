@@ -2,50 +2,66 @@
  * Profile screen - username, stats summary, logout
  */
 
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
+import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useUserStats } from '../../hooks/useQueries';
+import { useToast } from '../../hooks/useToast';
+import { ErrorState } from '../../components/ErrorState';
+import { SkeletonProfileCard, SkeletonStats } from '../../components/SkeletonStats';
 
 export default function Profile() {
   const router = useRouter();
+  const toast = useToast();
   const { profile, user, signOut } = useAuth();
-  const { data: stats, isLoading: statsLoading } = useUserStats(user?.id || null);
+  const { data: stats, isLoading: statsLoading, isError: statsError, refetch: refetchStats } = useUserStats(user?.id || null);
 
-  const handleSignOut = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await signOut();
-              router.replace('/(auth)/sign-in');
-            } catch (error: any) {
-              Alert.alert('Error', 'Failed to sign out');
-            }
-          },
-        },
-      ]
-    );
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refetchStats();
+    setRefreshing(false);
+  };
+
+  const handleOpenSettings = () => {
+    router.push('/settings');
   };
 
   if (statsLoading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#d4202a" />
-      </View>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <SkeletonProfileCard />
+        <SkeletonStats />
+      </ScrollView>
+    );
+  }
+
+  if (statsError) {
+    return (
+      <ErrorState
+        message="Failed to load your profile. Check your connection and try again."
+        onRetry={() => refetchStats()}
+      />
     );
   }
 
   const hasStats = stats && stats.total_picks > 0;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor="#d4202a"
+          colors={['#d4202a']}
+        />
+      }
+    >
       {/* Profile Header */}
       <View style={styles.card}>
         <Text style={styles.cardLabel}>PROFILE</Text>
@@ -107,8 +123,8 @@ export default function Profile() {
       </View>
 
       {/* Actions */}
-      <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-        <Text style={styles.signOutText}>Sign Out</Text>
+      <TouchableOpacity style={styles.settingsButton} onPress={handleOpenSettings}>
+        <Text style={styles.settingsText}>Settings</Text>
       </TouchableOpacity>
 
       {/* App Info */}
@@ -205,19 +221,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: 12,
   },
-  signOutButton: {
-    backgroundColor: '#262626',
+  settingsButton: {
+    backgroundColor: '#d4202a',
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#333',
   },
-  signOutText: {
-    color: '#ef4444',
+  settingsText: {
+    color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   appInfo: {
     alignItems: 'center',

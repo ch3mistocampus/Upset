@@ -1,4 +1,3 @@
-[project]
 project_id = "qcvsioaokjjqjhxxxvbm"
 
 [api]
@@ -11,7 +10,7 @@ max_rows = 1000
 [db]
 port = 54322
 shadow_port = 54320
-major_version = 15
+major_version = 17
 
 [studio]
 enabled = true
@@ -20,7 +19,6 @@ api_url = "http://127.0.0.1"
 
 [auth]
 enabled = true
-port = 54324
 site_url = "http://localhost:3000"
 additional_redirect_urls = ["https://localhost:3000"]
 jwt_expiry = 3600
@@ -28,4 +26,3 @@ enable_signup = true
 
 [edge_runtime]
 enabled = true
-port = 54325

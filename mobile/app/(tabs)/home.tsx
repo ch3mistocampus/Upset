@@ -2,23 +2,36 @@
  * Home screen - next event, picks progress, countdown
  */
 
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useNextEvent, useBoutsForEvent, useRecentPicksSummary } from '../../hooks/useQueries';
-import { useEffect, useState } from 'react';
+import { ErrorState } from '../../components/ErrorState';
+import { EmptyState } from '../../components/EmptyState';
+import { SkeletonEventCard } from '../../components/SkeletonStats';
+import { useEffect, useState, useRef } from 'react';
 
 export default function Home() {
   const router = useRouter();
   const { user } = useAuth();
-  const { data: nextEvent, isLoading: eventLoading } = useNextEvent();
-  const { data: bouts, isLoading: boutsLoading } = useBoutsForEvent(
+  const { data: nextEvent, isLoading: eventLoading, isError: eventError, refetch: refetchEvent } = useNextEvent();
+  const { data: bouts, isLoading: boutsLoading, isError: boutsError, refetch: refetchBouts } = useBoutsForEvent(
     nextEvent?.id || null,
     user?.id || null
   );
-  const { data: recentSummary } = useRecentPicksSummary(user?.id || null, 1);
+  const { data: recentSummary, refetch: refetchSummary } = useRecentPicksSummary(user?.id || null, 1);
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([refetchEvent(), refetchBouts(), refetchSummary()]);
+    setRefreshing(false);
+  };
 
   const [timeUntil, setTimeUntil] = useState<string>('');
+  const [isNearEvent, setIsNearEvent] = useState(false);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // Countdown timer
   useEffect(() => {
@@ -31,12 +44,17 @@ export default function Home() {
 
       if (diff <= 0) {
         setTimeUntil('Event started');
+        setIsNearEvent(false);
         return;
       }
 
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+      // Check if event is within 24 hours
+      const totalHours = days * 24 + hours;
+      setIsNearEvent(totalHours < 24);
 
       if (days > 0) {
         setTimeUntil(`${days}d ${hours}h ${minutes}m`);
@@ -53,6 +71,30 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [nextEvent]);
 
+  // Pulse animation when event is near (< 24 hours)
+  useEffect(() => {
+    if (isNearEvent) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.05,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      pulse.start();
+      return () => pulse.stop();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [isNearEvent, pulseAnim]);
+
   const picksCount = bouts?.filter((b) => b.pick).length || 0;
   const totalBouts = bouts?.length || 0;
 
@@ -60,24 +102,58 @@ export default function Home() {
 
   if (eventLoading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#d4202a" />
-      </View>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <SkeletonEventCard />
+        <SkeletonEventCard />
+      </ScrollView>
+    );
+  }
+
+  if (eventError) {
+    return (
+      <ErrorState
+        message="Failed to load upcoming events. Check your connection and try again."
+        onRetry={() => refetchEvent()}
+      />
+    );
+  }
+
+  if (boutsError) {
+    return (
+      <ErrorState
+        message="Failed to load event details. Check your connection and try again."
+        onRetry={() => refetchBouts()}
+      />
     );
   }
 
   if (!nextEvent) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.noDataText}>No upcoming events</Text>
-      </View>
+      <EmptyState
+        icon="calendar-outline"
+        title="No Upcoming Events"
+        message="Check back soon for the next UFC event and start making your picks!"
+        actionLabel="Refresh"
+        onAction={onRefresh}
+      />
     );
   }
 
   const isLocked = new Date(nextEvent.event_date) <= new Date();
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor="#d4202a"
+          colors={['#d4202a']}
+        />
+      }
+    >
       {/* Next Event Card */}
       <View style={styles.card}>
         <Text style={styles.cardLabel}>NEXT EVENT</Text>
@@ -92,7 +168,14 @@ export default function Home() {
           <Text style={styles.countdownLabel}>
             {isLocked ? 'Event Started' : 'Picks Lock In'}
           </Text>
-          <Text style={styles.countdownTime}>{timeUntil}</Text>
+          <Animated.Text
+            style={[
+              styles.countdownTime,
+              { transform: [{ scale: pulseAnim }] }
+            ]}
+          >
+            {timeUntil}
+          </Animated.Text>
         </View>
 
         <View style={styles.divider} />

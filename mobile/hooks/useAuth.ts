@@ -68,6 +68,7 @@ export function useAuth() {
       email,
       options: {
         shouldCreateUser: true,
+        emailRedirectTo: 'ufcpicks://',
       },
     });
 

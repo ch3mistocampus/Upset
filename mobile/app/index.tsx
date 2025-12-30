@@ -8,30 +8,30 @@ import { useRouter, Redirect } from 'expo-router';
 import { useAuth } from '../hooks/useAuth';
 
 export default function Index() {
+  // TEMPORARY: Skip auth for development - go directly to home
+  return <Redirect href="/(tabs)/home" />;
+
+  /* Original auth flow - uncomment to re-enable:
   const { user, profile, loading } = useAuth();
-  const router = useRouter();
 
-  useEffect(() => {
-    if (loading) return;
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#d4202a" />
+      </View>
+    );
+  }
 
-    if (!user) {
-      // Not logged in -> go to sign in
-      router.replace('/(auth)/sign-in');
-    } else if (!profile) {
-      // Logged in but no profile -> create username
-      router.replace('/(auth)/create-username');
-    } else {
-      // Fully authenticated -> go to main app
-      router.replace('/(tabs)/home');
-    }
-  }, [user, profile, loading]);
+  if (!user) {
+    return <Redirect href="/(auth)/sign-in" />;
+  }
 
-  // Show loading spinner while checking auth
-  return (
-    <View style={styles.container}>
-      <ActivityIndicator size="large" color="#d4202a" />
-    </View>
-  );
+  if (!profile) {
+    return <Redirect href="/(auth)/create-username" />;
+  }
+
+  return <Redirect href="/(tabs)/home" />;
+  */
 }
 
 const styles = StyleSheet.create({
