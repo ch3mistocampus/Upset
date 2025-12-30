@@ -8,10 +8,6 @@ import { useRouter, Redirect } from 'expo-router';
 import { useAuth } from '../hooks/useAuth';
 
 export default function Index() {
-  // TEMPORARY: Skip auth for development - go directly to home
-  return <Redirect href="/(tabs)/home" />;
-
-  /* Original auth flow - uncomment to re-enable:
   const { user, profile, loading } = useAuth();
 
   if (loading) {
@@ -31,7 +27,6 @@ export default function Index() {
   }
 
   return <Redirect href="/(tabs)/home" />;
-  */
 }
 
 const styles = StyleSheet.create({

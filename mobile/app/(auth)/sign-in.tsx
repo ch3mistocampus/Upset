@@ -24,15 +24,27 @@ export default function SignIn() {
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
 
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleSendOTP = async () => {
-    if (!email) {
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
       toast.showError('Please enter your email');
+      return;
+    }
+
+    if (!isValidEmail(trimmedEmail)) {
+      toast.showError('Please enter a valid email address');
       return;
     }
 
     setLoading(true);
     try {
-      await signInWithOTP(email);
+      await signInWithOTP(trimmedEmail);
       setOtpSent(true);
       toast.showSuccess('Check your email for the verification code');
     } catch (error: any) {

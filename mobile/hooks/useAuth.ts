@@ -14,8 +14,11 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Get initial session and refresh if expired
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('Failed to get session:', error);
+      }
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -25,10 +28,25 @@ export function useAuth() {
       }
     });
 
-    // Listen for auth changes
+    // Listen for auth changes and token refresh
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event);
+
+      if (event === 'TOKEN_REFRESHED') {
+        console.log('Session token refreshed successfully');
+      }
+
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+
+      // For other events, update session state
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
