@@ -1,0 +1,90 @@
+name: Sync UFC Stats Data
+
+on:
+  # Scheduled runs
+  schedule:
+    # Daily at 6am UTC - sync events
+    - cron: '0 6 * * *'
+    # Daily at 12pm UTC - sync next event card
+    - cron: '0 12 * * *'
+    # Every 6 hours - sync results and grade picks
+    - cron: '0 */6 * * *'
+
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      function:
+        description: 'Which function to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - sync-events
+          - sync-next-event-card
+          - sync-recent-results-and-grade
+
+jobs:
+  sync-events:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 6 * * *' || github.event_name == 'workflow_dispatch' && (github.event.inputs.function == 'all' || github.event.inputs.function == 'sync-events')
+
+    steps:
+      - name: Sync Events
+        run: |
+          response=$(curl -X POST "${{ secrets.SUPABASE_FUNCTION_URL }}/sync-events" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json")
+
+          echo "Response: $response"
+
+          # Check if request was successful
+          if [[ $response == *"\"success\":true"* ]]; then
+            echo "✅ Events synced successfully"
+          else
+            echo "❌ Failed to sync events"
+            echo "$response"
+            exit 1
+          fi
+
+  sync-next-event-card:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 12 * * *' || github.event_name == 'workflow_dispatch' && (github.event.inputs.function == 'all' || github.event.inputs.function == 'sync-next-event-card')
+
+    steps:
+      - name: Sync Next Event Card
+        run: |
+          response=$(curl -X POST "${{ secrets.SUPABASE_FUNCTION_URL }}/sync-next-event-card" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json")
+
+          echo "Response: $response"
+
+          if [[ $response == *"\"success\":true"* ]]; then
+            echo "✅ Next event card synced successfully"
+          else
+            echo "❌ Failed to sync next event card"
+            echo "$response"
+            exit 1
+          fi
+
+  sync-results-and-grade:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 */6 * * *' || github.event_name == 'workflow_dispatch' && (github.event.inputs.function == 'all' || github.event.inputs.function == 'sync-recent-results-and-grade')
+
+    steps:
+      - name: Sync Results and Grade Picks
+        run: |
+          response=$(curl -X POST "${{ secrets.SUPABASE_FUNCTION_URL }}/sync-recent-results-and-grade" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "Content-Type: application/json")
+
+          echo "Response: $response"
+
+          if [[ $response == *"\"success\":true"* ]]; then
+            echo "✅ Results synced and picks graded successfully"
+          else
+            echo "❌ Failed to sync results"
+            echo "$response"
+            exit 1
+          fi
