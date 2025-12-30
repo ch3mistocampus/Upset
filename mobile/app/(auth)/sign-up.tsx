@@ -1,5 +1,5 @@
 /**
- * Sign in screen with email/password (primary) and OTP option
+ * Sign up screen with email/password
  */
 
 import { useState } from 'react';
@@ -18,33 +18,65 @@ import { Link, useRouter } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 
-export default function SignIn() {
-  const { signInWithEmail } = useAuth();
+export default function SignUp() {
+  const { signUpWithEmail } = useAuth();
   const toast = useToast();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSignIn = async () => {
+  const validatePassword = (pwd: string): string | null => {
+    if (pwd.length < 8) {
+      return 'Password must be at least 8 characters';
+    }
+    if (!/[A-Za-z]/.test(pwd)) {
+      return 'Password must contain at least one letter';
+    }
+    if (!/[0-9]/.test(pwd)) {
+      return 'Password must contain at least one number';
+    }
+    return null;
+  };
+
+  const handleSignUp = async () => {
     if (!email) {
       toast.showError('Please enter your email');
       return;
     }
 
     if (!password) {
-      toast.showError('Please enter your password');
+      toast.showError('Please enter a password');
+      return;
+    }
+
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      toast.showError(passwordError);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast.showError('Passwords do not match');
       return;
     }
 
     setLoading(true);
     try {
-      await signInWithEmail(email, password);
-      // Auth state change will trigger redirect in index.tsx
+      const { user } = await signUpWithEmail(email, password);
+
+      if (user?.identities?.length === 0) {
+        toast.showError('An account with this email already exists');
+        return;
+      }
+
+      toast.showSuccess('Account created! Please check your email to verify.');
+      router.replace('/(auth)/sign-in');
     } catch (error: any) {
-      const message = error.message || 'Failed to sign in';
-      if (message.includes('Invalid login credentials')) {
-        toast.showError('Invalid email or password');
+      const message = error.message || 'Failed to create account';
+      if (message.includes('already registered')) {
+        toast.showError('An account with this email already exists');
       } else {
         toast.showError(message);
       }
@@ -63,8 +95,8 @@ export default function SignIn() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
-          <Text style={styles.title}>UFC Picks Tracker</Text>
-          <Text style={styles.subtitle}>Sign in to your account</Text>
+          <Text style={styles.title}>Create Account</Text>
+          <Text style={styles.subtitle}>Sign up to start tracking your picks</Text>
 
           <TextInput
             style={styles.input}
@@ -85,49 +117,42 @@ export default function SignIn() {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-            autoComplete="password"
+            autoComplete="new-password"
             editable={!loading}
           />
 
-          <TouchableOpacity
-            style={styles.forgotButton}
-            onPress={() => router.push('/(auth)/reset-password')}
-            disabled={loading}
-          >
-            <Text style={styles.forgotText}>Forgot password?</Text>
-          </TouchableOpacity>
+          <TextInput
+            style={styles.input}
+            placeholder="Confirm Password"
+            placeholderTextColor="#666"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+            autoComplete="new-password"
+            editable={!loading}
+          />
+
+          <Text style={styles.passwordHint}>
+            Password must be at least 8 characters with letters and numbers
+          </Text>
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleSignIn}
+            onPress={handleSignUp}
             disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Sign In</Text>
+              <Text style={styles.buttonText}>Sign Up</Text>
             )}
           </TouchableOpacity>
 
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <TouchableOpacity
-            style={styles.otpButton}
-            onPress={() => router.push('/(auth)/sign-in-otp')}
-            disabled={loading}
-          >
-            <Text style={styles.otpButtonText}>Sign in with email code</Text>
-          </TouchableOpacity>
-
-          <View style={styles.signupRow}>
-            <Text style={styles.signupText}>Don't have an account? </Text>
-            <Link href="/(auth)/sign-up" asChild>
+          <View style={styles.signinRow}>
+            <Text style={styles.signinText}>Already have an account? </Text>
+            <Link href="/(auth)/sign-in" asChild>
               <TouchableOpacity disabled={loading}>
-                <Text style={styles.signupLink}>Sign up</Text>
+                <Text style={styles.signinLink}>Sign in</Text>
               </TouchableOpacity>
             </Link>
           </View>
@@ -174,13 +199,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginBottom: 16,
   },
-  forgotButton: {
-    alignSelf: 'flex-end',
-    marginBottom: 8,
-  },
-  forgotText: {
-    color: '#d4202a',
-    fontSize: 14,
+  passwordHint: {
+    color: '#666',
+    fontSize: 12,
+    marginBottom: 16,
   },
   button: {
     backgroundColor: '#d4202a',
@@ -197,42 +219,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#333',
-  },
-  dividerText: {
-    color: '#666',
-    marginHorizontal: 16,
-    fontSize: 14,
-  },
-  otpButton: {
-    borderWidth: 1,
-    borderColor: '#333',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-  },
-  otpButtonText: {
-    color: '#fff',
-    fontSize: 16,
-  },
-  signupRow: {
+  signinRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     marginTop: 24,
   },
-  signupText: {
+  signinText: {
     color: '#999',
     fontSize: 14,
   },
-  signupLink: {
+  signinLink: {
     color: '#d4202a',
     fontSize: 14,
     fontWeight: 'bold',

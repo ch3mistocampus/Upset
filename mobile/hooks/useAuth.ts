@@ -1,5 +1,9 @@
 /**
  * Authentication hooks
+ *
+ * Supports:
+ * - Email/Password (primary)
+ * - Email OTP (alternative)
  */
 
 import { useEffect, useState } from 'react';
@@ -63,6 +67,49 @@ export function useAuth() {
     }
   };
 
+  // ===== Email/Password Authentication =====
+
+  const signUpWithEmail = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: 'ufcpicks://',
+      },
+    });
+
+    if (error) throw error;
+    return data;
+  };
+
+  const signInWithEmail = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) throw error;
+    return data;
+  };
+
+  const resetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'ufcpicks://reset-password',
+    });
+
+    if (error) throw error;
+  };
+
+  const updatePassword = async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) throw error;
+  };
+
+  // ===== Email OTP Authentication (Alternative) =====
+
   const signInWithOTP = async (email: string) => {
     const { error } = await supabase.auth.signInWithOtp({
       email,
@@ -84,6 +131,8 @@ export function useAuth() {
 
     if (error) throw error;
   };
+
+  // ===== Profile Management =====
 
   const createProfile = async (username: string) => {
     if (!user) throw new Error('No user logged in');
@@ -113,8 +162,15 @@ export function useAuth() {
     user,
     profile,
     loading,
+    // Email/Password methods
+    signUpWithEmail,
+    signInWithEmail,
+    resetPassword,
+    updatePassword,
+    // OTP methods
     signInWithOTP,
     verifyOTP,
+    // Profile
     createProfile,
     signOut,
   };

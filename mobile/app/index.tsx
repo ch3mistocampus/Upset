@@ -1,17 +1,12 @@
 /**
- * Entry point - routes to auth or main app
+ * Entry point - routes to auth or main app based on authentication state
  */
 
-import { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { useRouter, Redirect } from 'expo-router';
+import { Redirect } from 'expo-router';
 import { useAuth } from '../hooks/useAuth';
 
 export default function Index() {
-  // TEMPORARY: Skip auth for development - go directly to home
-  return <Redirect href="/(tabs)/home" />;
-
-  /* Original auth flow - uncomment to re-enable:
   const { user, profile, loading } = useAuth();
 
   if (loading) {
@@ -22,16 +17,18 @@ export default function Index() {
     );
   }
 
+  // Not logged in - go to sign in
   if (!user) {
     return <Redirect href="/(auth)/sign-in" />;
   }
 
+  // Logged in but no profile - create username
   if (!profile) {
     return <Redirect href="/(auth)/create-username" />;
   }
 
+  // Fully authenticated - go to main app
   return <Redirect href="/(tabs)/home" />;
-  */
 }
 
 const styles = StyleSheet.create({
