@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../types/database';
+import { logger } from '../lib/logger';
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
@@ -17,11 +18,12 @@ export function useAuth() {
     // Get initial session and refresh if expired
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
-        console.error('Failed to get session:', error);
+        logger.error('Failed to get session', error);
       }
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        logger.debug('Session loaded', { userId: session.user.id });
         loadProfile(session.user.id);
       } else {
         setLoading(false);
@@ -32,13 +34,17 @@ export function useAuth() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth state changed:', event);
+      logger.breadcrumb(`Auth state changed: ${event}`, 'auth', {
+        event,
+        hasSession: !!session,
+      });
 
       if (event === 'TOKEN_REFRESHED') {
-        console.log('Session token refreshed successfully');
+        logger.info('Session token refreshed successfully');
       }
 
       if (event === 'SIGNED_OUT') {
+        logger.info('User signed out');
         setSession(null);
         setUser(null);
         setProfile(null);
@@ -50,6 +56,7 @@ export function useAuth() {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        logger.debug('Loading profile after auth change', { userId: session.user.id });
         loadProfile(session.user.id);
       } else {
         setProfile(null);
@@ -70,12 +77,15 @@ export function useAuth() {
 
       if (error && error.code !== 'PGRST116') {
         // PGRST116 = no rows returned (profile doesn't exist yet)
-        console.error('Error loading profile:', error);
+        logger.error('Error loading profile', error, { userId });
       }
 
       setProfile(data);
+      if (data) {
+        logger.debug('Profile loaded', { username: data.username });
+      }
     } catch (error) {
-      console.error('Error loading profile:', error);
+      logger.error('Error loading profile', error as Error, { userId });
     } finally {
       setLoading(false);
     }
