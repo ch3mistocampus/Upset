@@ -1,5 +1,5 @@
 /**
- * Sign in screen with email OTP
+ * Sign in screen with password and email OTP options
  */
 
 import { useState } from 'react';
@@ -12,39 +12,72 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
+import { validateEmail, isEmail, getAuthErrorMessage } from '../../lib/validation';
+
+type AuthTab = 'password' | 'otp';
 
 export default function SignIn() {
-  const { signInWithOTP, verifyOTP } = useAuth();
+  const { signInWithPassword, signInWithUsername, signInWithOTP, verifyOTP } = useAuth();
   const toast = useToast();
-  const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
+  const router = useRouter();
+
+  const [activeTab, setActiveTab] = useState<AuthTab>('password');
   const [loading, setLoading] = useState(false);
+
+  // Password tab state
+  const [emailOrUsername, setEmailOrUsername] = useState('');
+  const [password, setPassword] = useState('');
+
+  // OTP tab state
+  const [otpEmail, setOtpEmail] = useState('');
+  const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
 
-  const isValidEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
+  const handlePasswordSignIn = async () => {
+    const input = emailOrUsername.trim();
 
-  const handleSendOTP = async () => {
-    const trimmedEmail = email.trim();
-
-    if (!trimmedEmail) {
-      toast.showError('Please enter your email');
+    if (!input) {
+      toast.showError('Please enter your email or username');
       return;
     }
 
-    if (!isValidEmail(trimmedEmail)) {
-      toast.showError('Please enter a valid email address');
+    if (!password) {
+      toast.showError('Please enter your password');
       return;
     }
 
     setLoading(true);
     try {
-      await signInWithOTP(trimmedEmail);
+      // Smart detection: email vs username
+      if (isEmail(input)) {
+        await signInWithPassword(input, password);
+      } else {
+        await signInWithUsername(input, password);
+      }
+      // Auth state change will trigger redirect in index.tsx
+    } catch (error: any) {
+      const errorMessage = getAuthErrorMessage(error);
+      toast.showError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendOTP = async () => {
+    const emailError = validateEmail(otpEmail);
+    if (emailError) {
+      toast.showError(emailError);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await signInWithOTP(otpEmail.trim());
       setOtpSent(true);
       toast.showSuccess('Check your email for the verification code');
     } catch (error: any) {
@@ -62,7 +95,7 @@ export default function SignIn() {
 
     setLoading(true);
     try {
-      await verifyOTP(email, otp);
+      await verifyOTP(otpEmail, otp);
       // Auth state change will trigger redirect in index.tsx
     } catch (error: any) {
       toast.showError(error.message || 'Invalid code');
@@ -71,77 +104,173 @@ export default function SignIn() {
     }
   };
 
+  const renderPasswordTab = () => (
+    <>
+      <TextInput
+        style={styles.input}
+        placeholder="Email or Username"
+        placeholderTextColor="#666"
+        value={emailOrUsername}
+        onChangeText={setEmailOrUsername}
+        autoCapitalize="none"
+        autoComplete="username"
+        editable={!loading}
+      />
+
+      <TextInput
+        style={styles.input}
+        placeholder="Password"
+        placeholderTextColor="#666"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        autoCapitalize="none"
+        autoComplete="password"
+        editable={!loading}
+      />
+
+      <TouchableOpacity
+        style={styles.forgotButton}
+        onPress={() => router.push('/(auth)/reset-password')}
+        disabled={loading}
+      >
+        <Text style={styles.forgotText}>Forgot password?</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.button, loading && styles.buttonDisabled]}
+        onPress={handlePasswordSignIn}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Sign In</Text>
+        )}
+      </TouchableOpacity>
+    </>
+  );
+
+  const renderOTPTab = () => {
+    if (!otpSent) {
+      return (
+        <>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            placeholderTextColor="#666"
+            value={otpEmail}
+            onChangeText={setOtpEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoComplete="email"
+            editable={!loading}
+          />
+
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={handleSendOTP}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Send Code</Text>
+            )}
+          </TouchableOpacity>
+        </>
+      );
+    }
+
+    return (
+      <>
+        <TextInput
+          style={styles.input}
+          placeholder="6-digit code"
+          placeholderTextColor="#666"
+          value={otp}
+          onChangeText={setOtp}
+          keyboardType="number-pad"
+          maxLength={6}
+          editable={!loading}
+        />
+
+        <TouchableOpacity
+          style={[styles.button, loading && styles.buttonDisabled]}
+          onPress={handleVerifyOTP}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Verify</Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.linkButton}
+          onPress={() => setOtpSent(false)}
+          disabled={loading}
+        >
+          <Text style={styles.linkText}>Back to email</Text>
+        </TouchableOpacity>
+      </>
+    );
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.content}>
-        <Text style={styles.title}>UFC Picks Tracker</Text>
-        <Text style={styles.subtitle}>
-          {otpSent ? 'Enter verification code' : 'Sign in with email'}
-        </Text>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.content}>
+          <Text style={styles.title}>UFC Picks Tracker</Text>
+          <Text style={styles.subtitle}>Sign in to continue</Text>
 
-        {!otpSent ? (
-          <>
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              placeholderTextColor="#666"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              editable={!loading}
-            />
-
+          {/* Tab Navigation */}
+          <View style={styles.tabContainer}>
             <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleSendOTP}
+              style={[styles.tab, activeTab === 'password' && styles.tabActive]}
+              onPress={() => setActiveTab('password')}
               disabled={loading}
             >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Send Code</Text>
-              )}
-            </TouchableOpacity>
-          </>
-        ) : (
-          <>
-            <TextInput
-              style={styles.input}
-              placeholder="6-digit code"
-              placeholderTextColor="#666"
-              value={otp}
-              onChangeText={setOtp}
-              keyboardType="number-pad"
-              maxLength={6}
-              editable={!loading}
-            />
-
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleVerifyOTP}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Verify</Text>
-              )}
+              <Text style={[styles.tabText, activeTab === 'password' && styles.tabTextActive]}>
+                Password
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.linkButton}
-              onPress={() => setOtpSent(false)}
+              style={[styles.tab, activeTab === 'otp' && styles.tabActive]}
+              onPress={() => setActiveTab('otp')}
               disabled={loading}
             >
-              <Text style={styles.linkText}>Back to email</Text>
+              <Text style={[styles.tabText, activeTab === 'otp' && styles.tabTextActive]}>
+                Email Code
+              </Text>
             </TouchableOpacity>
-          </>
-        )}
-      </View>
+          </View>
+
+          {/* Tab Content */}
+          <View style={styles.tabContent}>
+            {activeTab === 'password' ? renderPasswordTab() : renderOTPTab()}
+          </View>
+
+          {/* Sign Up Link */}
+          <TouchableOpacity
+            style={styles.signUpButton}
+            onPress={() => router.push('/(auth)/sign-up')}
+            disabled={loading}
+          >
+            <Text style={styles.signUpText}>
+              Don't have an account? <Text style={styles.signUpTextBold}>Sign up</Text>
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -151,10 +280,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
+  scrollContent: {
+    flexGrow: 1,
+  },
   content: {
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: 24,
+    paddingVertical: 32,
   },
   title: {
     fontSize: 32,
@@ -169,6 +302,33 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 32,
   },
+  tabContainer: {
+    flexDirection: 'row',
+    marginBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabActive: {
+    borderBottomColor: '#d4202a',
+  },
+  tabText: {
+    fontSize: 16,
+    color: '#999',
+    fontWeight: '500',
+  },
+  tabTextActive: {
+    color: '#fff',
+  },
+  tabContent: {
+    marginTop: 8,
+  },
   input: {
     backgroundColor: '#1a1a1a',
     borderWidth: 1,
@@ -178,6 +338,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#fff',
     marginBottom: 16,
+  },
+  forgotButton: {
+    alignSelf: 'flex-end',
+    marginBottom: 16,
+  },
+  forgotText: {
+    color: '#d4202a',
+    fontSize: 14,
   },
   button: {
     backgroundColor: '#d4202a',
@@ -202,5 +370,18 @@ const styles = StyleSheet.create({
   linkText: {
     color: '#d4202a',
     fontSize: 14,
+  },
+  signUpButton: {
+    marginTop: 24,
+    padding: 8,
+    alignItems: 'center',
+  },
+  signUpText: {
+    color: '#999',
+    fontSize: 14,
+  },
+  signUpTextBold: {
+    color: '#d4202a',
+    fontWeight: 'bold',
   },
 });
