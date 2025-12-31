@@ -6,10 +6,14 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { SkeletonLine } from './SkeletonCard';
+import { useTheme } from '../lib/theme';
+import { radius, spacing } from '../lib/tokens';
 
 export const SkeletonFightCard: React.FC = () => {
+  const { colors } = useTheme();
+
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       {/* Fight header - order and weight class */}
       <View style={styles.header}>
         <SkeletonLine width={80} height={14} marginBottom={0} />
@@ -17,7 +21,7 @@ export const SkeletonFightCard: React.FC = () => {
       </View>
 
       {/* Red corner fighter */}
-      <View style={styles.fighterButton}>
+      <View style={[styles.fighterButton, { backgroundColor: colors.surfaceAlt }]}>
         <View style={styles.redIndicator} />
         <SkeletonLine width="70%" height={16} marginBottom={0} />
       </View>
@@ -26,7 +30,7 @@ export const SkeletonFightCard: React.FC = () => {
       <View style={styles.vsSpacer} />
 
       {/* Blue corner fighter */}
-      <View style={styles.fighterButton}>
+      <View style={[styles.fighterButton, { backgroundColor: colors.surfaceAlt }]}>
         <View style={styles.blueIndicator} />
         <SkeletonLine width="65%" height={16} marginBottom={0} />
       </View>
@@ -36,25 +40,22 @@ export const SkeletonFightCard: React.FC = () => {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: radius.card,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
     borderWidth: 1,
-    borderColor: '#333',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.sm,
   },
   fighterButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#262626',
-    borderRadius: 8,
-    padding: 16,
+    borderRadius: radius.sm,
+    padding: spacing.md,
     marginBottom: 8,
     position: 'relative',
   },
@@ -68,7 +69,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#dc2626',
     borderTopLeftRadius: 6,
     borderBottomLeftRadius: 6,
-    marginRight: 12,
+    marginRight: spacing.sm,
   },
   blueIndicator: {
     width: 4,
@@ -80,7 +81,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#2563eb',
     borderTopLeftRadius: 6,
     borderBottomLeftRadius: 6,
-    marginRight: 12,
+    marginRight: spacing.sm,
   },
   vsSpacer: {
     height: 8,

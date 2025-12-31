@@ -4,13 +4,16 @@
 
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Animated } from 'react-native';
 import { useState, useRef, useMemo } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../hooks/useAuth';
 import { useNextEvent, useBoutsForEvent, useUpsertPick, isEventLocked } from '../../hooks/useQueries';
 import { useEventCommunityPercentages } from '../../hooks/useLeaderboard';
 import { useToast } from '../../hooks/useToast';
+import { useTheme } from '../../lib/theme';
+import { spacing, radius, typography } from '../../lib/tokens';
+import { Card, EmptyState } from '../../components/ui';
 import { ErrorState } from '../../components/ErrorState';
-import { EmptyState } from '../../components/EmptyState';
 import { SkeletonFightCard } from '../../components/SkeletonFightCard';
 import { BoutWithPick, PickInsert } from '../../types/database';
 import type { CommunityPickPercentages } from '../../types/social';
@@ -21,6 +24,8 @@ const CommunityPercentageBar: React.FC<{
   redName: string;
   blueName: string;
 }> = ({ percentages, redName, blueName }) => {
+  const { colors } = useTheme();
+
   if (!percentages || percentages.total_picks === 0) {
     return null;
   }
@@ -29,12 +34,16 @@ const CommunityPercentageBar: React.FC<{
   const bluePct = percentages.fighter_b_percentage || 0;
 
   return (
-    <View style={communityStyles.container}>
+    <View style={[communityStyles.container, { borderBottomColor: colors.divider }]}>
       <View style={communityStyles.header}>
-        <Text style={communityStyles.label}>Community Picks</Text>
-        <Text style={communityStyles.totalPicks}>{percentages.total_picks} picks</Text>
+        <Text style={[communityStyles.label, { color: colors.textSecondary }]}>
+          Community Picks
+        </Text>
+        <Text style={[communityStyles.totalPicks, { color: colors.textTertiary }]}>
+          {percentages.total_picks} picks
+        </Text>
       </View>
-      <View style={communityStyles.barContainer}>
+      <View style={[communityStyles.barContainer, { backgroundColor: colors.surfaceAlt }]}>
         <View style={[communityStyles.barRed, { flex: redPct || 1 }]}>
           <Text style={communityStyles.percentage}>{redPct.toFixed(0)}%</Text>
         </View>
@@ -48,48 +57,43 @@ const CommunityPercentageBar: React.FC<{
 
 const communityStyles = StyleSheet.create({
   container: {
-    marginBottom: 12,
-    paddingBottom: 12,
+    marginBottom: spacing.md,
+    paddingBottom: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   label: {
-    fontSize: 11,
-    color: '#999',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    ...typography.caption,
   },
   totalPicks: {
-    fontSize: 11,
-    color: '#666',
+    ...typography.meta,
   },
   barContainer: {
     flexDirection: 'row',
-    height: 24,
-    borderRadius: 4,
+    height: 28,
+    borderRadius: radius.sm,
     overflow: 'hidden',
   },
   barRed: {
     backgroundColor: '#dc2626',
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 40,
+    minWidth: 44,
   },
   barBlue: {
     backgroundColor: '#2563eb',
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 40,
+    minWidth: 44,
   },
   percentage: {
-    fontSize: 11,
-    fontWeight: 'bold',
+    ...typography.meta,
+    fontWeight: '700',
     color: '#fff',
   },
 });
@@ -101,14 +105,15 @@ const FighterButton: React.FC<{
   locked: boolean;
   onPress: () => void;
 }> = ({ bout, corner, locked, onPress }) => {
+  const { colors } = useTheme();
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
-      toValue: 0.95,
+      toValue: 0.97,
       useNativeDriver: true,
       tension: 150,
-      friction: 3,
+      friction: 5,
     }).start();
   };
 
@@ -117,7 +122,7 @@ const FighterButton: React.FC<{
       toValue: 1,
       useNativeDriver: true,
       tension: 150,
-      friction: 3,
+      friction: 5,
     }).start();
   };
 
@@ -129,9 +134,12 @@ const FighterButton: React.FC<{
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
       <TouchableOpacity
         style={[
-          styles.fighterButton,
-          isSelected && styles.fighterButtonSelected,
-          locked && styles.fighterButtonDisabled,
+          fighterStyles.button,
+          {
+            backgroundColor: isSelected ? colors.accentSoft : colors.surfaceAlt,
+            borderColor: isSelected ? colors.accent : colors.border,
+          },
+          locked && fighterStyles.disabled,
         ]}
         onPress={onPress}
         onPressIn={handlePressIn}
@@ -139,19 +147,16 @@ const FighterButton: React.FC<{
         disabled={locked || bout.status !== 'scheduled'}
         activeOpacity={0.9}
       >
-        <View style={[styles.cornerIndicator, { backgroundColor: cornerColor }]} />
+        <View style={[fighterStyles.cornerIndicator, { backgroundColor: cornerColor }]} />
         <Text
-          style={[
-            styles.fighterName,
-            isSelected && styles.fighterNameSelected,
-          ]}
+          style={[fighterStyles.name, { color: colors.textPrimary }]}
           numberOfLines={2}
         >
           {fighterName}
         </Text>
         {isSelected && (
-          <View style={styles.checkmark}>
-            <Text style={styles.checkmarkText}>✓</Text>
+          <View style={[fighterStyles.checkmark, { backgroundColor: colors.accent }]}>
+            <Ionicons name="checkmark" size={14} color={colors.onAccent} />
           </View>
         )}
       </TouchableOpacity>
@@ -159,7 +164,44 @@ const FighterButton: React.FC<{
   );
 };
 
+const fighterStyles = StyleSheet.create({
+  button: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: radius.input,
+    padding: spacing.md,
+    borderWidth: 1.5,
+  },
+  disabled: {
+    opacity: 0.5,
+  },
+  cornerIndicator: {
+    width: 4,
+    height: '100%',
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    borderTopLeftRadius: radius.input - 2,
+    borderBottomLeftRadius: radius.input - 2,
+  },
+  name: {
+    flex: 1,
+    ...typography.body,
+    fontWeight: '600',
+    marginLeft: spacing.md,
+  },
+  checkmark: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
+
 export default function Pick() {
+  const { colors } = useTheme();
   const { user } = useAuth();
   const toast = useToast();
   const { data: nextEvent, isLoading: eventLoading, isError: eventError, refetch: refetchEvent } = useNextEvent();
@@ -169,7 +211,6 @@ export default function Pick() {
   );
   const upsertPick = useUpsertPick();
 
-  // Get bout IDs for community percentages
   const boutIds = useMemo(() => bouts?.map((b) => b.id) || [], [bouts]);
   const { data: communityPercentages, refetch: refetchPercentages } = useEventCommunityPercentages(boutIds);
 
@@ -199,7 +240,6 @@ export default function Pick() {
     }
 
     try {
-      // Light haptic on pick selection
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       const pick: PickInsert = {
@@ -210,11 +250,8 @@ export default function Pick() {
       };
 
       await upsertPick.mutateAsync(pick);
-
-      // Success haptic on save
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error: any) {
-      // Error haptic on failure
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
       if (error.message.includes('locked')) {
@@ -227,8 +264,10 @@ export default function Pick() {
 
   if (eventLoading || boutsLoading) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <SkeletonFightCard />
+      <ScrollView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        contentContainerStyle={styles.content}
+      >
         <SkeletonFightCard />
         <SkeletonFightCard />
         <SkeletonFightCard />
@@ -239,86 +278,102 @@ export default function Pick() {
 
   if (eventError) {
     return (
-      <ErrorState
-        message="Failed to load upcoming events. Check your connection and try again."
-        onRetry={() => refetchEvent()}
-      />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <ErrorState
+          message="Failed to load upcoming events. Check your connection and try again."
+          onRetry={() => refetchEvent()}
+        />
+      </View>
     );
   }
 
   if (boutsError) {
     return (
-      <ErrorState
-        message="Failed to load fights. Check your connection and try again."
-        onRetry={() => refetchBouts()}
-      />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <ErrorState
+          message="Failed to load fights. Check your connection and try again."
+          onRetry={() => refetchBouts()}
+        />
+      </View>
     );
   }
 
   if (!nextEvent) {
     return (
-      <EmptyState
-        icon="calendar-outline"
-        title="No Upcoming Events"
-        message="There are no scheduled UFC events at the moment. Check back soon!"
-        actionLabel="Refresh"
-        onAction={onRefresh}
-      />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <EmptyState
+          icon="calendar-outline"
+          title="No Upcoming Events"
+          message="There are no scheduled UFC events at the moment. Check back soon!"
+          actionLabel="Refresh"
+          onAction={onRefresh}
+        />
+      </View>
     );
   }
 
   if (!bouts || bouts.length === 0) {
     return (
-      <EmptyState
-        icon="radio-outline"
-        title="No Fights Available"
-        message="The fight card hasn't been released yet. Check back closer to the event date."
-        actionLabel="Refresh"
-        onAction={onRefresh}
-      />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <EmptyState
+          icon="radio-outline"
+          title="No Fights Available"
+          message="The fight card hasn't been released yet. Check back closer to the event date."
+          actionLabel="Refresh"
+          onAction={onRefresh}
+        />
+      </View>
     );
   }
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          tintColor="#d4202a"
-          colors={['#d4202a']}
+          tintColor={colors.accent}
+          colors={[colors.accent]}
         />
       }
     >
       {/* Event Header */}
       <View style={styles.header}>
-        <Text style={styles.eventName}>{nextEvent.name}</Text>
+        <Text style={[styles.eventName, { color: colors.textPrimary }]}>
+          {nextEvent.name}
+        </Text>
         {locked && (
-          <View style={styles.lockedBanner}>
-            <Text style={styles.lockedText}>🔒 Picks Locked</Text>
+          <View style={[styles.lockedBanner, { backgroundColor: colors.surfaceAlt }]}>
+            <Text style={[styles.lockedText, { color: colors.textSecondary }]}>
+              🔒 Picks Locked
+            </Text>
           </View>
         )}
       </View>
 
       {/* Fights List */}
       {bouts.map((bout, index) => (
-        <View key={bout.id} style={styles.fightCard}>
+        <Card key={bout.id} style={styles.fightCard}>
           {/* Order Index / Weight Class */}
           <View style={styles.fightHeader}>
-            <Text style={styles.fightOrder}>
+            <Text style={[styles.fightOrder, { color: colors.accent }]}>
               {index === 0 ? 'Main Event' : `Fight ${bouts.length - index}`}
             </Text>
             {bout.weight_class && (
-              <Text style={styles.weightClass}>{bout.weight_class}</Text>
+              <Text style={[styles.weightClass, { color: colors.textTertiary }]}>
+                {bout.weight_class}
+              </Text>
             )}
           </View>
 
           {/* Voided/Canceled Banner */}
           {(bout.status === 'canceled' || bout.status === 'replaced' || bout.pick?.status === 'voided') && (
-            <View style={[styles.lockedBanner, { backgroundColor: '#4a3535' }]}>
-              <Text style={styles.lockedText}>⚠️ Fight Canceled - Pick Voided</Text>
+            <View style={[styles.canceledBanner, { backgroundColor: colors.dangerSoft }]}>
+              <Text style={[styles.canceledText, { color: colors.danger }]}>
+                ⚠️ Fight Canceled - Pick Voided
+              </Text>
             </View>
           )}
 
@@ -331,7 +386,6 @@ export default function Pick() {
 
           {/* Fighters */}
           <View style={styles.fighters}>
-            {/* Red Corner */}
             <FighterButton
               bout={bout}
               corner="red"
@@ -339,10 +393,8 @@ export default function Pick() {
               onPress={() => handlePickFighter(bout, 'red')}
             />
 
-            {/* VS */}
-            <Text style={styles.vs}>VS</Text>
+            <Text style={[styles.vs, { color: colors.textTertiary }]}>VS</Text>
 
-            {/* Blue Corner */}
             <FighterButton
               bout={bout}
               corner="blue"
@@ -353,14 +405,14 @@ export default function Pick() {
 
           {/* Result (if available) */}
           {bout.result?.winner_corner && (
-            <View style={styles.resultContainer}>
-              <Text style={styles.resultText}>
+            <View style={[styles.resultContainer, { borderTopColor: colors.divider }]}>
+              <Text style={[styles.resultText, { color: colors.textPrimary }]}>
                 {bout.result.winner_corner === 'draw' || bout.result.winner_corner === 'nc'
                   ? bout.result.winner_corner.toUpperCase()
                   : `${bout.result.winner_corner === 'red' ? bout.red_name : bout.blue_name} wins`}
               </Text>
               {bout.result.method && (
-                <Text style={styles.resultMethod}>
+                <Text style={[styles.resultMethod, { color: colors.textSecondary }]}>
                   via {bout.result.method}
                   {bout.result.round && ` - R${bout.result.round}`}
                 </Text>
@@ -371,7 +423,7 @@ export default function Pick() {
                 <View
                   style={[
                     styles.gradeBadge,
-                    { backgroundColor: bout.pick.score === 1 ? '#16a34a' : '#dc2626' },
+                    { backgroundColor: bout.pick.score === 1 ? colors.success : colors.danger },
                   ]}
                 >
                   <Text style={styles.gradeText}>
@@ -381,7 +433,7 @@ export default function Pick() {
               )}
             </View>
           )}
-        </View>
+        </Card>
       ))}
     </ScrollView>
   );
@@ -390,143 +442,82 @@ export default function Pick() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   content: {
-    padding: 16,
+    padding: spacing.lg,
+    gap: spacing.md,
   },
   header: {
-    marginBottom: 16,
+    marginBottom: spacing.sm,
   },
   eventName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
+    ...typography.h2,
+    marginBottom: spacing.sm,
   },
   lockedBanner: {
-    backgroundColor: '#333',
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: radius.sm,
+    padding: spacing.md,
     alignItems: 'center',
   },
   lockedText: {
-    color: '#999',
-    fontSize: 14,
+    ...typography.body,
     fontWeight: '600',
   },
   fightCard: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#333',
+    marginBottom: 0,
   },
   fightHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   fightOrder: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#d4202a',
+    ...typography.caption,
   },
   weightClass: {
-    fontSize: 12,
-    color: '#999',
+    ...typography.meta,
+  },
+  canceledBanner: {
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+    alignItems: 'center',
+  },
+  canceledText: {
+    ...typography.meta,
+    fontWeight: '600',
   },
   fighters: {
-    gap: 8,
-  },
-  fighterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#262626',
-    borderRadius: 8,
-    padding: 16,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  fighterButtonSelected: {
-    borderColor: '#d4202a',
-    backgroundColor: '#2a1a1a',
-  },
-  fighterButtonDisabled: {
-    opacity: 0.5,
-  },
-  cornerIndicator: {
-    width: 4,
-    height: '100%',
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    borderTopLeftRadius: 6,
-    borderBottomLeftRadius: 6,
-  },
-  fighterName: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-    marginLeft: 12,
-  },
-  fighterNameSelected: {
-    color: '#fff',
-  },
-  checkmark: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#d4202a',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkmarkText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
+    gap: spacing.sm,
   },
   vs: {
-    fontSize: 12,
-    color: '#666',
+    ...typography.caption,
     textAlign: 'center',
-    fontWeight: 'bold',
   },
   resultContainer: {
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#333',
   },
   resultText: {
-    fontSize: 14,
-    color: '#fff',
+    ...typography.body,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   resultMethod: {
-    fontSize: 12,
-    color: '#999',
-    marginBottom: 8,
+    ...typography.meta,
+    marginBottom: spacing.sm,
   },
   gradeBadge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
   },
   gradeText: {
+    ...typography.meta,
+    fontWeight: '700',
     color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  noDataText: {
-    fontSize: 16,
-    color: '#999',
-    textAlign: 'center',
   },
 });

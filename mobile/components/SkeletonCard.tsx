@@ -5,6 +5,8 @@
 
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
+import { useTheme } from '../lib/theme';
+import { radius } from '../lib/tokens';
 
 interface SkeletonCardProps {
   width?: number | string;
@@ -16,9 +18,10 @@ interface SkeletonCardProps {
 export const SkeletonCard: React.FC<SkeletonCardProps> = ({
   width = '100%',
   height = 100,
-  borderRadius = 12,
+  borderRadius = radius.card,
   marginBottom = 16,
 }) => {
+  const { colors } = useTheme();
   const pulseAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -57,6 +60,7 @@ export const SkeletonCard: React.FC<SkeletonCardProps> = ({
           borderRadius,
           marginBottom,
           opacity,
+          backgroundColor: colors.skeleton,
         },
       ]}
     />
@@ -74,6 +78,7 @@ export const SkeletonLine: React.FC<SkeletonLineProps> = ({
   height = 16,
   marginBottom = 8,
 }) => {
+  const { colors } = useTheme();
   const pulseAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -112,6 +117,7 @@ export const SkeletonLine: React.FC<SkeletonLineProps> = ({
           marginBottom,
           borderRadius: 4,
           opacity,
+          backgroundColor: colors.skeleton,
         },
       ]}
     />
@@ -119,7 +125,5 @@ export const SkeletonLine: React.FC<SkeletonLineProps> = ({
 };
 
 const styles = StyleSheet.create({
-  skeleton: {
-    backgroundColor: '#2a2a2a',
-  },
+  skeleton: {},
 });

@@ -6,6 +6,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../lib/theme';
+import { spacing, radius } from '../lib/tokens';
 
 interface ErrorStateProps {
   message: string;
@@ -13,9 +15,11 @@ interface ErrorStateProps {
 }
 
 export const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry }) => {
+  const { colors } = useTheme();
+
   return (
-    <View style={styles.container}>
-      <View style={styles.errorCard}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.errorCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         {/* Angular accent bars */}
         <View style={styles.accentTop} />
         <View style={styles.accentBottom} />
@@ -31,18 +35,22 @@ export const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry }) => {
         <Text style={styles.errorLabel}>ERROR</Text>
 
         {/* Error Message */}
-        <Text style={styles.message}>{message}</Text>
+        <Text style={[styles.message, { color: colors.text }]}>{message}</Text>
 
         {/* Retry Button - UFC Fight Card Style */}
-        <TouchableOpacity style={styles.retryButton} onPress={onRetry} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={[styles.retryButton, { backgroundColor: colors.accent }]}
+          onPress={onRetry}
+          activeOpacity={0.8}
+        >
           <View style={styles.buttonInner}>
-            <Ionicons name="reload" size={20} color="#000" style={styles.reloadIcon} />
+            <Ionicons name="reload" size={20} color="#fff" style={styles.reloadIcon} />
             <Text style={styles.retryText}>TRY AGAIN</Text>
           </View>
         </TouchableOpacity>
 
         {/* Subtle help text */}
-        <Text style={styles.helpText}>
+        <Text style={[styles.helpText, { color: colors.textMuted }]}>
           Pull down to refresh or tap above to retry
         </Text>
       </View>
@@ -55,19 +63,16 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#000',
-    padding: 24,
+    padding: spacing.xl,
   },
   errorCard: {
     position: 'relative',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 4,
-    padding: 32,
+    borderRadius: radius.sm,
+    padding: spacing.xxl,
     width: '100%',
     maxWidth: 400,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#333',
     overflow: 'hidden',
   },
   // Angular accent bars for UFC aesthetic
@@ -88,7 +93,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ef4444',
   },
   iconContainer: {
-    marginBottom: 24,
+    marginBottom: spacing.xl,
   },
   iconBg: {
     width: 120,
@@ -105,29 +110,27 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 3,
     color: '#ef4444',
-    marginBottom: 12,
+    marginBottom: spacing.sm,
     textTransform: 'uppercase',
   },
   message: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 32,
+    marginBottom: spacing.xxl,
     letterSpacing: 0.3,
   },
   retryButton: {
-    backgroundColor: '#d4202a',
-    borderRadius: 2, // Sharp, not soft
+    borderRadius: radius.sm, // Sharp, not soft
     width: '100%',
     overflow: 'hidden',
-    shadowColor: '#d4202a',
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.3,
     shadowRadius: 12,
     elevation: 8,
   },
@@ -135,23 +138,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
   },
   reloadIcon: {
     marginRight: 8,
   },
   retryText: {
-    color: '#000',
+    color: '#fff',
     fontSize: 16,
     fontWeight: '900',
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
   helpText: {
-    marginTop: 20,
+    marginTop: spacing.lg,
     fontSize: 12,
-    color: '#666',
     textAlign: 'center',
     letterSpacing: 0.5,
   },

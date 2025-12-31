@@ -15,6 +15,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useTheme } from '../lib/theme';
+import { radius, spacing } from '../lib/tokens';
 
 const { width } = Dimensions.get('window');
 
@@ -47,6 +49,7 @@ const TOAST_CONFIG = {
 };
 
 export const Toast: React.FC<ToastProps> = ({ id, type, message, onDismiss, index }) => {
+  const { colors } = useTheme();
   const translateY = useRef(new Animated.Value(-100)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.8)).current;
@@ -130,7 +133,7 @@ export const Toast: React.FC<ToastProps> = ({ id, type, message, onDismiss, inde
         onPress={handleDismiss}
         style={styles.touchable}
       >
-        <View style={[styles.toast, { borderLeftColor: config.color }]}>
+        <View style={[styles.toast, { backgroundColor: colors.surface, borderLeftColor: config.color, borderColor: colors.border }]}>
           {/* Accent glow effect */}
           <View
             style={[
@@ -141,11 +144,11 @@ export const Toast: React.FC<ToastProps> = ({ id, type, message, onDismiss, inde
 
           {/* Icon */}
           <View style={[styles.iconContainer, { backgroundColor: config.color }]}>
-            <Ionicons name={config.icon} size={22} color="#000" />
+            <Ionicons name={config.icon} size={22} color="#fff" />
           </View>
 
           {/* Message */}
-          <Text style={styles.message} numberOfLines={2}>
+          <Text style={[styles.message, { color: colors.text }]} numberOfLines={2}>
             {message}
           </Text>
 
@@ -155,7 +158,7 @@ export const Toast: React.FC<ToastProps> = ({ id, type, message, onDismiss, inde
             style={styles.closeButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name="close" size={20} color="#666" />
+            <Ionicons name="close" size={20} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -174,23 +177,21 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   toast: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 4, // Sharp, not soft
+    borderRadius: radius.sm, // Sharp, not soft
     borderLeftWidth: 4,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 8,
     },
-    shadowOpacity: 0.6,
+    shadowOpacity: 0.4,
     shadowRadius: 16,
     elevation: 12,
     borderWidth: 1,
-    borderColor: '#2a2a2a',
     overflow: 'hidden',
   },
   glowOverlay: {
@@ -207,12 +208,11 @@ const styles = StyleSheet.create({
     borderRadius: 2, // Angular, UFC-inspired
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: spacing.sm,
     zIndex: 1,
   },
   message: {
     flex: 1,
-    color: '#fff',
     fontSize: 15,
     fontWeight: '600',
     letterSpacing: 0.3,

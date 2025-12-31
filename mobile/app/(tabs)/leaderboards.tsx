@@ -14,8 +14,10 @@ import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useLeaderboard } from '../../hooks/useLeaderboard';
+import { useTheme } from '../../lib/theme';
+import { spacing, radius } from '../../lib/tokens';
 import { ErrorState } from '../../components/ErrorState';
-import { EmptyState } from '../../components/EmptyState';
+import { EmptyState } from '../../components/ui';
 import { SkeletonCard } from '../../components/SkeletonCard';
 import type { LeaderboardEntry } from '../../types/social';
 
@@ -23,6 +25,7 @@ type TabType = 'global' | 'friends';
 
 export default function Leaderboards() {
   const { user } = useAuth();
+  const { colors } = useTheme();
   const [activeTab, setActiveTab] = useState<TabType>('global');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -56,21 +59,21 @@ export default function Leaderboards() {
 
   if (hasError) {
     return (
-      <View style={styles.container}>
-        <View style={styles.tabContainer}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.tabContainer, { backgroundColor: colors.surface, borderBottomColor: colors.divider }]}>
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'global' && styles.tabActive]}
+            style={[styles.tab, activeTab === 'global' && { borderBottomColor: colors.accent }]}
             onPress={() => setActiveTab('global')}
           >
-            <Text style={[styles.tabText, activeTab === 'global' && styles.tabTextActive]}>
+            <Text style={[styles.tabText, { color: colors.textMuted }, activeTab === 'global' && { color: colors.text }]}>
               Global
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'friends' && styles.tabActive]}
+            style={[styles.tab, activeTab === 'friends' && { borderBottomColor: colors.accent }]}
             onPress={() => setActiveTab('friends')}
           >
-            <Text style={[styles.tabText, activeTab === 'friends' && styles.tabTextActive]}>
+            <Text style={[styles.tabText, { color: colors.textMuted }, activeTab === 'friends' && { color: colors.text }]}>
               Friends
             </Text>
           </TouchableOpacity>
@@ -83,14 +86,14 @@ export default function Leaderboards() {
     );
   }
 
-  const getRankStyle = (rank: number) => {
+  const getRankBorderColor = (rank: number) => {
     switch (rank) {
       case 1:
-        return styles.goldRank;
+        return '#fbbf24'; // gold
       case 2:
-        return styles.silverRank;
+        return '#9ca3af'; // silver
       case 3:
-        return styles.bronzeRank;
+        return '#cd7f32'; // bronze
       default:
         return null;
     }
@@ -112,25 +115,27 @@ export default function Leaderboards() {
   const renderLeaderboardItem = (entry: LeaderboardEntry, index: number) => {
     const isMe = entry.user_id === user?.id;
     const rankIcon = getRankIcon(entry.rank);
+    const rankBorderColor = getRankBorderColor(entry.rank);
 
     return (
       <View
         key={entry.user_id}
         style={[
           styles.leaderboardItem,
-          isMe && styles.myEntry,
-          getRankStyle(entry.rank),
+          { backgroundColor: colors.surface, borderColor: colors.border },
+          isMe && { borderColor: colors.accent, borderWidth: 2 },
+          rankBorderColor && { borderColor: rankBorderColor, borderWidth: 2 },
         ]}
       >
         <View style={styles.rankContainer}>
           {rankIcon ? (
             <Text style={styles.rankIcon}>{rankIcon}</Text>
           ) : (
-            <Text style={styles.rankNumber}>{entry.rank}</Text>
+            <Text style={[styles.rankNumber, { color: colors.textMuted }]}>{entry.rank}</Text>
           )}
         </View>
 
-        <View style={styles.avatar}>
+        <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
           <Text style={styles.avatarText}>
             {entry.username.charAt(0).toUpperCase()}
           </Text>
@@ -138,16 +143,16 @@ export default function Leaderboards() {
 
         <View style={styles.userInfo}>
           <View style={styles.nameRow}>
-            <Text style={[styles.username, isMe && styles.myUsername]}>
+            <Text style={[styles.username, { color: colors.text }, isMe && { color: colors.accent }]}>
               {entry.username}
             </Text>
             {isMe && (
-              <View style={styles.youBadge}>
+              <View style={[styles.youBadge, { backgroundColor: colors.accent }]}>
                 <Text style={styles.youBadgeText}>You</Text>
               </View>
             )}
           </View>
-          <Text style={styles.picks}>{entry.total_picks} picks</Text>
+          <Text style={[styles.picks, { color: colors.textSecondary }]}>{entry.total_picks} picks</Text>
         </View>
 
         <View style={styles.accuracyContainer}>
@@ -158,35 +163,35 @@ export default function Leaderboards() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Tabs */}
-      <View style={styles.tabContainer}>
+      <View style={[styles.tabContainer, { backgroundColor: colors.surface, borderBottomColor: colors.divider }]}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'global' && styles.tabActive]}
+          style={[styles.tab, activeTab === 'global' && { borderBottomColor: colors.accent }]}
           onPress={() => setActiveTab('global')}
         >
           <Ionicons
             name="globe-outline"
             size={18}
-            color={activeTab === 'global' ? '#fff' : '#666'}
+            color={activeTab === 'global' ? colors.text : colors.textMuted}
             style={styles.tabIcon}
           />
-          <Text style={[styles.tabText, activeTab === 'global' && styles.tabTextActive]}>
+          <Text style={[styles.tabText, { color: colors.textMuted }, activeTab === 'global' && { color: colors.text }]}>
             Global
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'friends' && styles.tabActive]}
+          style={[styles.tab, activeTab === 'friends' && { borderBottomColor: colors.accent }]}
           onPress={() => setActiveTab('friends')}
         >
           <Ionicons
             name="people-outline"
             size={18}
-            color={activeTab === 'friends' ? '#fff' : '#666'}
+            color={activeTab === 'friends' ? colors.text : colors.textMuted}
             style={styles.tabIcon}
           />
-          <Text style={[styles.tabText, activeTab === 'friends' && styles.tabTextActive]}>
+          <Text style={[styles.tabText, { color: colors.textMuted }, activeTab === 'friends' && { color: colors.text }]}>
             Friends
           </Text>
         </TouchableOpacity>
@@ -194,12 +199,12 @@ export default function Leaderboards() {
 
       {/* My Rank Banner */}
       {myRank && !isLoading && (
-        <View style={styles.myRankBanner}>
-          <Ionicons name="trophy-outline" size={20} color="#d4202a" />
-          <Text style={styles.myRankText}>
-            Your Rank: <Text style={styles.myRankNumber}>#{myRank.rank}</Text>
+        <View style={[styles.myRankBanner, { backgroundColor: colors.surface, borderBottomColor: colors.divider }]}>
+          <Ionicons name="trophy-outline" size={20} color={colors.accent} />
+          <Text style={[styles.myRankText, { color: colors.text }]}>
+            Your Rank: <Text style={[styles.myRankNumber, { color: colors.accent }]}>#{myRank.rank}</Text>
           </Text>
-          <Text style={styles.myRankAccuracy}>{myRank.accuracy.toFixed(1)}%</Text>
+          <Text style={[styles.myRankAccuracy, { color: colors.textSecondary }]}>{myRank.accuracy.toFixed(1)}%</Text>
         </View>
       )}
 
@@ -211,8 +216,8 @@ export default function Leaderboards() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#d4202a"
-            colors={['#d4202a']}
+            tintColor={colors.accent}
+            colors={[colors.accent]}
           />
         }
       >
@@ -245,92 +250,59 @@ export default function Leaderboards() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#1a1a1a',
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   tab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    paddingVertical: spacing.md,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
-  tabActive: {
-    borderBottomColor: '#d4202a',
-  },
   tabIcon: {
-    marginRight: 6,
+    marginRight: spacing.xs,
   },
   tabText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#666',
-  },
-  tabTextActive: {
-    color: '#fff',
   },
   myRankBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1a1a1a',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
     gap: 8,
   },
   myRankText: {
     fontSize: 15,
-    color: '#fff',
   },
   myRankNumber: {
     fontWeight: 'bold',
-    color: '#d4202a',
   },
   myRankAccuracy: {
     fontSize: 14,
-    color: '#999',
     marginLeft: 'auto',
   },
   scrollView: {
     flex: 1,
   },
   content: {
-    padding: 16,
+    padding: spacing.md,
   },
   leaderboardItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
+    borderRadius: radius.card,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
     borderWidth: 1,
-    borderColor: '#333',
-  },
-  myEntry: {
-    borderColor: '#d4202a',
-    borderWidth: 2,
-  },
-  goldRank: {
-    borderColor: '#fbbf24',
-    borderWidth: 2,
-  },
-  silverRank: {
-    borderColor: '#9ca3af',
-    borderWidth: 2,
-  },
-  bronzeRank: {
-    borderColor: '#cd7f32',
-    borderWidth: 2,
   },
   rankContainer: {
     width: 36,
@@ -342,16 +314,14 @@ const styles = StyleSheet.create({
   rankNumber: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#999',
   },
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#d4202a',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: spacing.sm,
   },
   avatarText: {
     fontSize: 18,
@@ -369,13 +339,8 @@ const styles = StyleSheet.create({
   username: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#fff',
-  },
-  myUsername: {
-    color: '#d4202a',
   },
   youBadge: {
-    backgroundColor: '#d4202a',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -387,7 +352,6 @@ const styles = StyleSheet.create({
   },
   picks: {
     fontSize: 13,
-    color: '#999',
     marginTop: 2,
   },
   accuracyContainer: {

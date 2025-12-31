@@ -17,8 +17,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useFriends } from '../../hooks/useFriends';
 import { useToast } from '../../hooks/useToast';
+import { useTheme } from '../../lib/theme';
+import { spacing, radius } from '../../lib/tokens';
 import { ErrorState } from '../../components/ErrorState';
-import { EmptyState } from '../../components/EmptyState';
+import { EmptyState } from '../../components/ui';
 import { SkeletonCard } from '../../components/SkeletonCard';
 import type { Friend, FriendRequest } from '../../types/social';
 
@@ -27,6 +29,7 @@ type TabType = 'friends' | 'requests';
 export default function Friends() {
   const router = useRouter();
   const toast = useToast();
+  const { colors } = useTheme();
   const [activeTab, setActiveTab] = useState<TabType>('friends');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -99,38 +102,38 @@ export default function Friends() {
   const renderFriendItem = (friend: Friend) => (
     <TouchableOpacity
       key={friend.friend_user_id}
-      style={styles.friendCard}
+      style={[styles.friendCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
       onPress={() => handleViewFriend(friend.friend_user_id)}
       activeOpacity={0.7}
     >
-      <View style={styles.avatar}>
+      <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
         <Text style={styles.avatarText}>
           {friend.username.charAt(0).toUpperCase()}
         </Text>
       </View>
 
       <View style={styles.friendInfo}>
-        <Text style={styles.friendName}>{friend.username}</Text>
-        <Text style={styles.friendStats}>
+        <Text style={[styles.friendName, { color: colors.text }]}>{friend.username}</Text>
+        <Text style={[styles.friendStats, { color: colors.textSecondary }]}>
           {friend.accuracy.toFixed(1)}% accuracy • {friend.total_picks} picks
         </Text>
       </View>
 
-      <Ionicons name="chevron-forward" size={20} color="#666" />
+      <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
     </TouchableOpacity>
   );
 
   const renderRequestItem = (request: FriendRequest) => (
-    <View key={request.request_id} style={styles.requestCard}>
-      <View style={styles.avatar}>
+    <View key={request.request_id} style={[styles.requestCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
         <Text style={styles.avatarText}>
           {request.username.charAt(0).toUpperCase()}
         </Text>
       </View>
 
       <View style={styles.requestInfo}>
-        <Text style={styles.friendName}>{request.username}</Text>
-        <Text style={styles.friendStats}>
+        <Text style={[styles.friendName, { color: colors.text }]}>{request.username}</Text>
+        <Text style={[styles.friendStats, { color: colors.textSecondary }]}>
           {request.accuracy.toFixed(1)}% accuracy • {request.total_picks} picks
         </Text>
       </View>
@@ -149,7 +152,7 @@ export default function Friends() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.declineButton}
+          style={[styles.declineButton, { backgroundColor: colors.textMuted }]}
           onPress={() => handleDeclineRequest(request.request_id)}
           disabled={declineFriendRequestLoading}
         >
@@ -164,27 +167,27 @@ export default function Friends() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Tabs */}
-      <View style={styles.tabContainer}>
+      <View style={[styles.tabContainer, { backgroundColor: colors.surface, borderBottomColor: colors.divider }]}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'friends' && styles.tabActive]}
+          style={[styles.tab, activeTab === 'friends' && { borderBottomColor: colors.accent }]}
           onPress={() => setActiveTab('friends')}
         >
-          <Text style={[styles.tabText, activeTab === 'friends' && styles.tabTextActive]}>
+          <Text style={[styles.tabText, { color: colors.textMuted }, activeTab === 'friends' && { color: colors.text }]}>
             Friends ({friends.length})
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'requests' && styles.tabActive]}
+          style={[styles.tab, activeTab === 'requests' && { borderBottomColor: colors.accent }]}
           onPress={() => setActiveTab('requests')}
         >
-          <Text style={[styles.tabText, activeTab === 'requests' && styles.tabTextActive]}>
+          <Text style={[styles.tabText, { color: colors.textMuted }, activeTab === 'requests' && { color: colors.text }]}>
             Requests ({friendRequests.length})
           </Text>
           {friendRequests.length > 0 && (
-            <View style={styles.badge}>
+            <View style={[styles.badge, { backgroundColor: colors.accent }]}>
               <Text style={styles.badgeText}>{friendRequests.length}</Text>
             </View>
           )}
@@ -199,8 +202,8 @@ export default function Friends() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#d4202a"
-            colors={['#d4202a']}
+            tintColor={colors.accent}
+            colors={[colors.accent]}
           />
         }
       >
@@ -234,7 +237,11 @@ export default function Friends() {
       </ScrollView>
 
       {/* FAB */}
-      <TouchableOpacity style={styles.fab} onPress={handleAddFriend} activeOpacity={0.8}>
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: colors.accent }]}
+        onPress={handleAddFriend}
+        activeOpacity={0.8}
+      >
         <Ionicons name="person-add" size={24} color="#fff" />
       </TouchableOpacity>
     </View>
@@ -244,39 +251,28 @@ export default function Friends() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#1a1a1a',
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   tab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    paddingVertical: spacing.md,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
-  },
-  tabActive: {
-    borderBottomColor: '#d4202a',
   },
   tabText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#666',
-  },
-  tabTextActive: {
-    color: '#fff',
   },
   badge: {
-    marginLeft: 6,
-    backgroundColor: '#d4202a',
+    marginLeft: spacing.xs,
     borderRadius: 10,
-    paddingHorizontal: 6,
+    paddingHorizontal: spacing.xs,
     paddingVertical: 2,
   },
   badgeText: {
@@ -288,37 +284,32 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 16,
+    padding: spacing.md,
     paddingBottom: 100,
   },
   friendCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: radius.card,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
     borderWidth: 1,
-    borderColor: '#333',
   },
   requestCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: radius.card,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
     borderWidth: 1,
-    borderColor: '#333',
   },
   avatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#d4202a',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: spacing.sm,
   },
   avatarText: {
     fontSize: 20,
@@ -334,12 +325,10 @@ const styles = StyleSheet.create({
   friendName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
     marginBottom: 4,
   },
   friendStats: {
     fontSize: 13,
-    color: '#999',
   },
   requestActions: {
     flexDirection: 'row',
@@ -357,7 +346,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#666',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -368,7 +356,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#d4202a',
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 4,

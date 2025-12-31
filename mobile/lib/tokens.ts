@@ -11,9 +11,11 @@ export const colors = {
     divider: '#E7EAF0',
 
     // Text
+    text: '#111318',
     textPrimary: '#111318',
     textSecondary: '#5E6470',
     textTertiary: '#8A90A0',
+    textMuted: '#8A90A0',
 
     // UFC Red Accent
     accent: '#B01E28',
@@ -34,6 +36,9 @@ export const colors = {
     tabInactive: '#8A90A0',
     tabActive: '#B01E28',
 
+    // Skeleton
+    skeleton: '#E2E5EA',
+
     // Shadow
     shadowColor: 'rgba(0, 0, 0, 0.08)',
   },
@@ -47,9 +52,11 @@ export const colors = {
     divider: '#1F2530',
 
     // Text
+    text: '#F3F5F8',
     textPrimary: '#F3F5F8',
     textSecondary: '#B6BCC8',
     textTertiary: '#7F8796',
+    textMuted: '#7F8796',
 
     // UFC Red Accent (slightly brighter for dark mode)
     accent: '#E03A43',
@@ -69,6 +76,9 @@ export const colors = {
     // Tab Bar
     tabInactive: '#7F8796',
     tabActive: '#E03A43',
+
+    // Skeleton
+    skeleton: '#242A35',
 
     // Shadow
     shadowColor: 'rgba(0, 0, 0, 0.35)',
