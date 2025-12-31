@@ -407,6 +407,10 @@ async function main() {
   console.log('   • Picks for upcoming event');
   console.log('   • Global leaderboard with rankings');
   console.log('   • Friends list with all test users');
+
+  console.log('\n💡 TIP: For more realistic stats based on real UFC results, run:');
+  console.log('   deno run --allow-net --allow-env scripts/seed-real-historical-data.ts');
+  console.log('   This fetches data from the last 2 completed UFC events!');
 }
 
 if (import.meta.main) {
