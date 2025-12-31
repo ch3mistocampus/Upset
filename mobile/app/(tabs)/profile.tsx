@@ -1,19 +1,23 @@
 /**
- * Profile screen - username, stats summary, logout
+ * Profile screen - username, stats summary, settings
  */
 
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useUserStats } from '../../hooks/useQueries';
-import { useToast } from '../../hooks/useToast';
+import { useTheme } from '../../lib/theme';
+import { spacing, radius, typography } from '../../lib/tokens';
+import { Card, Button, SegmentedControl } from '../../components/ui';
 import { ErrorState } from '../../components/ErrorState';
 import { SkeletonProfileCard, SkeletonStats } from '../../components/SkeletonStats';
+import type { ThemeMode } from '../../lib/tokens';
 
 export default function Profile() {
   const router = useRouter();
-  const toast = useToast();
+  const { colors, themeMode, setThemeMode } = useTheme();
   const { profile, user, signOut } = useAuth();
   const { data: stats, isLoading: statsLoading, isError: statsError, refetch: refetchStats } = useUserStats(user?.id || null);
 
@@ -25,13 +29,16 @@ export default function Profile() {
     setRefreshing(false);
   };
 
-  const handleOpenSettings = () => {
-    router.push('/settings');
+  const handleSignOut = async () => {
+    await signOut();
   };
 
   if (statsLoading) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        contentContainerStyle={styles.content}
+      >
         <SkeletonProfileCard />
         <SkeletonStats />
       </ScrollView>
@@ -40,10 +47,12 @@ export default function Profile() {
 
   if (statsError) {
     return (
-      <ErrorState
-        message="Failed to load your profile. Check your connection and try again."
-        onRetry={() => refetchStats()}
-      />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <ErrorState
+          message="Failed to load your profile. Check your connection and try again."
+          onRetry={() => refetchStats()}
+        />
+      </View>
     );
   }
 
@@ -51,85 +60,137 @@ export default function Profile() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          tintColor="#d4202a"
-          colors={['#d4202a']}
+          tintColor={colors.accent}
+          colors={[colors.accent]}
         />
       }
     >
       {/* Profile Header */}
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>PROFILE</Text>
-
+      <Card>
         <View style={styles.profileHeader}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
+          <View style={[styles.avatar, { backgroundColor: colors.accentSoft }]}>
+            <Text style={[styles.avatarText, { color: colors.accent }]}>
               {profile?.username.charAt(0).toUpperCase() || '?'}
             </Text>
           </View>
 
           <View style={styles.profileInfo}>
-            <Text style={styles.username}>{profile?.username || 'Unknown'}</Text>
-            <Text style={styles.email}>{user?.email || ''}</Text>
+            <Text style={[styles.username, { color: colors.textPrimary }]}>
+              {profile?.username || 'Unknown'}
+            </Text>
+            <Text style={[styles.email, { color: colors.textSecondary }]}>
+              {user?.email || ''}
+            </Text>
           </View>
         </View>
-      </View>
+      </Card>
 
       {/* Stats Summary */}
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>YOUR STATS</Text>
+      <Card>
+        <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>
+          YOUR STATS
+        </Text>
 
         {hasStats ? (
           <>
             <View style={styles.statRow}>
-              <Text style={styles.statRowLabel}>Total Picks</Text>
-              <Text style={styles.statRowValue}>{stats.total_picks}</Text>
+              <Text style={[styles.statRowLabel, { color: colors.textPrimary }]}>
+                Total Picks
+              </Text>
+              <Text style={[styles.statRowValue, { color: colors.textPrimary }]}>
+                {stats.total_picks}
+              </Text>
             </View>
 
             <View style={styles.statRow}>
-              <Text style={styles.statRowLabel}>Correct Picks</Text>
-              <Text style={styles.statRowValue}>{stats.correct_winner}</Text>
+              <Text style={[styles.statRowLabel, { color: colors.textPrimary }]}>
+                Correct Picks
+              </Text>
+              <Text style={[styles.statRowValue, { color: colors.success }]}>
+                {stats.correct_winner}
+              </Text>
             </View>
 
             <View style={styles.statRow}>
-              <Text style={styles.statRowLabel}>Accuracy</Text>
-              <Text style={[styles.statRowValue, styles.accuracyValue]}>
+              <Text style={[styles.statRowLabel, { color: colors.textPrimary }]}>
+                Accuracy
+              </Text>
+              <Text style={[styles.statRowValue, { color: colors.accent }]}>
                 {stats.accuracy_pct.toFixed(1)}%
               </Text>
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.divider }]} />
 
             <View style={styles.statRow}>
-              <Text style={styles.statRowLabel}>Current Streak</Text>
-              <Text style={styles.statRowValue}>{stats.current_streak}</Text>
+              <Text style={[styles.statRowLabel, { color: colors.textPrimary }]}>
+                Current Streak
+              </Text>
+              <Text style={[styles.statRowValue, { color: colors.textPrimary }]}>
+                {stats.current_streak}
+              </Text>
             </View>
 
             <View style={styles.statRow}>
-              <Text style={styles.statRowLabel}>Best Streak</Text>
-              <Text style={[styles.statRowValue, styles.bestStreakValue]}>
+              <Text style={[styles.statRowLabel, { color: colors.textPrimary }]}>
+                Best Streak
+              </Text>
+              <Text style={[styles.statRowValue, { color: colors.warning }]}>
                 {stats.best_streak}
               </Text>
             </View>
           </>
         ) : (
-          <Text style={styles.noStatsText}>No picks yet. Make some predictions!</Text>
+          <Text style={[styles.noStatsText, { color: colors.textSecondary }]}>
+            No picks yet. Make some predictions!
+          </Text>
         )}
-      </View>
+      </Card>
 
-      {/* Actions */}
-      <TouchableOpacity style={styles.settingsButton} onPress={handleOpenSettings}>
-        <Text style={styles.settingsText}>Settings</Text>
-      </TouchableOpacity>
+      {/* Appearance */}
+      <Card>
+        <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>
+          APPEARANCE
+        </Text>
+
+        <View style={styles.settingRow}>
+          <View style={styles.settingInfo}>
+            <Ionicons name="moon-outline" size={20} color={colors.textSecondary} />
+            <Text style={[styles.settingLabel, { color: colors.textPrimary }]}>
+              Theme
+            </Text>
+          </View>
+        </View>
+
+        <SegmentedControl<ThemeMode>
+          options={[
+            { value: 'system', label: 'System' },
+            { value: 'light', label: 'Light' },
+            { value: 'dark', label: 'Dark' },
+          ]}
+          selectedValue={themeMode}
+          onChange={setThemeMode}
+        />
+      </Card>
+
+      {/* Sign Out */}
+      <Button
+        title="Sign Out"
+        onPress={handleSignOut}
+        variant="secondary"
+      />
 
       {/* App Info */}
       <View style={styles.appInfo}>
-        <Text style={styles.appInfoText}>UFC Picks Tracker v1.0.0</Text>
+        <Text style={[styles.appInfoText, { color: colors.textTertiary }]}>
+          UFC Picks Tracker v1.0.0
+        </Text>
       </View>
     </ScrollView>
   );
@@ -138,25 +199,14 @@ export default function Profile() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   content: {
-    padding: 16,
-  },
-  card: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#333',
+    padding: spacing.lg,
+    gap: spacing.lg,
   },
   cardLabel: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#999',
-    letterSpacing: 1,
-    marginBottom: 16,
+    ...typography.caption,
+    marginBottom: spacing.md,
   },
   profileHeader: {
     flexDirection: 'row',
@@ -166,81 +216,65 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#d4202a',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 16,
+    marginRight: spacing.lg,
   },
   avatarText: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: '700',
   },
   profileInfo: {
     flex: 1,
   },
   username: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
+    ...typography.h2,
+    marginBottom: spacing.xs,
   },
   email: {
-    fontSize: 14,
-    color: '#999',
+    ...typography.meta,
   },
   statRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: spacing.sm,
   },
   statRowLabel: {
-    fontSize: 16,
-    color: '#fff',
+    ...typography.body,
   },
   statRowValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  accuracyValue: {
-    color: '#d4202a',
-  },
-  bestStreakValue: {
-    color: '#fbbf24',
+    ...typography.body,
+    fontWeight: '700',
   },
   divider: {
     height: 1,
-    backgroundColor: '#333',
-    marginVertical: 8,
+    marginVertical: spacing.sm,
   },
   noStatsText: {
-    fontSize: 14,
-    color: '#999',
+    ...typography.body,
     textAlign: 'center',
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
   },
-  settingsButton: {
-    backgroundColor: '#d4202a',
-    borderRadius: 8,
-    padding: 16,
+  settingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
-  settingsText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+  settingInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  settingLabel: {
+    ...typography.body,
   },
   appInfo: {
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: spacing.lg,
   },
   appInfoText: {
-    fontSize: 12,
-    color: '#666',
+    ...typography.meta,
   },
 });

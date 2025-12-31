@@ -1,24 +1,26 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useFriends } from '../../hooks/useFriends';
+import { useTheme } from '../../lib/theme';
 
 export default function TabsLayout() {
   const { friendRequests } = useFriends();
+  const { colors } = useTheme();
   const pendingCount = friendRequests?.length || 0;
 
   return (
     <Tabs
       screenOptions={{
         tabBarStyle: {
-          backgroundColor: '#1a1a1a',
-          borderTopColor: '#333',
+          backgroundColor: colors.surface,
+          borderTopColor: colors.divider,
         },
-        tabBarActiveTintColor: '#d4202a',
-        tabBarInactiveTintColor: '#666',
+        tabBarActiveTintColor: colors.tabActive,
+        tabBarInactiveTintColor: colors.tabInactive,
         headerStyle: {
-          backgroundColor: '#1a1a1a',
+          backgroundColor: colors.surface,
         },
-        headerTintColor: '#fff',
+        headerTintColor: colors.textPrimary,
         headerTitleStyle: {
           fontWeight: 'bold',
         },
@@ -54,7 +56,7 @@ export default function TabsLayout() {
           ),
           tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
           tabBarBadgeStyle: {
-            backgroundColor: '#d4202a',
+            backgroundColor: colors.accent,
             fontSize: 10,
           },
         }}

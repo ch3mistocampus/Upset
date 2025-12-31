@@ -6,13 +6,15 @@ import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native
 import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useUserStats, useRecentPicksSummary } from '../../hooks/useQueries';
+import { useTheme } from '../../lib/theme';
+import { spacing, typography } from '../../lib/tokens';
+import { Card, StatRing, EmptyState } from '../../components/ui';
 import { ErrorState } from '../../components/ErrorState';
-import { EmptyState } from '../../components/EmptyState';
 import { SkeletonStats } from '../../components/SkeletonStats';
-import { AccuracyRing } from '../../components/AccuracyRing';
 import { MiniChart } from '../../components/MiniChart';
 
 export default function Stats() {
+  const { colors } = useTheme();
   const { user } = useAuth();
   const { data: stats, isLoading: statsLoading, isError: statsError, refetch: refetchStats } = useUserStats(user?.id || null);
   const { data: recentSummary, isLoading: summaryLoading, isError: summaryError, refetch: refetchSummary } = useRecentPicksSummary(
@@ -30,7 +32,10 @@ export default function Stats() {
 
   if (statsLoading || summaryLoading) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        contentContainerStyle={styles.content}
+      >
         <SkeletonStats />
         <SkeletonStats />
       </ScrollView>
@@ -39,13 +44,15 @@ export default function Stats() {
 
   if (statsError || summaryError) {
     return (
-      <ErrorState
-        message="Failed to load your stats. Check your connection and try again."
-        onRetry={() => {
-          refetchStats();
-          refetchSummary();
-        }}
-      />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <ErrorState
+          message="Failed to load your stats. Check your connection and try again."
+          onRetry={() => {
+            refetchStats();
+            refetchSummary();
+          }}
+        />
+      </View>
     );
   }
 
@@ -53,76 +60,108 @@ export default function Stats() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          tintColor="#d4202a"
-          colors={['#d4202a']}
+          tintColor={colors.accent}
+          colors={[colors.accent]}
         />
       }
     >
       {/* Overall Stats */}
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>OVERALL STATS</Text>
+      <Card>
+        <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>
+          OVERALL STATS
+        </Text>
 
-        {/* Accuracy Ring - Visual centerpiece */}
+        {/* Accuracy Ring */}
         <View style={styles.accuracyRingContainer}>
-          <AccuracyRing percentage={hasStats ? stats.accuracy_pct : 0} label="Accuracy" />
+          <StatRing percentage={hasStats ? stats.accuracy_pct : 0} />
         </View>
 
         {/* Stats Grid below ring */}
         <View style={styles.statsGrid}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{stats?.total_picks || 0}</Text>
-            <Text style={styles.statLabel}>Total Picks</Text>
+            <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+              {stats?.total_picks || 0}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              Total Picks
+            </Text>
           </View>
 
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{stats?.correct_winner || 0}</Text>
-            <Text style={styles.statLabel}>Correct</Text>
-          </View>
+          <View style={[styles.statDivider, { backgroundColor: colors.divider }]} />
 
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{stats?.total_picks ? stats.total_picks - stats.correct_winner : 0}</Text>
-            <Text style={styles.statLabel}>Missed</Text>
+            <Text style={[styles.statValue, { color: colors.success }]}>
+              {stats?.correct_winner || 0}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              Correct
+            </Text>
+          </View>
+
+          <View style={[styles.statDivider, { backgroundColor: colors.divider }]} />
+
+          <View style={styles.statItem}>
+            <Text style={[styles.statValue, { color: colors.textTertiary }]}>
+              {stats?.total_picks ? stats.total_picks - stats.correct_winner : 0}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              Missed
+            </Text>
           </View>
         </View>
-      </View>
+      </Card>
 
       {/* Streaks */}
       {hasStats && (
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>STREAKS</Text>
+        <Card>
+          <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>
+            STREAKS
+          </Text>
 
           <View style={styles.streaksContainer}>
             <View style={styles.streakItem}>
-              <Text style={styles.streakValue}>{stats.current_streak}</Text>
-              <Text style={styles.streakLabel}>Current Streak</Text>
-              <Text style={styles.streakDescription}>Consecutive correct picks</Text>
+              <Text style={[styles.streakValue, { color: colors.accent }]}>
+                {stats.current_streak}
+              </Text>
+              <Text style={[styles.streakLabel, { color: colors.textPrimary }]}>
+                Current Streak
+              </Text>
+              <Text style={[styles.streakDescription, { color: colors.textTertiary }]}>
+                Consecutive correct picks
+              </Text>
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.divider }]} />
 
             <View style={styles.streakItem}>
-              <Text style={[styles.streakValue, styles.bestStreakValue]}>
+              <Text style={[styles.streakValue, { color: colors.warning }]}>
                 {stats.best_streak}
               </Text>
-              <Text style={styles.streakLabel}>Best Streak</Text>
-              <Text style={styles.streakDescription}>Personal record</Text>
+              <Text style={[styles.streakLabel, { color: colors.textPrimary }]}>
+                Best Streak
+              </Text>
+              <Text style={[styles.streakDescription, { color: colors.textTertiary }]}>
+                Personal record
+              </Text>
             </View>
           </View>
-        </View>
+        </Card>
       )}
 
       {/* Recent Events */}
       {recentSummary && recentSummary.length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>RECENT EVENTS</Text>
+        <Card>
+          <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>
+            RECENT EVENTS
+          </Text>
 
-          {/* Mini Chart - Visual trend */}
+          {/* Mini Chart */}
           <View style={styles.chartContainer}>
             <MiniChart
               data={recentSummary.map((summary) => ({
@@ -139,13 +178,22 @@ export default function Stats() {
                 ? Math.round((summary.correct / summary.total) * 100)
                 : 0;
 
+            const getAccuracyColor = () => {
+              if (accuracy >= 70) return colors.success;
+              if (accuracy >= 50) return colors.warning;
+              return colors.danger;
+            };
+
             return (
               <View key={summary.event.id} style={styles.eventItem}>
                 <View style={styles.eventHeader}>
-                  <Text style={styles.eventName} numberOfLines={1}>
+                  <Text
+                    style={[styles.eventName, { color: colors.textPrimary }]}
+                    numberOfLines={1}
+                  >
                     {summary.event.name}
                   </Text>
-                  <Text style={styles.eventDate}>
+                  <Text style={[styles.eventDate, { color: colors.textTertiary }]}>
                     {new Date(summary.event.event_date).toLocaleDateString('en-US', {
                       month: 'short',
                       day: 'numeric',
@@ -154,26 +202,21 @@ export default function Stats() {
                 </View>
 
                 <View style={styles.eventStats}>
-                  <Text style={styles.eventScore}>
+                  <Text style={[styles.eventScore, { color: colors.textPrimary }]}>
                     {summary.correct} / {summary.total}
                   </Text>
-                  <Text
-                    style={[
-                      styles.eventAccuracy,
-                      accuracy >= 70 && styles.eventAccuracyHigh,
-                      accuracy >= 50 && accuracy < 70 && styles.eventAccuracyMedium,
-                      accuracy < 50 && styles.eventAccuracyLow,
-                    ]}
-                  >
+                  <Text style={[styles.eventAccuracy, { color: getAccuracyColor() }]}>
                     {accuracy}%
                   </Text>
                 </View>
 
-                {index < recentSummary.length - 1 && <View style={styles.eventDivider} />}
+                {index < recentSummary.length - 1 && (
+                  <View style={[styles.eventDivider, { backgroundColor: colors.divider }]} />
+                )}
               </View>
             );
           })}
-        </View>
+        </Card>
       )}
 
       {/* Empty State */}
@@ -191,54 +234,39 @@ export default function Stats() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   content: {
-    padding: 16,
-  },
-  card: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#333',
+    padding: spacing.lg,
+    gap: spacing.lg,
   },
   cardLabel: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#999',
-    letterSpacing: 1,
-    marginBottom: 16,
+    ...typography.caption,
+    marginBottom: spacing.md,
   },
   accuracyRingContainer: {
     alignItems: 'center',
-    marginVertical: 16,
+    marginVertical: spacing.lg,
   },
   statsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 16,
-  },
-  chartContainer: {
-    marginVertical: 12,
-    marginHorizontal: -8,
+    alignItems: 'center',
+    marginTop: spacing.md,
   },
   statItem: {
+    flex: 1,
     alignItems: 'center',
   },
-  statValue: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
+  statDivider: {
+    width: 1,
+    height: 40,
   },
-  accuracyValue: {
-    color: '#d4202a',
+  statValue: {
+    ...typography.h2,
+    marginBottom: spacing.xs,
   },
   statLabel: {
-    fontSize: 12,
-    color: '#999',
+    ...typography.caption,
   },
   streaksContainer: {
     flexDirection: 'row',
@@ -249,47 +277,42 @@ const styles = StyleSheet.create({
   },
   streakValue: {
     fontSize: 36,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
-  },
-  bestStreakValue: {
-    color: '#fbbf24',
+    fontWeight: '700',
+    marginBottom: spacing.sm,
   },
   streakLabel: {
-    fontSize: 14,
+    ...typography.body,
     fontWeight: '600',
-    color: '#fff',
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   streakDescription: {
-    fontSize: 12,
-    color: '#666',
+    ...typography.meta,
   },
   divider: {
     width: 1,
-    backgroundColor: '#333',
-    marginHorizontal: 16,
+    marginHorizontal: spacing.lg,
+  },
+  chartContainer: {
+    marginVertical: spacing.md,
+    marginHorizontal: -spacing.sm,
   },
   eventItem: {
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
   },
   eventHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   eventName: {
     flex: 1,
-    fontSize: 14,
+    ...typography.body,
     fontWeight: '600',
-    color: '#fff',
-    marginRight: 8,
+    marginRight: spacing.sm,
   },
   eventDate: {
-    fontSize: 12,
-    color: '#666',
+    ...typography.meta,
   },
   eventStats: {
     flexDirection: 'row',
@@ -297,42 +320,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   eventScore: {
-    fontSize: 16,
+    ...typography.body,
     fontWeight: '600',
-    color: '#fff',
   },
   eventAccuracy: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  eventAccuracyHigh: {
-    color: '#4ade80',
-  },
-  eventAccuracyMedium: {
-    color: '#fbbf24',
-  },
-  eventAccuracyLow: {
-    color: '#ef4444',
+    ...typography.body,
+    fontWeight: '700',
   },
   eventDivider: {
     height: 1,
-    backgroundColor: '#333',
-    marginTop: 12,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
-    paddingHorizontal: 40,
+    marginTop: spacing.md,
   },
 });

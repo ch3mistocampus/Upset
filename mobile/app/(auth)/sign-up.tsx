@@ -6,20 +6,22 @@ import { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
   ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
+import { useTheme } from '../../lib/theme';
+import { spacing, typography } from '../../lib/tokens';
+import { Button, Input } from '../../components/ui';
 import { validateEmail, validatePassword, getAuthErrorMessage } from '../../lib/validation';
 
 export default function SignUp() {
+  const { colors } = useTheme();
   const { signUp } = useAuth();
   const toast = useToast();
   const router = useRouter();
@@ -30,21 +32,18 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
 
   const handleSignUp = async () => {
-    // Validate email
     const emailError = validateEmail(email);
     if (emailError) {
       toast.showError(emailError);
       return;
     }
 
-    // Validate password
     const passwordError = validatePassword(password);
     if (passwordError) {
       toast.showError(passwordError);
       return;
     }
 
-    // Check passwords match
     if (password !== confirmPassword) {
       toast.showError('Passwords do not match');
       return;
@@ -54,7 +53,6 @@ export default function SignUp() {
     try {
       await signUp(email.trim(), password);
       toast.showSuccess('Account created! Please create a username');
-      // Auth state change will automatically redirect to create-username
     } catch (error: any) {
       const errorMessage = getAuthErrorMessage(error);
       toast.showError(errorMessage);
@@ -65,7 +63,7 @@ export default function SignUp() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
@@ -73,64 +71,61 @@ export default function SignUp() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Sign up to start tracking your picks</Text>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>
+            Create Account
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Sign up to start tracking your picks
+          </Text>
 
-          <TextInput
-            style={styles.input}
+          <Input
             placeholder="Email"
-            placeholderTextColor="#666"
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
             keyboardType="email-address"
             autoComplete="email"
             editable={!loading}
+            containerStyle={styles.inputContainer}
           />
 
-          <TextInput
-            style={styles.input}
+          <Input
             placeholder="Password (min 8 characters, 1 number)"
-            placeholderTextColor="#666"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
             autoCapitalize="none"
             autoComplete="password-new"
             editable={!loading}
+            containerStyle={styles.inputContainer}
           />
 
-          <TextInput
-            style={styles.input}
+          <Input
             placeholder="Confirm Password"
-            placeholderTextColor="#666"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
             autoCapitalize="none"
             autoComplete="password-new"
             editable={!loading}
+            containerStyle={styles.inputContainer}
           />
 
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+          <Button
+            title="Sign Up"
             onPress={handleSignUp}
+            loading={loading}
             disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Sign Up</Text>
-            )}
-          </TouchableOpacity>
+          />
 
           <TouchableOpacity
             style={styles.linkButton}
             onPress={() => router.push('/(auth)/sign-in')}
             disabled={loading}
           >
-            <Text style={styles.linkText}>
-              Already have an account? Sign in
+            <Text style={[styles.linkText, { color: colors.textSecondary }]}>
+              Already have an account?{' '}
+              <Text style={{ color: colors.accent, fontWeight: '600' }}>Sign in</Text>
             </Text>
           </TouchableOpacity>
         </View>
@@ -142,7 +137,6 @@ export default function SignUp() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   scrollContent: {
     flexGrow: 1,
@@ -150,54 +144,28 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 32,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xxl,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
+    ...typography.h1,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#999',
+    ...typography.body,
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: spacing.xxl,
   },
-  input: {
-    backgroundColor: '#1a1a1a',
-    borderWidth: 1,
-    borderColor: '#333',
-    borderRadius: 8,
-    padding: 16,
-    fontSize: 16,
-    color: '#fff',
-    marginBottom: 16,
-  },
-  button: {
-    backgroundColor: '#d4202a',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+  inputContainer: {
+    marginBottom: spacing.md,
   },
   linkButton: {
-    marginTop: 16,
-    padding: 8,
+    marginTop: spacing.lg,
+    padding: spacing.sm,
     alignItems: 'center',
   },
   linkText: {
-    color: '#d4202a',
-    fontSize: 14,
+    ...typography.body,
   },
 });
