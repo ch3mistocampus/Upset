@@ -115,3 +115,56 @@ export function useCommunityPickPercentages(fightId: string | undefined) {
     staleTime: 30000, // 30 seconds
   });
 }
+
+/**
+ * Hook for fetching community pick percentages for all bouts in an event
+ */
+export function useEventCommunityPercentages(boutIds: string[]) {
+  return useQuery({
+    queryKey: ['eventCommunityPercentages', boutIds],
+    queryFn: async (): Promise<Map<string, CommunityPickPercentages>> => {
+      if (!boutIds || boutIds.length === 0) {
+        return new Map();
+      }
+
+      logger.breadcrumb('Fetching event community percentages', 'leaderboard', {
+        boutCount: boutIds.length,
+      });
+
+      const percentagesMap = new Map<string, CommunityPickPercentages>();
+
+      // Fetch percentages for all bouts in parallel
+      const results = await Promise.all(
+        boutIds.map(async (boutId) => {
+          const { data, error } = await supabase.rpc('get_community_pick_percentages', {
+            fight_id_input: boutId,
+          });
+
+          if (error) {
+            logger.warn('Failed to fetch percentages for bout', { boutId, error });
+            return null;
+          }
+
+          const result = Array.isArray(data) && data.length > 0 ? data[0] : null;
+          return result ? { boutId, data: result as CommunityPickPercentages } : null;
+        })
+      );
+
+      // Build the map
+      results.forEach((result) => {
+        if (result) {
+          percentagesMap.set(result.boutId, result.data);
+        }
+      });
+
+      logger.debug('Event community percentages fetched', {
+        boutCount: boutIds.length,
+        fetchedCount: percentagesMap.size,
+      });
+
+      return percentagesMap;
+    },
+    enabled: boutIds.length > 0,
+    staleTime: 30000, // 30 seconds
+  });
+}

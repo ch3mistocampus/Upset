@@ -11,6 +11,12 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
+// Friendship status type
+export type FriendshipStatus = 'pending' | 'accepted' | 'declined';
+
+// Visibility level type
+export type VisibilityLevel = 'public' | 'friends' | 'private';
+
 // Database types
 export interface Database {
   public: {
@@ -44,6 +50,42 @@ export interface Database {
         Row: UserStats;
         Insert: UserStatsInsert;
         Update: UserStatsUpdate;
+      };
+      friendships: {
+        Row: Friendship;
+        Insert: FriendshipInsert;
+        Update: FriendshipUpdate;
+      };
+      privacy_settings: {
+        Row: PrivacySettingsRow;
+        Insert: PrivacySettingsInsert;
+        Update: PrivacySettingsUpdate;
+      };
+    };
+    Functions: {
+      get_friends: {
+        Args: Record<string, never>;
+        Returns: FriendRow[];
+      };
+      get_friend_requests: {
+        Args: Record<string, never>;
+        Returns: FriendRequestRow[];
+      };
+      get_global_leaderboard: {
+        Args: { limit_count?: number };
+        Returns: LeaderboardRow[];
+      };
+      get_friends_leaderboard: {
+        Args: Record<string, never>;
+        Returns: LeaderboardRow[];
+      };
+      get_community_pick_percentages: {
+        Args: { fight_id_input: string };
+        Returns: CommunityPercentagesRow[];
+      };
+      get_email_by_username: {
+        Args: { username_input: string };
+        Returns: string | null;
       };
     };
   };
@@ -251,4 +293,93 @@ export interface BoutWithPick extends Bout {
 
 export interface EventWithBouts extends Event {
   bouts: BoutWithPick[];
+}
+
+// Friendship
+export interface Friendship {
+  id: string;
+  user_id: string;
+  friend_id: string;
+  status: FriendshipStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FriendshipInsert {
+  id?: string;
+  user_id: string;
+  friend_id: string;
+  status: FriendshipStatus;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface FriendshipUpdate {
+  status?: FriendshipStatus;
+  updated_at?: string;
+}
+
+// Privacy Settings
+export interface PrivacySettingsRow {
+  id: string;
+  user_id: string;
+  picks_visibility: VisibilityLevel;
+  profile_visibility: VisibilityLevel;
+  stats_visibility: VisibilityLevel;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PrivacySettingsInsert {
+  id?: string;
+  user_id: string;
+  picks_visibility?: VisibilityLevel;
+  profile_visibility?: VisibilityLevel;
+  stats_visibility?: VisibilityLevel;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PrivacySettingsUpdate {
+  picks_visibility?: VisibilityLevel;
+  profile_visibility?: VisibilityLevel;
+  stats_visibility?: VisibilityLevel;
+  updated_at?: string;
+}
+
+// RPC Return Types
+export interface FriendRow {
+  friend_user_id: string;
+  username: string;
+  total_picks: number;
+  correct_picks: number;
+  accuracy: number;
+  became_friends_at: string;
+}
+
+export interface FriendRequestRow {
+  request_id: string;
+  from_user_id: string;
+  username: string;
+  total_picks: number;
+  correct_picks: number;
+  accuracy: number;
+  requested_at: string;
+}
+
+export interface LeaderboardRow {
+  user_id: string;
+  username: string;
+  total_picks: number;
+  correct_picks: number;
+  accuracy: number;
+  rank: number;
+}
+
+export interface CommunityPercentagesRow {
+  total_picks: number;
+  fighter_a_picks: number;
+  fighter_b_picks: number;
+  fighter_a_percentage: number;
+  fighter_b_percentage: number;
 }

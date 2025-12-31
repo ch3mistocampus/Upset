@@ -1,7 +1,11 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useFriends } from '../../hooks/useFriends';
 
 export default function TabsLayout() {
+  const { friendRequests } = useFriends();
+  const pendingCount = friendRequests?.length || 0;
+
   return (
     <Tabs
       screenOptions={{
@@ -37,6 +41,31 @@ export default function TabsLayout() {
           tabBarLabel: 'Picks',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="clipboard-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="friends"
+        options={{
+          title: 'Friends',
+          tabBarLabel: 'Friends',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people" size={size} color={color} />
+          ),
+          tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: '#d4202a',
+            fontSize: 10,
+          },
+        }}
+      />
+      <Tabs.Screen
+        name="leaderboards"
+        options={{
+          title: 'Leaderboard',
+          tabBarLabel: 'Ranks',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="trophy" size={size} color={color} />
           ),
         }}
       />

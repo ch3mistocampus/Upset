@@ -99,7 +99,6 @@ CREATE POLICY "Privacy settings are readable for RLS checks" ON public.privacy_s
 
 -- Grant access to authenticated users
 GRANT SELECT, INSERT, UPDATE ON public.privacy_settings TO authenticated;
-GRANT USAGE ON SEQUENCE privacy_settings_id_seq TO authenticated;
 
 -- Comments
 COMMENT ON TABLE public.privacy_settings IS 'User privacy preferences for picks, profile, and stats visibility';

@@ -84,7 +84,6 @@ CREATE POLICY "Users can delete their own friendships" ON public.friendships
 
 -- Grant access to authenticated users
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.friendships TO authenticated;
-GRANT USAGE ON SEQUENCE friendships_id_seq TO authenticated;
 
 -- Comments
 COMMENT ON TABLE public.friendships IS 'Manages friend relationships between users';

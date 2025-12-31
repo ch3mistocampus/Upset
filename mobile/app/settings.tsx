@@ -76,6 +76,13 @@ export default function Settings() {
         <Text style={styles.sectionLabel}>PREFERENCES</Text>
         <View style={styles.sectionContent}>
           <SettingsRow
+            icon="shield-outline"
+            label="Privacy Settings"
+            type="link"
+            subtitle="Control who can see your picks and stats"
+            onPress={() => router.push('/settings/privacy')}
+          />
+          <SettingsRow
             icon="notifications-outline"
             label="Push Notifications"
             type="toggle"

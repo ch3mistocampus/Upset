@@ -3,15 +3,96 @@
  */
 
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Animated } from 'react-native';
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../hooks/useAuth';
 import { useNextEvent, useBoutsForEvent, useUpsertPick, isEventLocked } from '../../hooks/useQueries';
+import { useEventCommunityPercentages } from '../../hooks/useLeaderboard';
 import { useToast } from '../../hooks/useToast';
 import { ErrorState } from '../../components/ErrorState';
 import { EmptyState } from '../../components/EmptyState';
 import { SkeletonFightCard } from '../../components/SkeletonFightCard';
 import { BoutWithPick, PickInsert } from '../../types/database';
+import type { CommunityPickPercentages } from '../../types/social';
+
+// Community Percentage Bar Component
+const CommunityPercentageBar: React.FC<{
+  percentages: CommunityPickPercentages | undefined;
+  redName: string;
+  blueName: string;
+}> = ({ percentages, redName, blueName }) => {
+  if (!percentages || percentages.total_picks === 0) {
+    return null;
+  }
+
+  const redPct = percentages.fighter_a_percentage || 0;
+  const bluePct = percentages.fighter_b_percentage || 0;
+
+  return (
+    <View style={communityStyles.container}>
+      <View style={communityStyles.header}>
+        <Text style={communityStyles.label}>Community Picks</Text>
+        <Text style={communityStyles.totalPicks}>{percentages.total_picks} picks</Text>
+      </View>
+      <View style={communityStyles.barContainer}>
+        <View style={[communityStyles.barRed, { flex: redPct || 1 }]}>
+          <Text style={communityStyles.percentage}>{redPct.toFixed(0)}%</Text>
+        </View>
+        <View style={[communityStyles.barBlue, { flex: bluePct || 1 }]}>
+          <Text style={communityStyles.percentage}>{bluePct.toFixed(0)}%</Text>
+        </View>
+      </View>
+    </View>
+  );
+};
+
+const communityStyles = StyleSheet.create({
+  container: {
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  label: {
+    fontSize: 11,
+    color: '#999',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  totalPicks: {
+    fontSize: 11,
+    color: '#666',
+  },
+  barContainer: {
+    flexDirection: 'row',
+    height: 24,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  barRed: {
+    backgroundColor: '#dc2626',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 40,
+  },
+  barBlue: {
+    backgroundColor: '#2563eb',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 40,
+  },
+  percentage: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+});
 
 // Animated Fighter Button Component
 const FighterButton: React.FC<{
@@ -88,11 +169,15 @@ export default function Pick() {
   );
   const upsertPick = useUpsertPick();
 
+  // Get bout IDs for community percentages
+  const boutIds = useMemo(() => bouts?.map((b) => b.id) || [], [bouts]);
+  const { data: communityPercentages, refetch: refetchPercentages } = useEventCommunityPercentages(boutIds);
+
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([refetchEvent(), refetchBouts()]);
+    await Promise.all([refetchEvent(), refetchBouts(), refetchPercentages()]);
     setRefreshing(false);
   };
 
@@ -236,6 +321,13 @@ export default function Pick() {
               <Text style={styles.lockedText}>⚠️ Fight Canceled - Pick Voided</Text>
             </View>
           )}
+
+          {/* Community Pick Percentages */}
+          <CommunityPercentageBar
+            percentages={communityPercentages?.get(bout.id)}
+            redName={bout.red_name}
+            blueName={bout.blue_name}
+          />
 
           {/* Fighters */}
           <View style={styles.fighters}>
