@@ -7,15 +7,18 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { scrapeFightDetails } from "../_shared/ufcstats-scraper.ts";
+import { createLogger } from "../_shared/logger.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+const logger = createLogger("sync-results-and-grade");
 
 serve(async (req) => {
   const startTime = Date.now();
 
   try {
-    console.log("=== SYNC RESULTS AND GRADE: Starting ===");
+    logger.info("Starting results sync and grading");
 
     // Create Supabase client with service role
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -28,7 +31,7 @@ serve(async (req) => {
 
     if (eventIdOverride) {
       // Manual override for specific event
-      console.log(`Using event_id override: ${eventIdOverride}`);
+      logger.info("Using event_id override", { eventId: eventIdOverride });
       const { data, error } = await supabase
         .from("events")
         .select("*")
@@ -42,7 +45,7 @@ serve(async (req) => {
     } else {
       // Find recent events that might have results
       // Events in the past that aren't marked as completed
-      console.log("Finding recent events to check for results...");
+      logger.info("Finding recent events to check for results");
       const { data, error } = await supabase
         .from("events")
         .select("*")
@@ -59,7 +62,7 @@ serve(async (req) => {
     }
 
     if (eventsToProcess.length === 0) {
-      console.log("No events to process");
+      logger.info("No events to process");
       return new Response(
         JSON.stringify({
           success: true,
@@ -70,7 +73,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Processing ${eventsToProcess.length} events`);
+    logger.info("Processing events", { count: eventsToProcess.length });
 
     let totalResultsSynced = 0;
     let totalPicksGraded = 0;
@@ -79,7 +82,7 @@ serve(async (req) => {
     const affectedUsers = new Set<string>();
 
     for (const event of eventsToProcess) {
-      console.log(`\nProcessing event: ${event.name}`);
+      logger.info("Processing event", { name: event.name, id: event.id });
 
       try {
         // Get bouts for this event
@@ -90,11 +93,11 @@ serve(async (req) => {
           .order("order_index", { ascending: true });
 
         if (!bouts || bouts.length === 0) {
-          console.log(`No bouts found for event ${event.name}`);
+          logger.info("No bouts found for event", { name: event.name });
           continue;
         }
 
-        console.log(`Found ${bouts.length} bouts`);
+        logger.debug("Found bouts for event", { count: bouts.length, event: event.name });
 
         let resultsSynced = 0;
         let boutsWithResults = 0;
@@ -113,12 +116,16 @@ serve(async (req) => {
             const fightUrl = `http://ufcstats.com/fight-details/${bout.ufcstats_fight_id}`;
 
             // Scrape fight details
-            console.log(`Scraping result for: ${bout.red_name} vs ${bout.blue_name}`);
+            logger.debug("Scraping result", { fight: `${bout.red_name} vs ${bout.blue_name}` });
             const result = await scrapeFightDetails(fightUrl);
 
             if (result.winner_corner) {
               // We have a result!
-              console.log(`Result: ${result.winner_corner} wins via ${result.method}`);
+              logger.info("Result found", {
+                fight: `${bout.red_name} vs ${bout.blue_name}`,
+                winner: result.winner_corner,
+                method: result.method,
+              });
 
               // Upsert result
               if (existingResult) {
@@ -158,7 +165,7 @@ serve(async (req) => {
                 .eq("status", "active");
 
               if (picks && picks.length > 0) {
-                console.log(`Grading ${picks.length} picks...`);
+                logger.debug("Grading picks", { count: picks.length, bout: bout.id });
 
                 for (const pick of picks) {
                   let newStatus: string;
@@ -194,10 +201,13 @@ serve(async (req) => {
                 .update({ status: "completed" })
                 .eq("id", bout.id);
             } else {
-              console.log("No result yet for this fight");
+              logger.debug("No result yet", { fight: `${bout.red_name} vs ${bout.blue_name}` });
             }
           } catch (error) {
-            console.error(`Error processing bout ${bout.id}:`, error);
+            logger.error("Error processing bout", error, {
+              bout: `${bout.red_name} vs ${bout.blue_name}`,
+              boutId: bout.id,
+            });
             errors.push({
               bout: `${bout.red_name} vs ${bout.blue_name}`,
               error: error.message,
@@ -208,7 +218,7 @@ serve(async (req) => {
         // Check if event is fully completed
         // (all bouts have results)
         if (boutsWithResults === bouts.length) {
-          console.log(`Event ${event.name} is complete (all fights have results)`);
+          logger.info("Event complete - all fights have results", { name: event.name });
 
           await supabase
             .from("events")
@@ -217,9 +227,11 @@ serve(async (req) => {
 
           eventsCompleted++;
         } else {
-          console.log(
-            `Event ${event.name} not complete: ${boutsWithResults}/${bouts.length} fights have results`
-          );
+          logger.info("Event not complete", {
+            name: event.name,
+            boutsWithResults,
+            totalBouts: bouts.length,
+          });
 
           // Update to in_progress if at least one result
           if (boutsWithResults > 0 && event.status === "upcoming") {
@@ -232,7 +244,7 @@ serve(async (req) => {
 
         totalResultsSynced += resultsSynced;
       } catch (error) {
-        console.error(`Error processing event ${event.name}:`, error);
+        logger.error("Error processing event", error, { name: event.name });
         errors.push({
           event: event.name,
           error: error.message,
@@ -241,7 +253,7 @@ serve(async (req) => {
     }
 
     // Recalculate stats for all affected users
-    console.log(`\nRecalculating stats for ${affectedUsers.size} users...`);
+    logger.info("Recalculating stats for affected users", { count: affectedUsers.size });
 
     for (const userId of affectedUsers) {
       try {
@@ -251,14 +263,14 @@ serve(async (req) => {
         });
 
         if (error) {
-          console.error(`Error recalculating stats for user ${userId}:`, error);
+          logger.error("Error recalculating stats", error, { userId });
           errors.push({
             user_id: userId,
             error: error.message,
           });
         }
       } catch (error) {
-        console.error(`Error recalculating stats for user ${userId}:`, error);
+        logger.error("Error recalculating stats", error, { userId });
       }
     }
 
@@ -275,15 +287,19 @@ serve(async (req) => {
       duration_ms: duration,
     };
 
-    console.log("=== SYNC RESULTS AND GRADE: Complete ===");
-    console.log(JSON.stringify(result, null, 2));
+    logger.success("Results sync and grading complete", duration, {
+      eventsProcessed: eventsToProcess.length,
+      eventsCompleted,
+      resultsSynced: totalResultsSynced,
+      picksGraded: totalPicksGraded,
+      usersUpdated: affectedUsers.size,
+    });
 
     return new Response(JSON.stringify(result), {
       headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("=== SYNC RESULTS AND GRADE: Fatal Error ===");
-    console.error(error);
+    logger.error("Fatal error during results sync and grading", error);
 
     return new Response(
       JSON.stringify({

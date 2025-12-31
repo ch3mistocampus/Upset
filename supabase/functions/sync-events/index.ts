@@ -7,25 +7,28 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { scrapeEventsList, parseUFCStatsDate } from "../_shared/ufcstats-scraper.ts";
+import { createLogger, measureTime } from "../_shared/logger.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+const logger = createLogger("sync-events");
 
 serve(async (req) => {
   const startTime = Date.now();
 
   try {
-    console.log("=== SYNC EVENTS: Starting ===");
+    logger.info("Starting events sync");
 
     // Create Supabase client with service role (bypasses RLS)
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
     // Scrape events from UFCStats
-    console.log("Fetching events from UFCStats...");
+    logger.info("Fetching events from UFCStats");
     const events = await scrapeEventsList();
 
     if (events.length === 0) {
-      console.warn("No events returned from scraper - skipping to avoid data loss");
+      logger.warn("No events returned from scraper - skipping to avoid data loss");
       return new Response(
         JSON.stringify({
           success: false,
@@ -36,7 +39,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Scraped ${events.length} events, upserting to database...`);
+    logger.info("Scraped events, upserting to database", { count: events.length });
 
     // Process events and upsert
     let inserted = 0;
@@ -48,7 +51,7 @@ serve(async (req) => {
         // Parse date
         const eventDate = parseUFCStatsDate(event.date_text);
         if (!eventDate) {
-          console.warn(`Could not parse date for event: ${event.name} (${event.date_text})`);
+          logger.warn("Could not parse date for event", { name: event.name, date: event.date_text });
           continue;
         }
 
@@ -98,7 +101,7 @@ serve(async (req) => {
           inserted++;
         }
       } catch (error) {
-        console.error(`Error processing event ${event.name}:`, error);
+        logger.error("Error processing event", error, { event: event.name });
         errors.push({
           event: event.name,
           error: error.message,
@@ -117,15 +120,13 @@ serve(async (req) => {
       duration_ms: duration,
     };
 
-    console.log("=== SYNC EVENTS: Complete ===");
-    console.log(JSON.stringify(result, null, 2));
+    logger.success("Events sync complete", duration, { inserted, updated, total: events.length, errors: errors.length });
 
     return new Response(JSON.stringify(result), {
       headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("=== SYNC EVENTS: Fatal Error ===");
-    console.error(error);
+    logger.error("Fatal error during events sync", error);
 
     return new Response(
       JSON.stringify({

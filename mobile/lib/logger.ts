@@ -8,6 +8,8 @@
  *   logger.error('Failed to fetch data', error, { endpoint: '/api/users' });
  */
 
+import * as Sentry from './sentry';
+
 type LogContext = Record<string, any>;
 
 class Logger {
@@ -23,18 +25,15 @@ class Logger {
 
   /**
    * Log warning messages
-   * Sent to Sentry in production as breadcrumbs
+   * Sent to Sentry in production as warnings
    */
   warn(message: string, context?: LogContext): void {
     console.warn(`[WARN] ${message}`, context || '');
 
-    // Sentry integration will be added here
-    // if (!__DEV__ && Sentry) {
-    //   Sentry.captureMessage(message, {
-    //     level: 'warning',
-    //     extra: context,
-    //   });
-    // }
+    // Send to Sentry in production
+    if (!__DEV__) {
+      Sentry.captureMessage(message, 'warning', context);
+    }
   }
 
   /**
@@ -44,12 +43,14 @@ class Logger {
   error(message: string, error?: Error | unknown, context?: LogContext): void {
     console.error(`[ERROR] ${message}`, error || '', context || '');
 
-    // Sentry integration will be added here
-    // if (!__DEV__ && Sentry) {
-    //   Sentry.captureException(error || new Error(message), {
-    //     extra: { message, ...context },
-    //   });
-    // }
+    // Send to Sentry in production
+    if (!__DEV__) {
+      if (error instanceof Error) {
+        Sentry.captureException(error, { message, ...context });
+      } else {
+        Sentry.captureException(new Error(message), { originalError: error, ...context });
+      }
+    }
   }
 
   /**
@@ -71,15 +72,8 @@ class Logger {
       console.log(`[BREADCRUMB] ${category}: ${message}`, data || '');
     }
 
-    // Sentry integration will be added here
-    // if (!__DEV__ && Sentry) {
-    //   Sentry.addBreadcrumb({
-    //     message,
-    //     category,
-    //     data,
-    //     level: 'info',
-    //   });
-    // }
+    // Add breadcrumb to Sentry (works in production)
+    Sentry.addBreadcrumb(message, category, data);
   }
 }
 

@@ -8,15 +8,18 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { scrapeEventCard } from "../_shared/ufcstats-scraper.ts";
+import { createLogger } from "../_shared/logger.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+const logger = createLogger("sync-next-event-card");
 
 serve(async (req) => {
   const startTime = Date.now();
 
   try {
-    console.log("=== SYNC NEXT EVENT CARD: Starting ===");
+    logger.info("Starting event card sync");
 
     // Create Supabase client with service role
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -29,7 +32,7 @@ serve(async (req) => {
 
     if (eventIdOverride) {
       // Manual override for specific event
-      console.log(`Using event_id override: ${eventIdOverride}`);
+      logger.info("Using event_id override", { eventId: eventIdOverride });
       const { data, error } = await supabase
         .from("events")
         .select("*")
@@ -43,7 +46,7 @@ serve(async (req) => {
       event = data;
     } else {
       // Find next upcoming event
-      console.log("Finding next upcoming event...");
+      logger.info("Finding next upcoming event");
       const { data, error } = await supabase
         .from("events")
         .select("*")
@@ -53,7 +56,7 @@ serve(async (req) => {
         .single();
 
       if (error || !data) {
-        console.log("No upcoming events found");
+        logger.info("No upcoming events found");
         return new Response(
           JSON.stringify({
             success: false,
@@ -66,17 +69,17 @@ serve(async (req) => {
       event = data;
     }
 
-    console.log(`Syncing event: ${event.name} (${event.event_date})`);
+    logger.info("Syncing event", { name: event.name, date: event.event_date });
 
     // Get event URL from ufcstats_event_id
     const eventUrl = `http://ufcstats.com/event-details/${event.ufcstats_event_id}`;
 
     // Scrape fight card
-    console.log(`Scraping event card from: ${eventUrl}`);
+    logger.info("Scraping event card", { url: eventUrl });
     const fights = await scrapeEventCard(eventUrl);
 
     if (fights.length === 0) {
-      console.warn("No fights returned from scraper - skipping to avoid data loss");
+      logger.warn("No fights returned from scraper - skipping to avoid data loss");
       return new Response(
         JSON.stringify({
           success: false,
@@ -87,7 +90,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Scraped ${fights.length} fights`);
+    logger.info("Scraped fights", { count: fights.length });
 
     // Get existing bouts for this event
     const { data: existingBouts } = await supabase
@@ -153,7 +156,7 @@ serve(async (req) => {
           inserted++;
         }
       } catch (error) {
-        console.error(`Error processing fight ${fight.ufcstats_fight_id}:`, error);
+        logger.error("Error processing fight", error, { fightId: fight.ufcstats_fight_id });
         errors.push({
           fight: `${fight.red_name} vs ${fight.blue_name}`,
           error: error.message,
@@ -164,7 +167,7 @@ serve(async (req) => {
     // Handle canceled fights
     for (const canceledBout of canceledFights) {
       try {
-        console.log(`Marking fight as canceled: ${canceledBout.ufcstats_fight_id}`);
+        logger.info("Marking fight as canceled", { fightId: canceledBout.ufcstats_fight_id });
 
         // Update bout status
         await supabase
@@ -181,7 +184,7 @@ serve(async (req) => {
 
         canceled++;
       } catch (error) {
-        console.error(`Error canceling bout ${canceledBout.id}:`, error);
+        logger.error("Error canceling bout", error, { boutId: canceledBout.id });
         errors.push({
           bout_id: canceledBout.id,
           error: error.message,
@@ -212,15 +215,19 @@ serve(async (req) => {
       duration_ms: duration,
     };
 
-    console.log("=== SYNC NEXT EVENT CARD: Complete ===");
-    console.log(JSON.stringify(result, null, 2));
+    logger.success("Event card sync complete", duration, {
+      event: event.name,
+      inserted,
+      updated,
+      canceled,
+      total: fights.length,
+    });
 
     return new Response(JSON.stringify(result), {
       headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("=== SYNC NEXT EVENT CARD: Fatal Error ===");
-    console.error(error);
+    logger.error("Fatal error during event card sync", error);
 
     return new Response(
       JSON.stringify({

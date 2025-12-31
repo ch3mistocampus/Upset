@@ -2,17 +2,20 @@
  * Home screen - next event, picks progress, countdown
  */
 
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useNextEvent, useBoutsForEvent, useRecentPicksSummary } from '../../hooks/useQueries';
-import { ErrorState } from '../../components/ErrorState';
-import { EmptyState } from '../../components/EmptyState';
+import { useTheme } from '../../lib/theme';
+import { spacing, radius, typography } from '../../lib/tokens';
+import { Card, Button, ProgressBar, EmptyState } from '../../components/ui';
 import { SkeletonEventCard } from '../../components/SkeletonStats';
+import { ErrorState } from '../../components/ErrorState';
 import { useEffect, useState, useRef } from 'react';
 
 export default function Home() {
   const router = useRouter();
+  const { colors } = useTheme();
   const { user } = useAuth();
   const { data: nextEvent, isLoading: eventLoading, isError: eventError, refetch: refetchEvent } = useNextEvent();
   const { data: bouts, isLoading: boutsLoading, isError: boutsError, refetch: refetchBouts } = useBoutsForEvent(
@@ -52,7 +55,6 @@ export default function Home() {
       const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
 
-      // Check if event is within 24 hours
       const totalHours = days * 24 + hours;
       setIsNearEvent(totalHours < 24);
 
@@ -66,18 +68,18 @@ export default function Home() {
     };
 
     updateCountdown();
-    const interval = setInterval(updateCountdown, 60000); // Update every minute
+    const interval = setInterval(updateCountdown, 60000);
 
     return () => clearInterval(interval);
   }, [nextEvent]);
 
-  // Pulse animation when event is near (< 24 hours)
+  // Pulse animation when event is near
   useEffect(() => {
     if (isNearEvent) {
       const pulse = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
-            toValue: 1.05,
+            toValue: 1.03,
             duration: 1000,
             useNativeDriver: true,
           }),
@@ -97,12 +99,14 @@ export default function Home() {
 
   const picksCount = bouts?.filter((b) => b.pick).length || 0;
   const totalBouts = bouts?.length || 0;
-
   const lastEventSummary = recentSummary?.[0];
 
   if (eventLoading) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        contentContainerStyle={styles.content}
+      >
         <SkeletonEventCard />
         <SkeletonEventCard />
       </ScrollView>
@@ -111,31 +115,37 @@ export default function Home() {
 
   if (eventError) {
     return (
-      <ErrorState
-        message="Failed to load upcoming events. Check your connection and try again."
-        onRetry={() => refetchEvent()}
-      />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <ErrorState
+          message="Failed to load upcoming events. Check your connection and try again."
+          onRetry={() => refetchEvent()}
+        />
+      </View>
     );
   }
 
   if (boutsError) {
     return (
-      <ErrorState
-        message="Failed to load event details. Check your connection and try again."
-        onRetry={() => refetchBouts()}
-      />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <ErrorState
+          message="Failed to load event details. Check your connection and try again."
+          onRetry={() => refetchBouts()}
+        />
+      </View>
     );
   }
 
   if (!nextEvent) {
     return (
-      <EmptyState
-        icon="calendar-outline"
-        title="No Upcoming Events"
-        message="Check back soon for the next UFC event and start making your picks!"
-        actionLabel="Refresh"
-        onAction={onRefresh}
-      />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <EmptyState
+          icon="calendar-outline"
+          title="No Upcoming Events"
+          message="Check back soon for the next UFC event and start making your picks!"
+          actionLabel="Refresh"
+          onAction={onRefresh}
+        />
+      </View>
     );
   }
 
@@ -143,99 +153,106 @@ export default function Home() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          tintColor="#d4202a"
-          colors={['#d4202a']}
+          tintColor={colors.accent}
+          colors={[colors.accent]}
         />
       }
     >
       {/* Next Event Card */}
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>NEXT EVENT</Text>
-        <Text style={styles.eventName}>{nextEvent.name}</Text>
+      <Card>
+        <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>
+          NEXT EVENT
+        </Text>
+        <Text style={[styles.eventName, { color: colors.textPrimary }]}>
+          {nextEvent.name}
+        </Text>
         {nextEvent.location && (
-          <Text style={styles.eventLocation}>{nextEvent.location}</Text>
+          <Text style={[styles.eventLocation, { color: colors.textSecondary }]}>
+            {nextEvent.location}
+          </Text>
         )}
 
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.divider }]} />
 
         <View style={styles.countdownContainer}>
-          <Text style={styles.countdownLabel}>
+          <Text style={[styles.countdownLabel, { color: colors.textSecondary }]}>
             {isLocked ? 'Event Started' : 'Picks Lock In'}
           </Text>
           <Animated.Text
             style={[
               styles.countdownTime,
-              { transform: [{ scale: pulseAnim }] }
+              { color: colors.accent, transform: [{ scale: pulseAnim }] }
             ]}
           >
             {timeUntil}
           </Animated.Text>
         </View>
 
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.divider }]} />
 
         {/* Picks Progress */}
         <View style={styles.progressContainer}>
-          <Text style={styles.progressLabel}>Your Picks</Text>
-          <Text style={styles.progressValue}>
+          <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>
+            Your Picks
+          </Text>
+          <Text style={[styles.progressValue, { color: colors.textPrimary }]}>
             {picksCount} / {totalBouts}
           </Text>
         </View>
 
         {totalBouts > 0 && (
-          <View style={styles.progressBar}>
-            <View
-              style={[
-                styles.progressFill,
-                { width: `${(picksCount / totalBouts) * 100}%` },
-              ]}
-            />
+          <View style={styles.progressBarContainer}>
+            <ProgressBar progress={(picksCount / totalBouts) * 100} />
           </View>
         )}
 
         {!isLocked && (
-          <TouchableOpacity
-            style={styles.button}
+          <Button
+            title={picksCount === 0 ? 'Start Picking' : 'Continue Picking'}
             onPress={() => router.push('/(tabs)/pick')}
-          >
-            <Text style={styles.buttonText}>
-              {picksCount === 0 ? 'Start Picking' : 'Continue Picking'}
-            </Text>
-          </TouchableOpacity>
+          />
         )}
 
         {isLocked && picksCount > 0 && (
-          <View style={styles.lockedBanner}>
-            <Text style={styles.lockedText}>🔒 Picks Locked</Text>
+          <View style={[styles.lockedBanner, { backgroundColor: colors.surfaceAlt }]}>
+            <Text style={[styles.lockedText, { color: colors.textSecondary }]}>
+              🔒 Picks Locked
+            </Text>
           </View>
         )}
-      </View>
+      </Card>
 
       {/* Last Event Summary */}
       {lastEventSummary && (
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>LAST EVENT</Text>
-          <Text style={styles.lastEventName}>{lastEventSummary.event.name}</Text>
+        <Card>
+          <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>
+            LAST EVENT
+          </Text>
+          <Text style={[styles.lastEventName, { color: colors.textPrimary }]}>
+            {lastEventSummary.event.name}
+          </Text>
 
           <View style={styles.lastEventStats}>
-            <Text style={styles.lastEventLabel}>Your Results</Text>
-            <Text style={styles.lastEventValue}>
+            <Text style={[styles.lastEventLabel, { color: colors.textSecondary }]}>
+              Your Results
+            </Text>
+            <Text style={[styles.lastEventValue, { color: colors.textPrimary }]}>
               {lastEventSummary.correct} / {lastEventSummary.total} Correct
             </Text>
           </View>
 
           {lastEventSummary.total > 0 && (
-            <Text style={styles.lastEventAccuracy}>
+            <Text style={[styles.lastEventAccuracy, { color: colors.success }]}>
               {Math.round((lastEventSummary.correct / lastEventSummary.total) * 100)}% Accuracy
             </Text>
           )}
-        </View>
+        </Card>
       )}
     </ScrollView>
   );
@@ -244,131 +261,79 @@ export default function Home() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   content: {
-    padding: 16,
-  },
-  card: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#333',
+    padding: spacing.lg,
+    gap: spacing.lg,
   },
   cardLabel: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#999',
-    letterSpacing: 1,
-    marginBottom: 12,
+    ...typography.caption,
+    marginBottom: spacing.sm,
   },
   eventName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
+    ...typography.h2,
+    marginBottom: spacing.xs,
   },
   eventLocation: {
-    fontSize: 14,
-    color: '#999',
+    ...typography.meta,
   },
   divider: {
     height: 1,
-    backgroundColor: '#333',
-    marginVertical: 16,
+    marginVertical: spacing.lg,
   },
   countdownContainer: {
     alignItems: 'center',
   },
   countdownLabel: {
-    fontSize: 14,
-    color: '#999',
-    marginBottom: 4,
+    ...typography.meta,
+    marginBottom: spacing.xs,
   },
   countdownTime: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#d4202a',
+    ...typography.h1,
   },
   progressContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   progressLabel: {
-    fontSize: 14,
-    color: '#999',
+    ...typography.meta,
   },
   progressValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
+    ...typography.h3,
   },
-  progressBar: {
-    height: 8,
-    backgroundColor: '#333',
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: 16,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#d4202a',
-  },
-  button: {
-    backgroundColor: '#d4202a',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+  progressBarContainer: {
+    marginBottom: spacing.lg,
   },
   lockedBanner: {
-    backgroundColor: '#333',
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: radius.sm,
+    padding: spacing.md,
     alignItems: 'center',
   },
   lockedText: {
-    color: '#999',
-    fontSize: 14,
+    ...typography.body,
     fontWeight: '600',
-  },
-  noDataText: {
-    fontSize: 16,
-    color: '#999',
-    textAlign: 'center',
   },
   lastEventName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 12,
+    ...typography.h3,
+    marginBottom: spacing.md,
   },
   lastEventStats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.xs,
   },
   lastEventLabel: {
-    fontSize: 14,
-    color: '#999',
+    ...typography.meta,
   },
   lastEventValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
+    ...typography.body,
+    fontWeight: '700',
   },
   lastEventAccuracy: {
-    fontSize: 14,
-    color: '#4ade80',
+    ...typography.meta,
     textAlign: 'right',
   },
 });

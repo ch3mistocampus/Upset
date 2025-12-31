@@ -6,22 +6,24 @@ import { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
   ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
+import { useTheme } from '../../lib/theme';
+import { spacing, radius, typography } from '../../lib/tokens';
+import { Button, LinkButton, Input } from '../../components/ui';
 import { validateEmail, isEmail, getAuthErrorMessage } from '../../lib/validation';
 
 type AuthTab = 'password' | 'otp';
 
 export default function SignIn() {
+  const { colors } = useTheme();
   const { signInWithPassword, signInWithUsername, signInWithOTP, verifyOTP } = useAuth();
   const toast = useToast();
   const router = useRouter();
@@ -53,13 +55,11 @@ export default function SignIn() {
 
     setLoading(true);
     try {
-      // Smart detection: email vs username
       if (isEmail(input)) {
         await signInWithPassword(input, password);
       } else {
         await signInWithUsername(input, password);
       }
-      // Auth state change will trigger redirect in index.tsx
     } catch (error: any) {
       const errorMessage = getAuthErrorMessage(error);
       toast.showError(errorMessage);
@@ -96,7 +96,6 @@ export default function SignIn() {
     setLoading(true);
     try {
       await verifyOTP(otpEmail, otp);
-      // Auth state change will trigger redirect in index.tsx
     } catch (error: any) {
       toast.showError(error.message || 'Invalid code');
     } finally {
@@ -106,48 +105,41 @@ export default function SignIn() {
 
   const renderPasswordTab = () => (
     <>
-      <TextInput
-        style={styles.input}
+      <Input
         placeholder="Email or Username"
-        placeholderTextColor="#666"
         value={emailOrUsername}
         onChangeText={setEmailOrUsername}
         autoCapitalize="none"
         autoComplete="username"
         editable={!loading}
+        containerStyle={styles.inputContainer}
       />
 
-      <TextInput
-        style={styles.input}
+      <Input
         placeholder="Password"
-        placeholderTextColor="#666"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
         autoCapitalize="none"
         autoComplete="password"
         editable={!loading}
+        containerStyle={styles.inputContainer}
       />
 
-      <TouchableOpacity
-        style={styles.forgotButton}
-        onPress={() => router.push('/(auth)/reset-password')}
-        disabled={loading}
-      >
-        <Text style={styles.forgotText}>Forgot password?</Text>
-      </TouchableOpacity>
+      <View style={styles.forgotContainer}>
+        <LinkButton
+          title="Forgot password?"
+          onPress={() => router.push('/(auth)/reset-password')}
+          disabled={loading}
+        />
+      </View>
 
-      <TouchableOpacity
-        style={[styles.button, loading && styles.buttonDisabled]}
+      <Button
+        title="Sign In"
         onPress={handlePasswordSignIn}
+        loading={loading}
         disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Sign In</Text>
-        )}
-      </TouchableOpacity>
+      />
     </>
   );
 
@@ -155,72 +147,60 @@ export default function SignIn() {
     if (!otpSent) {
       return (
         <>
-          <TextInput
-            style={styles.input}
+          <Input
             placeholder="Email"
-            placeholderTextColor="#666"
             value={otpEmail}
             onChangeText={setOtpEmail}
             autoCapitalize="none"
             keyboardType="email-address"
             autoComplete="email"
             editable={!loading}
+            containerStyle={styles.inputContainer}
           />
 
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+          <Button
+            title="Send Code"
             onPress={handleSendOTP}
+            loading={loading}
             disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Send Code</Text>
-            )}
-          </TouchableOpacity>
+          />
         </>
       );
     }
 
     return (
       <>
-        <TextInput
-          style={styles.input}
+        <Input
           placeholder="6-digit code"
-          placeholderTextColor="#666"
           value={otp}
           onChangeText={setOtp}
           keyboardType="number-pad"
           maxLength={6}
           editable={!loading}
+          containerStyle={styles.inputContainer}
         />
 
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
+        <Button
+          title="Verify"
           onPress={handleVerifyOTP}
+          loading={loading}
           disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Verify</Text>
-          )}
-        </TouchableOpacity>
+        />
 
-        <TouchableOpacity
-          style={styles.linkButton}
-          onPress={() => setOtpSent(false)}
-          disabled={loading}
-        >
-          <Text style={styles.linkText}>Back to email</Text>
-        </TouchableOpacity>
+        <View style={styles.linkContainer}>
+          <LinkButton
+            title="Back to email"
+            onPress={() => setOtpSent(false)}
+            disabled={loading}
+          />
+        </View>
       </>
     );
   };
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
@@ -228,27 +208,47 @@ export default function SignIn() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
-          <Text style={styles.title}>UFC Picks Tracker</Text>
-          <Text style={styles.subtitle}>Sign in to continue</Text>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>
+            UFC Picks Tracker
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Sign in to continue
+          </Text>
 
           {/* Tab Navigation */}
-          <View style={styles.tabContainer}>
+          <View style={[styles.tabContainer, { borderBottomColor: colors.divider }]}>
             <TouchableOpacity
-              style={[styles.tab, activeTab === 'password' && styles.tabActive]}
+              style={[
+                styles.tab,
+                activeTab === 'password' && { borderBottomColor: colors.accent },
+              ]}
               onPress={() => setActiveTab('password')}
               disabled={loading}
             >
-              <Text style={[styles.tabText, activeTab === 'password' && styles.tabTextActive]}>
+              <Text
+                style={[
+                  styles.tabText,
+                  { color: activeTab === 'password' ? colors.textPrimary : colors.textSecondary },
+                ]}
+              >
                 Password
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.tab, activeTab === 'otp' && styles.tabActive]}
+              style={[
+                styles.tab,
+                activeTab === 'otp' && { borderBottomColor: colors.accent },
+              ]}
               onPress={() => setActiveTab('otp')}
               disabled={loading}
             >
-              <Text style={[styles.tabText, activeTab === 'otp' && styles.tabTextActive]}>
+              <Text
+                style={[
+                  styles.tabText,
+                  { color: activeTab === 'otp' ? colors.textPrimary : colors.textSecondary },
+                ]}
+              >
                 Email Code
               </Text>
             </TouchableOpacity>
@@ -265,8 +265,9 @@ export default function SignIn() {
             onPress={() => router.push('/(auth)/sign-up')}
             disabled={loading}
           >
-            <Text style={styles.signUpText}>
-              Don't have an account? <Text style={styles.signUpTextBold}>Sign up</Text>
+            <Text style={[styles.signUpText, { color: colors.textSecondary }]}>
+              Don't have an account?{' '}
+              <Text style={{ color: colors.accent, fontWeight: '600' }}>Sign up</Text>
             </Text>
           </TouchableOpacity>
         </View>
@@ -278,7 +279,6 @@ export default function SignIn() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   scrollContent: {
     flexGrow: 1,
@@ -286,102 +286,55 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 32,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xxl,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
+    ...typography.h1,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#999',
+    ...typography.body,
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: spacing.xxl,
   },
   tabContainer: {
     flexDirection: 'row',
-    marginBottom: 24,
+    marginBottom: spacing.xl,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   tab: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     alignItems: 'center',
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
-  tabActive: {
-    borderBottomColor: '#d4202a',
-  },
   tabText: {
-    fontSize: 16,
-    color: '#999',
+    ...typography.body,
     fontWeight: '500',
   },
-  tabTextActive: {
-    color: '#fff',
-  },
   tabContent: {
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
-  input: {
-    backgroundColor: '#1a1a1a',
-    borderWidth: 1,
-    borderColor: '#333',
-    borderRadius: 8,
-    padding: 16,
-    fontSize: 16,
-    color: '#fff',
-    marginBottom: 16,
+  inputContainer: {
+    marginBottom: spacing.md,
   },
-  forgotButton: {
+  forgotContainer: {
     alignSelf: 'flex-end',
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
-  forgotText: {
-    color: '#d4202a',
-    fontSize: 14,
-  },
-  button: {
-    backgroundColor: '#d4202a',
-    borderRadius: 8,
-    padding: 16,
+  linkContainer: {
     alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  linkButton: {
-    marginTop: 16,
-    padding: 8,
-    alignItems: 'center',
-  },
-  linkText: {
-    color: '#d4202a',
-    fontSize: 14,
+    marginTop: spacing.lg,
   },
   signUpButton: {
-    marginTop: 24,
-    padding: 8,
+    marginTop: spacing.xl,
+    padding: spacing.sm,
     alignItems: 'center',
   },
   signUpText: {
-    color: '#999',
-    fontSize: 14,
-  },
-  signUpTextBold: {
-    color: '#d4202a',
-    fontWeight: 'bold',
+    ...typography.body,
   },
 });

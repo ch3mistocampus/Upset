@@ -6,7 +6,11 @@ import { Stack } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import { ToastProvider } from '../hooks/useToast';
-// import { OfflineBanner } from '../components/OfflineBanner'; // Temporarily disabled - false positives in simulator
+import { ThemeProvider, useTheme } from '../lib/theme';
+import { initSentry } from '../lib/sentry';
+
+// Initialize Sentry for error tracking (only in production)
+initSentry();
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,32 +22,43 @@ const queryClient = new QueryClient({
   },
 });
 
+function RootNavigator() {
+  const { colors, isDark } = useTheme();
+
+  return (
+    <>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <Stack
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: colors.surface,
+          },
+          headerTintColor: colors.textPrimary,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+          contentStyle: {
+            backgroundColor: colors.background,
+          },
+        }}
+      >
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+      </Stack>
+    </>
+  );
+}
+
 export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ToastProvider>
-        <StatusBar style="light" />
-        <Stack
-          screenOptions={{
-            headerStyle: {
-              backgroundColor: '#1a1a1a',
-            },
-            headerTintColor: '#fff',
-            headerTitleStyle: {
-              fontWeight: 'bold',
-            },
-            contentStyle: {
-              backgroundColor: '#000',
-            },
-          }}
-        >
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="settings" options={{ title: 'Settings' }} />
-        </Stack>
-        {/* <OfflineBanner /> */}
-      </ToastProvider>
+      <ThemeProvider>
+        <ToastProvider>
+          <RootNavigator />
+        </ToastProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

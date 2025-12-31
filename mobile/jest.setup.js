@@ -59,20 +59,84 @@ jest.mock('expo-status-bar', () => ({
 }));
 
 // ============================================================================
-// React Query Mock
+// React Query - Use real implementation for proper testing
 // ============================================================================
-jest.mock('@tanstack/react-query', () => {
-  const actual = jest.requireActual('@tanstack/react-query');
-  return {
-    ...actual,
-    QueryClient: jest.fn(() => ({
-      clear: jest.fn(),
-      invalidateQueries: jest.fn(),
-      refetchQueries: jest.fn(),
-    })),
-    QueryClientProvider: jest.fn(({ children }) => children),
-  };
-});
+// Note: We use the real React Query implementation to properly test hooks
+// that depend on QueryClient. Individual tests can create their own
+// QueryClient with appropriate test settings.
+
+// ============================================================================
+// Theme Mock
+// ============================================================================
+jest.mock('./lib/theme', () => ({
+  ThemeProvider: jest.fn(({ children }) => children),
+  useTheme: jest.fn(() => ({
+    themeMode: 'system',
+    resolvedTheme: 'light',
+    isDark: false,
+    setThemeMode: jest.fn(),
+    colors: {
+      background: '#F6F7F9',
+      surface: '#FFFFFF',
+      surfaceAlt: '#EEF0F3',
+      border: '#E2E5EA',
+      divider: '#E7EAF0',
+      text: '#111318',
+      textPrimary: '#111318',
+      textSecondary: '#5E6470',
+      textTertiary: '#8A90A0',
+      textMuted: '#8A90A0',
+      accent: '#B01E28',
+      accentHover: '#9A1A23',
+      accentSoft: '#F4D7DA',
+      accentSoft2: '#FBEAEC',
+      onAccent: '#FFFFFF',
+      success: '#1F7A3D',
+      successSoft: '#E8F5ED',
+      warning: '#C97B12',
+      warningSoft: '#FEF3E2',
+      danger: '#B01E28',
+      dangerSoft: '#FBEAEC',
+      tabInactive: '#8A90A0',
+      tabActive: '#B01E28',
+      skeleton: '#E2E5EA',
+      shadowColor: 'rgba(0, 0, 0, 0.08)',
+    },
+    shadows: {
+      card: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.08,
+        shadowRadius: 24,
+        elevation: 8,
+      },
+    },
+  })),
+  useThemedStyles: jest.fn((factory) => factory({
+    colors: {},
+    shadows: {},
+    themeMode: 'system',
+    resolvedTheme: 'light',
+    isDark: false,
+    setThemeMode: jest.fn(),
+  })),
+}));
+
+// ============================================================================
+// Sentry Mock
+// ============================================================================
+jest.mock('./lib/sentry', () => ({
+  initSentry: jest.fn(),
+  captureException: jest.fn(),
+  captureMessage: jest.fn(),
+  addBreadcrumb: jest.fn(),
+  setUser: jest.fn(),
+  clearUser: jest.fn(),
+  setTag: jest.fn(),
+  setExtra: jest.fn(),
+  wrapWithSentry: jest.fn((component) => component),
+  isSentryReady: jest.fn(() => false),
+}));
 
 // ============================================================================
 // Supabase Client Mock
