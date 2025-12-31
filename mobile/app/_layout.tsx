@@ -2,11 +2,16 @@
  * Root layout with providers
  */
 
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import { ToastProvider } from '../hooks/useToast';
+import { initSentry } from '../lib/sentry';
 // import { OfflineBanner } from '../components/OfflineBanner'; // Temporarily disabled - false positives in simulator
+
+// Initialize Sentry for error tracking (only in production)
+initSentry();
 
 const queryClient = new QueryClient({
   defaultOptions: {

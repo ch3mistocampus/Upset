@@ -59,20 +59,27 @@ jest.mock('expo-status-bar', () => ({
 }));
 
 // ============================================================================
-// React Query Mock
+// React Query - Use real implementation for proper testing
 // ============================================================================
-jest.mock('@tanstack/react-query', () => {
-  const actual = jest.requireActual('@tanstack/react-query');
-  return {
-    ...actual,
-    QueryClient: jest.fn(() => ({
-      clear: jest.fn(),
-      invalidateQueries: jest.fn(),
-      refetchQueries: jest.fn(),
-    })),
-    QueryClientProvider: jest.fn(({ children }) => children),
-  };
-});
+// Note: We use the real React Query implementation to properly test hooks
+// that depend on QueryClient. Individual tests can create their own
+// QueryClient with appropriate test settings.
+
+// ============================================================================
+// Sentry Mock
+// ============================================================================
+jest.mock('./lib/sentry', () => ({
+  initSentry: jest.fn(),
+  captureException: jest.fn(),
+  captureMessage: jest.fn(),
+  addBreadcrumb: jest.fn(),
+  setUser: jest.fn(),
+  clearUser: jest.fn(),
+  setTag: jest.fn(),
+  setExtra: jest.fn(),
+  wrapWithSentry: jest.fn((component) => component),
+  isSentryReady: jest.fn(() => false),
+}));
 
 // ============================================================================
 // Supabase Client Mock
