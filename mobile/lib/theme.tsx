@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, shadows, type ThemeColors, type ThemeMode, type ResolvedTheme } from './tokens';
-import logger from './logger';
+import { logger } from './logger';
 
 const THEME_STORAGE_KEY = '@ufc_picks_theme_mode';
 

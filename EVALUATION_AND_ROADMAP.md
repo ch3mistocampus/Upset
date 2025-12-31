@@ -1,8 +1,8 @@
 # UFC Picks Tracker - Evaluation & Roadmap
 
 **Generated**: 2025-12-30
-**Updated**: 2025-12-31
-**Current Status**: Sprint 2 Complete, Phase 3 Complete - Ready for Beta Testing
+**Updated**: 2025-12-31 (Sprint 3 bugs added)
+**Current Status**: Sprint 2 Complete, Phase 3 Complete - Critical bugs discovered during testing
 
 ---
 
@@ -274,6 +274,42 @@ Based on user feedback, prioritize:
 1. Submit to App Store and Google Play
 2. Respond to reviewer feedback
 3. Launch publicly
+
+---
+
+## Immediate Fixes Required (Sprint 3)
+
+**Discovered**: 2025-12-31 during testing session
+
+### Critical Bugs
+
+| # | Issue | Details | Priority |
+|---|-------|---------|----------|
+| 1 | **Event scraper not fetching real data** | Events showing test data, scraper needs to pull from UFCStats | P0 |
+| 2 | **Picks not saving to database** | Test users can't save picks - likely auth/RLS issue | P0 |
+| 3 | **Friends tab database errors** | `correct_picks` column doesn't exist - should be `correct_winner` | P1 |
+
+### UX Improvements
+
+| # | Issue | Details | Priority |
+|---|-------|---------|----------|
+| 4 | **Fighter selection UI** | Need visual highlight/animation when selecting a fighter | P1 |
+| 5 | **Mock test users for social features** | Need more test users to properly test friends/leaderboards | P2 |
+
+### Database Schema Fix Required
+
+The social RPC functions (`get_friends`, `get_friend_requests`, `get_global_leaderboard`, `get_friends_leaderboard`) reference `us.correct_picks` but the `user_stats` table uses `correct_winner`.
+
+**Fix**: Run migration `20251231000001_fix_social_functions_column_name.sql` in Supabase Dashboard SQL Editor.
+
+### Test User Authentication Bypass
+
+Added test user bypass for development (dev mode only):
+- `alice@test.local` / `test123`
+- `bob@test.local` / `test123`
+- `charlie@test.local` / `test123`
+
+These bypass Supabase auth in `__DEV__` mode for faster testing.
 
 ---
 

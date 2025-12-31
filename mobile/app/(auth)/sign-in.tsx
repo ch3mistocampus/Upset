@@ -60,6 +60,8 @@ export default function SignIn() {
       } else {
         await signInWithUsername(input, password);
       }
+      // Navigate to home after successful login (for test users especially)
+      router.replace('/(tabs)/home');
     } catch (error: any) {
       const errorMessage = getAuthErrorMessage(error);
       toast.showError(errorMessage);
