@@ -1,34 +1,49 @@
 {
   "cli": {
-    "version": ">= 5.0.0"
+    "version": ">= 5.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "channel": "development",
       "ios": {
         "simulator": true
       },
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleDebug"
+      },
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "development"
       }
     },
     "preview": {
       "distribution": "internal",
+      "channel": "preview",
       "ios": {
         "simulator": false
       },
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "preview"
       }
     },
     "production": {
       "distribution": "store",
+      "channel": "production",
+      "autoIncrement": true,
       "ios": {
         "resourceClass": "m-medium"
       },
       "android": {
         "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production"
       }
     }
   },
@@ -40,7 +55,8 @@
         "appleTeamId": ""
       },
       "android": {
-        "serviceAccountKeyPath": ""
+        "serviceAccountKeyPath": "",
+        "track": "internal"
       }
     }
   }
