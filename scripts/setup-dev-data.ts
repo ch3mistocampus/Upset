@@ -270,29 +270,114 @@ async function main() {
   console.log(`⚠️  Picks skipped (already exist): ${picksSkipped}`);
 
   // =========================================================================
-  // Step 6: Initialize User Stats
+  // Step 6: Initialize User Stats with Mock Data
   // =========================================================================
-  console.log('\n📊 STEP 6: Initializing User Stats...\n');
+  console.log('\n📊 STEP 6: Initializing User Stats with Mock Data...\n');
+
+  // Mock stats to make the leaderboard interesting
+  const MOCK_STATS = [
+    { username: 'alice_ufc', total_picks: 45, correct_winner: 32, accuracy_pct: 71.1, current_streak: 5, best_streak: 8 },
+    { username: 'bob_fighter', total_picks: 38, correct_winner: 24, accuracy_pct: 63.2, current_streak: 2, best_streak: 6 },
+    { username: 'charlie_picks', total_picks: 52, correct_winner: 29, accuracy_pct: 55.8, current_streak: 0, best_streak: 4 },
+  ];
 
   for (const user of createdUsers) {
-    const { data: existingStats } = await supabase
+    const mockStats = MOCK_STATS.find(s => s.username === user.username);
+    if (!mockStats) continue;
+
+    // Upsert user_stats (update if exists, insert if not)
+    const { error } = await supabase
       .from('user_stats')
-      .select('user_id')
-      .eq('user_id', user.user_id)
+      .upsert({
+        user_id: user.user_id,
+        total_picks: mockStats.total_picks,
+        correct_winner: mockStats.correct_winner,
+        accuracy_pct: mockStats.accuracy_pct,
+        current_streak: mockStats.current_streak,
+        best_streak: mockStats.best_streak,
+      }, { onConflict: 'user_id' });
+
+    if (error) {
+      console.error(`❌ Failed to upsert stats for ${user.username}: ${error.message}`);
+    } else {
+      console.log(`✅ Stats set for ${user.username}: ${mockStats.accuracy_pct}% accuracy`);
+    }
+  }
+
+  // =========================================================================
+  // Step 7: Create Friendships Between Test Users
+  // =========================================================================
+  console.log('\n👫 STEP 7: Creating Friendships Between Test Users...\n');
+
+  let friendshipsCreated = 0;
+  let friendshipsSkipped = 0;
+
+  // Create friendships: alice-bob, alice-charlie, bob-charlie
+  const friendshipPairs = [
+    [0, 1], // alice - bob
+    [0, 2], // alice - charlie
+    [1, 2], // bob - charlie
+  ];
+
+  for (const [i, j] of friendshipPairs) {
+    const user1 = createdUsers[i];
+    const user2 = createdUsers[j];
+
+    if (!user1 || !user2) continue;
+
+    // Check if friendship already exists
+    const { data: existing } = await supabase
+      .from('friendships')
+      .select('id')
+      .or(`and(user_id.eq.${user1.user_id},friend_id.eq.${user2.user_id}),and(user_id.eq.${user2.user_id},friend_id.eq.${user1.user_id})`)
+      .limit(1)
       .single();
 
-    if (!existingStats) {
-      await supabase.from('user_stats').insert({
-        user_id: user.user_id,
-        total_picks: 0,
-        correct_winner: 0,
-        accuracy_pct: 0,
-        current_streak: 0,
-        best_streak: 0,
+    if (existing) {
+      console.log(`⚠️  Friendship exists: ${user1.username} ↔ ${user2.username}`);
+      friendshipsSkipped++;
+      continue;
+    }
+
+    // Create accepted friendship
+    const { error } = await supabase
+      .from('friendships')
+      .insert({
+        user_id: user1.user_id,
+        friend_id: user2.user_id,
+        status: 'accepted',
       });
-      console.log(`✅ Stats initialized for ${user.username}`);
+
+    if (error) {
+      console.error(`❌ Failed to create friendship: ${error.message}`);
     } else {
-      console.log(`⚠️  Stats exist for ${user.username}`);
+      console.log(`✅ Friends: ${user1.username} ↔ ${user2.username}`);
+      friendshipsCreated++;
+    }
+  }
+
+  console.log(`\n✅ Friendships created: ${friendshipsCreated}`);
+  console.log(`⚠️  Friendships skipped: ${friendshipsSkipped}`);
+
+  // =========================================================================
+  // Step 8: Initialize Privacy Settings for Test Users
+  // =========================================================================
+  console.log('\n🔒 STEP 8: Setting Privacy to Public for Test Users...\n');
+
+  for (const user of createdUsers) {
+    const { error } = await supabase
+      .from('privacy_settings')
+      .upsert({
+        user_id: user.user_id,
+        picks_visibility: 'public',
+        profile_visibility: 'public',
+        stats_visibility: 'public',
+      }, { onConflict: 'user_id' });
+
+    if (error) {
+      console.log(`⚠️  Privacy settings error for ${user.username}: ${error.message}`);
+    } else {
+      console.log(`✅ Privacy set to public for ${user.username}`);
     }
   }
 
@@ -309,8 +394,19 @@ async function main() {
   TEST_USERS.forEach(u => {
     console.log(`   • ${u.username} → ${u.email}`);
   });
-  console.log('\n🎯 Mock picks have been created for all test users!');
-  console.log('\n📱 Open the app and sign in with any test user to see picks.');
+  console.log('\n🎯 What was set up:');
+  console.log('   • Mock picks for upcoming event');
+  console.log('   • User stats with accuracy data (for leaderboards)');
+  console.log('   • Friendships between all test users');
+  console.log('   • Privacy settings set to public');
+  console.log('\n📊 Leaderboard Preview:');
+  MOCK_STATS.forEach((s, i) => {
+    console.log(`   ${i + 1}. ${s.username}: ${s.accuracy_pct}% (${s.correct_winner}/${s.total_picks})`);
+  });
+  console.log('\n📱 Open the app and sign in with any test user to see:');
+  console.log('   • Picks for upcoming event');
+  console.log('   • Global leaderboard with rankings');
+  console.log('   • Friends list with all test users');
 }
 
 if (import.meta.main) {
