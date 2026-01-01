@@ -107,6 +107,49 @@ const FighterButton: React.FC<{
 }> = ({ bout, corner, locked, onPress }) => {
   const { colors } = useTheme();
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const pulseAnim = useRef(new Animated.Value(0)).current;
+  const borderAnim = useRef(new Animated.Value(0)).current;
+
+  const isSelected = bout.pick?.picked_corner === corner;
+  const fighterName = corner === 'red' ? bout.red_name : bout.blue_name;
+  const cornerColor = corner === 'red' ? '#dc2626' : '#2563eb';
+
+  // Animate border and pulse when selection changes
+  const prevSelectedRef = useRef(isSelected);
+  if (prevSelectedRef.current !== isSelected) {
+    prevSelectedRef.current = isSelected;
+    if (isSelected) {
+      // Selection animation: pulse + border grow
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 150,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 0,
+            duration: 150,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.spring(borderAnim, {
+          toValue: 1,
+          tension: 200,
+          friction: 10,
+          useNativeDriver: false,
+        }),
+      ]).start();
+    } else {
+      // Deselection
+      Animated.spring(borderAnim, {
+        toValue: 0,
+        tension: 200,
+        friction: 10,
+        useNativeDriver: false,
+      }).start();
+    }
+  }
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -126,51 +169,73 @@ const FighterButton: React.FC<{
     }).start();
   };
 
-  const isSelected = bout.pick?.picked_corner === corner;
-  const fighterName = corner === 'red' ? bout.red_name : bout.blue_name;
-  const cornerColor = corner === 'red' ? '#dc2626' : '#2563eb';
+  // Interpolate animated values
+  const animatedBorderWidth = borderAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1.5, 3],
+  });
+
+  const animatedScale = Animated.add(
+    scaleAnim,
+    pulseAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 0.03],
+    })
+  );
 
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <TouchableOpacity
+    <Animated.View style={{ transform: [{ scale: animatedScale }] }}>
+      <Animated.View
         style={[
           fighterStyles.button,
           {
-            backgroundColor: isSelected ? colors.accentSoft : colors.surfaceAlt,
-            borderColor: isSelected ? colors.accent : colors.border,
+            backgroundColor: isSelected ? cornerColor + '20' : colors.surfaceAlt,
+            borderColor: isSelected ? cornerColor : colors.border,
+            borderWidth: animatedBorderWidth,
           },
           locked && fighterStyles.disabled,
         ]}
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        disabled={locked || bout.status !== 'scheduled'}
-        activeOpacity={0.9}
       >
-        <View style={[fighterStyles.cornerIndicator, { backgroundColor: cornerColor }]} />
-        <Text
-          style={[fighterStyles.name, { color: colors.textPrimary }]}
-          numberOfLines={2}
+        <TouchableOpacity
+          style={fighterStyles.touchable}
+          onPress={onPress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          disabled={locked || bout.status !== 'scheduled'}
+          activeOpacity={0.9}
         >
-          {fighterName}
-        </Text>
-        {isSelected && (
-          <View style={[fighterStyles.checkmark, { backgroundColor: colors.accent }]}>
-            <Ionicons name="checkmark" size={14} color={colors.onAccent} />
-          </View>
-        )}
-      </TouchableOpacity>
+          <View style={[fighterStyles.cornerIndicator, { backgroundColor: cornerColor }]} />
+          <Text
+            style={[
+              fighterStyles.name,
+              { color: isSelected ? cornerColor : colors.textPrimary },
+              isSelected && fighterStyles.nameSelected,
+            ]}
+            numberOfLines={2}
+          >
+            {fighterName}
+          </Text>
+          {isSelected && (
+            <View style={[fighterStyles.checkmark, { backgroundColor: cornerColor }]}>
+              <Ionicons name="checkmark" size={14} color="#fff" />
+            </View>
+          )}
+        </TouchableOpacity>
+      </Animated.View>
     </Animated.View>
   );
 };
 
 const fighterStyles = StyleSheet.create({
   button: {
+    borderRadius: radius.input,
+    borderWidth: 1.5,
+    overflow: 'hidden',
+  },
+  touchable: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radius.input,
     padding: spacing.md,
-    borderWidth: 1.5,
   },
   disabled: {
     opacity: 0.5,
@@ -190,6 +255,9 @@ const fighterStyles = StyleSheet.create({
     ...typography.body,
     fontWeight: '600',
     marginLeft: spacing.md,
+  },
+  nameSelected: {
+    fontWeight: '700',
   },
   checkmark: {
     width: 24,

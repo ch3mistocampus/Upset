@@ -4,109 +4,38 @@
 
 import { useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../types/database';
 import { logger } from '../lib/logger';
 
-// Test users that bypass normal authentication (dev only)
-const TEST_USERS: Record<string, { id: string; username: string; password: string }> = {
-  'alice@test.local': { id: 'test-user-alice-0001', username: 'alice', password: 'test123' },
-  'bob@test.local': { id: 'test-user-bob-0002', username: 'bob', password: 'test123' },
-  'charlie@test.local': { id: 'test-user-charlie-0003', username: 'charlie', password: 'test123' },
-};
-
-const TEST_SESSION_KEY = '@ufc_picks_test_session';
-
-function isTestUser(email: string): boolean {
-  return __DEV__ && email.endsWith('@test.local');
-}
-
-function createMockSession(email: string): { session: Session; user: User; profile: Profile } | null {
-  const testUser = TEST_USERS[email.toLowerCase()];
-  if (!testUser) return null;
-
-  const now = new Date().toISOString();
-  const user: User = {
-    id: testUser.id,
-    email: email,
-    aud: 'authenticated',
-    role: 'authenticated',
-    app_metadata: { provider: 'test' },
-    user_metadata: { username: testUser.username },
-    created_at: now,
-    updated_at: now,
-    confirmed_at: now,
-    email_confirmed_at: now,
-    identities: [],
-  };
-
-  const session: Session = {
-    access_token: `test-token-${testUser.id}`,
-    refresh_token: `test-refresh-${testUser.id}`,
-    expires_in: 3600 * 24 * 365, // 1 year
-    expires_at: Math.floor(Date.now() / 1000) + 3600 * 24 * 365,
-    token_type: 'bearer',
-    user,
-  };
-
-  const profile: Profile = {
-    user_id: testUser.id,
-    username: testUser.username,
-    created_at: now,
-  };
-
-  return { session, user, profile };
-}
+// Test users for development - these are REAL Supabase auth users created by setup script
+// Use these credentials to test the app with proper RLS enforcement:
+//   alice@test.com / Password123 (alice_ufc)
+//   bob@test.com / Password123 (bob_fighter)
+//   charlie@test.com / Password123 (charlie_picks)
+//
+// These users go through normal Supabase authentication, so picks save correctly.
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isTestSession, setIsTestSession] = useState(false);
 
   useEffect(() => {
-    // Check for test session first (dev only)
-    const loadTestSession = async () => {
-      if (!__DEV__) return null;
-      try {
-        const stored = await AsyncStorage.getItem(TEST_SESSION_KEY);
-        if (stored) {
-          const testData = JSON.parse(stored);
-          logger.info('Test session restored', { email: testData.user?.email });
-          return testData;
-        }
-      } catch (error) {
-        logger.debug('No test session found');
-      }
-      return null;
-    };
-
     // Get initial session and refresh if expired
-    loadTestSession().then((testSession) => {
-      if (testSession) {
-        setSession(testSession.session);
-        setUser(testSession.user);
-        setProfile(testSession.profile);
-        setIsTestSession(true);
-        setLoading(false);
-        return;
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        logger.error('Failed to get session', error);
       }
-
-      supabase.auth.getSession().then(({ data: { session }, error }) => {
-        if (error) {
-          logger.error('Failed to get session', error);
-        }
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          logger.debug('Session loaded', { userId: session.user.id });
-          loadProfile(session.user.id);
-        } else {
-          setLoading(false);
-        }
-      });
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        logger.debug('Session loaded', { userId: session.user.id });
+        loadProfile(session.user.id);
+      } else {
+        setLoading(false);
+      }
     });
 
     // Listen for auth changes and token refresh
@@ -233,24 +162,6 @@ export function useAuth() {
   const signInWithPassword = async (email: string, password: string) => {
     logger.breadcrumb('Sign in with password', 'auth', { email });
 
-    // Check for test user bypass (dev only)
-    if (isTestUser(email)) {
-      const testUser = TEST_USERS[email.toLowerCase()];
-      if (testUser && testUser.password === password) {
-        const mockData = createMockSession(email);
-        if (mockData) {
-          logger.info('Test user sign in successful', { email, username: testUser.username });
-          await AsyncStorage.setItem(TEST_SESSION_KEY, JSON.stringify(mockData));
-          setSession(mockData.session);
-          setUser(mockData.user);
-          setProfile(mockData.profile);
-          setIsTestSession(true);
-          return { session: mockData.session, user: mockData.user };
-        }
-      }
-      throw new Error('Invalid test user credentials');
-    }
-
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -267,17 +178,6 @@ export function useAuth() {
 
   const signInWithUsername = async (username: string, password: string) => {
     logger.breadcrumb('Sign in with username', 'auth', { username });
-
-    // Check for test user by username (dev only)
-    if (__DEV__) {
-      const testEntry = Object.entries(TEST_USERS).find(
-        ([_, user]) => user.username.toLowerCase() === username.toLowerCase()
-      );
-      if (testEntry) {
-        const [email] = testEntry;
-        return await signInWithPassword(email, password);
-      }
-    }
 
     try {
       // Look up email by username using RPC function
@@ -329,17 +229,6 @@ export function useAuth() {
   };
 
   const signOut = async () => {
-    // Clear test session if exists
-    if (isTestSession) {
-      await AsyncStorage.removeItem(TEST_SESSION_KEY);
-      setSession(null);
-      setUser(null);
-      setProfile(null);
-      setIsTestSession(false);
-      logger.info('Test user signed out');
-      return;
-    }
-
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };
@@ -349,7 +238,6 @@ export function useAuth() {
     user,
     profile,
     loading,
-    isTestSession,
     // OTP methods
     signInWithOTP,
     verifyOTP,
