@@ -274,9 +274,9 @@ async function main() {
   // =========================================================================
   console.log('\n📊 STEP 6: Initializing User Stats with Mock Data...\n');
 
-  // Realistic stats based on recent UFC events:
-  // - UFC 323: Dvalishvili vs. Yan 2 (December 6, 2025) - Dvalishvili won by decision
-  // - UFC Fight Night: Royval vs. Kape (December 13, 2025) - Royval won via R1 KO
+  // Realistic stats based on recent UFC events (verified Dec 2025):
+  // - UFC 323 (Dec 6, 2025): Petr Yan def. Merab Dvalishvili via UD - reclaimed bantamweight title
+  // - UFC Fight Night (Dec 13, 2025): Manel Kape def. Brandon Royval via R1 TKO
   // Simulated picks across ~25 fights from these 2 events
   const MOCK_STATS = [
     { username: 'alice_ufc', total_picks: 26, correct_winner: 18, accuracy_pct: 69.2, current_streak: 4, best_streak: 7 },
