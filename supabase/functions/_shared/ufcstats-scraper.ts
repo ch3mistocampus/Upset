@@ -63,41 +63,79 @@ async function fetchWithRetry(
 }
 
 /**
- * Scrape upcoming and recent events from the main events page
+ * Scrape a single events page and return parsed events
+ */
+async function scrapeEventsPage(url: string): Promise<any[]> {
+  const html = await fetchWithRetry(url);
+  const $ = load(html);
+  const events: any[] = [];
+
+  // UFCStats lists events in a table (class changed from b-statistics__table to b-statistics__table-events)
+  $("table.b-statistics__table-events tbody tr").each((_, row) => {
+    const $row = $(row);
+    const link = $row.find("a.b-link").first();
+    const eventUrl = link.attr("href");
+    const eventName = link.text().trim();
+    const dateText = $row.find("span.b-statistics__date").text().trim();
+    const location = $row.find("td").eq(1).text().trim();
+
+    if (eventUrl && eventName) {
+      // Extract event ID from URL (e.g., http://ufcstats.com/event-details/abc123)
+      const eventId = eventUrl.split("/").pop() || "";
+
+      events.push({
+        ufcstats_event_id: eventId,
+        event_url: eventUrl,
+        name: eventName,
+        date_text: dateText,
+        location: location || null,
+      });
+    }
+  });
+
+  return events;
+}
+
+/**
+ * Scrape upcoming and recent events from UFCStats
+ * Fetches BOTH upcoming and completed events pages for comprehensive coverage
  */
 export async function scrapeEventsList() {
   console.log("Scraping events list from UFCStats...");
-  const url = `${BASE_URL}/events/completed?page=all`;
 
   try {
-    const html = await fetchWithRetry(url);
-    const $ = load(html);
-    const events: any[] = [];
+    // Fetch BOTH upcoming and completed events for comprehensive data
+    const upcomingUrl = `${BASE_URL}/events/upcoming`;
+    const completedUrl = `${BASE_URL}/events/completed?page=all`;
 
-    // UFCStats lists events in a table (class changed from b-statistics__table to b-statistics__table-events)
-    $("table.b-statistics__table-events tbody tr").each((_, row) => {
-      const $row = $(row);
-      const link = $row.find("a.b-link").first();
-      const eventUrl = link.attr("href");
-      const eventName = link.text().trim();
-      const dateText = $row.find("span.b-statistics__date").text().trim();
-      const location = $row.find("td").eq(1).text().trim();
+    console.log("Fetching upcoming events...");
+    const upcomingEvents = await scrapeEventsPage(upcomingUrl);
+    console.log(`Found ${upcomingEvents.length} upcoming events`);
 
-      if (eventUrl && eventName) {
-        // Extract event ID from URL (e.g., http://ufcstats.com/event-details/abc123)
-        const eventId = eventUrl.split("/").pop() || "";
+    // Wait between requests to respect rate limiting
+    await sleep(DELAY_MS);
 
-        events.push({
-          ufcstats_event_id: eventId,
-          event_url: eventUrl,
-          name: eventName,
-          date_text: dateText,
-          location: location || null,
-        });
+    console.log("Fetching completed events...");
+    const completedEvents = await scrapeEventsPage(completedUrl);
+    console.log(`Found ${completedEvents.length} completed events`);
+
+    // Merge events, removing duplicates by ufcstats_event_id
+    const eventMap = new Map<string, any>();
+
+    // Add upcoming events first (higher priority)
+    for (const event of upcomingEvents) {
+      eventMap.set(event.ufcstats_event_id, event);
+    }
+
+    // Add completed events (won't overwrite upcoming)
+    for (const event of completedEvents) {
+      if (!eventMap.has(event.ufcstats_event_id)) {
+        eventMap.set(event.ufcstats_event_id, event);
       }
-    });
+    }
 
-    console.log(`Found ${events.length} events`);
+    const events = Array.from(eventMap.values());
+    console.log(`Total unique events: ${events.length}`);
     return events;
   } catch (error) {
     console.error("Error scraping events list:", error);
