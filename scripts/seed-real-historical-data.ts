@@ -76,15 +76,21 @@ async function fetchWithRetry(url: string, retries = 3): Promise<string> {
 }
 
 /**
- * Get the last N completed events from UFCStats
+ * Get the last N completed events from UFCStats (most recent first)
+ * UFCStats lists events in reverse chronological order on the completed page
  */
 async function getRecentCompletedEvents(count: number): Promise<{ name: string; url: string; date: string; id: string }[]> {
-  console.log(`\n📅 Fetching last ${count} completed events from UFCStats...`);
+  console.log(`\n📅 Fetching the ${count} MOST RECENT completed UFC events...`);
+  console.log('   (Today is: ' + new Date().toLocaleDateString('en-US', {
+    month: 'long', day: 'numeric', year: 'numeric'
+  }) + ')');
 
+  // Fetch from completed events page (first page = most recent events)
   const html = await fetchWithRetry('http://ufcstats.com/statistics/events/completed');
   const $ = load(html);
   const events: { name: string; url: string; date: string; id: string }[] = [];
 
+  // UFCStats table rows are in reverse chronological order (newest first)
   $('table.b-statistics__table-events tbody tr').each((_, row) => {
     if (events.length >= count) return false;
 
@@ -94,18 +100,26 @@ async function getRecentCompletedEvents(count: number): Promise<{ name: string; 
     const eventName = link.text().trim();
     const dateText = $row.find('span.b-statistics__date').text().trim();
 
-    if (eventUrl && eventName && !eventName.toLowerCase().includes('upcoming')) {
-      const eventId = eventUrl.split('/').pop() || '';
-      events.push({
-        name: eventName,
-        url: eventUrl,
-        date: dateText,
-        id: eventId,
-      });
-    }
+    // Skip if this looks like an upcoming event or placeholder
+    if (!eventUrl || !eventName) return;
+    if (eventName.toLowerCase().includes('upcoming')) return;
+    if (eventName.toLowerCase().includes('tbd')) return;
+
+    const eventId = eventUrl.split('/').pop() || '';
+    events.push({
+      name: eventName,
+      url: eventUrl,
+      date: dateText,
+      id: eventId,
+    });
   });
 
-  console.log(`   Found ${events.length} recent completed events`);
+  // Log the events we found with their dates
+  console.log(`\n   ✅ Found ${events.length} most recent completed events:`);
+  events.forEach((e, i) => {
+    console.log(`      ${i + 1}. ${e.name} (${e.date})`);
+  });
+
   return events;
 }
 
