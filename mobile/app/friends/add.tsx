@@ -120,9 +120,9 @@ export default function AddFriend() {
 
   const getButtonConfig = (user: UserSearchResult) => {
     if (user.friendship_status === 'accepted') {
-      return { label: 'Following', disabled: true, bgColor: colors.success };
+      return { label: 'Following', disabled: true, bgColor: colors.surfaceAlt, textColor: colors.textSecondary };
     }
-    return { label: 'Follow', disabled: false, bgColor: colors.accent };
+    return { label: 'Follow', disabled: false, bgColor: colors.accent, textColor: '#fff' };
   };
 
   const renderUserItem = (user: UserSearchResult, index: number) => {
@@ -161,7 +161,7 @@ export default function AddFriend() {
               {isLoading ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Text style={styles.actionButtonText}>{buttonConfig.label}</Text>
+                <Text style={[styles.actionButtonText, { color: buttonConfig.textColor }]}>{buttonConfig.label}</Text>
               )}
             </TouchableOpacity>
           </View>
