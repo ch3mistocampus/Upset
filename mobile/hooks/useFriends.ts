@@ -233,6 +233,150 @@ export function useFriends() {
     return !!data;
   };
 
+  // Get followers for a specific user (people who follow them)
+  const getFollowers = async (userId: string): Promise<UserSearchResult[]> => {
+    logger.breadcrumb('Fetching followers', 'friends', { userId });
+
+    const {
+      data: { user: currentUser },
+    } = await supabase.auth.getUser();
+
+    // Get all friendships where this user is the friend_id (being followed)
+    const { data: friendships, error: friendshipError } = await supabase
+      .from('friendships')
+      .select('user_id')
+      .eq('friend_id', userId)
+      .eq('status', 'accepted');
+
+    if (friendshipError) {
+      logger.error('Failed to fetch followers', friendshipError);
+      throw friendshipError;
+    }
+
+    if (!friendships || friendships.length === 0) {
+      return [];
+    }
+
+    const followerIds = friendships.map((f) => f.user_id);
+
+    // Get profiles for these followers
+    const { data: profiles, error: profileError } = await supabase
+      .from('profiles')
+      .select('user_id, username')
+      .in('user_id', followerIds);
+
+    if (profileError) {
+      logger.error('Failed to fetch follower profiles', profileError);
+      throw profileError;
+    }
+
+    // Get stats
+    const { data: stats } = await supabase
+      .from('user_stats')
+      .select('user_id, total_picks, correct_winner')
+      .in('user_id', followerIds);
+
+    // Check if current user follows any of these users
+    let currentUserFollowing: string[] = [];
+    if (currentUser) {
+      const { data: following } = await supabase
+        .from('friendships')
+        .select('friend_id')
+        .eq('user_id', currentUser.id)
+        .eq('status', 'accepted')
+        .in('friend_id', followerIds);
+      currentUserFollowing = following?.map((f) => f.friend_id) || [];
+    }
+
+    return (profiles || []).map((profile) => {
+      const userStats = stats?.find((s) => s.user_id === profile.user_id);
+      const totalPicks = userStats?.total_picks || 0;
+      const correctPicks = userStats?.correct_winner || 0;
+      const accuracy = totalPicks > 0 ? Math.round((correctPicks / totalPicks) * 100 * 10) / 10 : 0;
+
+      return {
+        user_id: profile.user_id,
+        username: profile.username,
+        total_picks: totalPicks,
+        correct_picks: correctPicks,
+        accuracy,
+        friendship_status: currentUserFollowing.includes(profile.user_id) ? 'accepted' : null,
+      };
+    });
+  };
+
+  // Get following for a specific user (people they follow)
+  const getFollowing = async (userId: string): Promise<UserSearchResult[]> => {
+    logger.breadcrumb('Fetching following', 'friends', { userId });
+
+    const {
+      data: { user: currentUser },
+    } = await supabase.auth.getUser();
+
+    // Get all friendships where this user is the user_id (follower)
+    const { data: friendships, error: friendshipError } = await supabase
+      .from('friendships')
+      .select('friend_id')
+      .eq('user_id', userId)
+      .eq('status', 'accepted');
+
+    if (friendshipError) {
+      logger.error('Failed to fetch following', friendshipError);
+      throw friendshipError;
+    }
+
+    if (!friendships || friendships.length === 0) {
+      return [];
+    }
+
+    const followingIds = friendships.map((f) => f.friend_id);
+
+    // Get profiles for these users
+    const { data: profiles, error: profileError } = await supabase
+      .from('profiles')
+      .select('user_id, username')
+      .in('user_id', followingIds);
+
+    if (profileError) {
+      logger.error('Failed to fetch following profiles', profileError);
+      throw profileError;
+    }
+
+    // Get stats
+    const { data: stats } = await supabase
+      .from('user_stats')
+      .select('user_id, total_picks, correct_winner')
+      .in('user_id', followingIds);
+
+    // Check if current user follows any of these users
+    let currentUserFollowing: string[] = [];
+    if (currentUser) {
+      const { data: following } = await supabase
+        .from('friendships')
+        .select('friend_id')
+        .eq('user_id', currentUser.id)
+        .eq('status', 'accepted')
+        .in('friend_id', followingIds);
+      currentUserFollowing = following?.map((f) => f.friend_id) || [];
+    }
+
+    return (profiles || []).map((profile) => {
+      const userStats = stats?.find((s) => s.user_id === profile.user_id);
+      const totalPicks = userStats?.total_picks || 0;
+      const correctPicks = userStats?.correct_winner || 0;
+      const accuracy = totalPicks > 0 ? Math.round((correctPicks / totalPicks) * 100 * 10) / 10 : 0;
+
+      return {
+        user_id: profile.user_id,
+        username: profile.username,
+        total_picks: totalPicks,
+        correct_picks: correctPicks,
+        accuracy,
+        friendship_status: currentUserFollowing.includes(profile.user_id) ? 'accepted' : null,
+      };
+    });
+  };
+
   return {
     // Data
     friends: friends || [],
@@ -270,6 +414,10 @@ export function useFriends() {
     // Search
     searchUsers,
     checkFollowing,
+
+    // Followers/Following lists
+    getFollowers,
+    getFollowing,
 
     // Refetch
     refetchFriends,

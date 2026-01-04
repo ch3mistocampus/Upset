@@ -518,9 +518,16 @@ export default function UserProfile() {
             </View>
           </View>
 
-          {/* Follower stats - secondary */}
+          {/* Follower stats - secondary, clickable */}
           <View style={styles.socialStatsRow}>
-            <TouchableOpacity style={styles.socialStatItem} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={styles.socialStatItem}
+              activeOpacity={0.7}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push(`/user/${id}/follows?tab=followers`);
+              }}
+            >
               <Text style={[styles.socialStatValue, { color: colors.textSecondary }]}>
                 {profile.followers_count.toLocaleString()}
               </Text>
@@ -529,7 +536,14 @@ export default function UserProfile() {
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.socialStatItem} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={styles.socialStatItem}
+              activeOpacity={0.7}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push(`/user/${id}/follows?tab=following`);
+              }}
+            >
               <Text style={[styles.socialStatValue, { color: colors.textSecondary }]}>
                 {profile.following_count.toLocaleString()}
               </Text>
