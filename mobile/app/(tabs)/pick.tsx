@@ -10,6 +10,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useUpcomingEvents, useBoutsCount, useUserPicksCount } from '../../hooks/useQueries';
 import { useTheme } from '../../lib/theme';
 import { spacing, typography } from '../../lib/tokens';
+import { isEventSubmitted } from '../../lib/storage';
 import { EmptyState, SurfaceCard } from '../../components/ui';
 import { ErrorState } from '../../components/ErrorState';
 import { EventCard } from '../../components/EventCard';
@@ -26,10 +27,16 @@ function EventCardWithCounts({ event, isFirstUpcoming, index }: EventCardWithCou
   const { user } = useAuth();
   const { data: boutsCount = 0 } = useBoutsCount(event.id);
   const { data: picksCount = 0 } = useUserPicksCount(event.id, user?.id || null);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   // Staggered entrance animation
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateAnim = useRef(new Animated.Value(8)).current;
+
+  // Check submission status
+  useEffect(() => {
+    isEventSubmitted(event.id).then(setIsSubmitted);
+  }, [event.id]);
 
   useEffect(() => {
     const delay = 60 + index * 60; // 60ms base + 60ms stagger
@@ -64,6 +71,7 @@ function EventCardWithCounts({ event, isFirstUpcoming, index }: EventCardWithCou
         picksCount={picksCount}
         totalBouts={boutsCount}
         isFirstUpcoming={isFirstUpcoming}
+        isSubmitted={isSubmitted}
       />
     </Animated.View>
   );

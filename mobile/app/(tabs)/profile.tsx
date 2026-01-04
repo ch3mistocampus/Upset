@@ -39,6 +39,7 @@ import {
 import { useTheme } from '../../lib/theme';
 import { supabase } from '../../lib/supabase';
 import { spacing, radius } from '../../lib/tokens';
+import { isEventSubmitted } from '../../lib/storage';
 import { SurfaceCard, Button, SegmentedControl, EmptyState } from '../../components/ui';
 import { ErrorState } from '../../components/ErrorState';
 import { SkeletonProfileCard, SkeletonStats } from '../../components/SkeletonStats';
@@ -498,7 +499,8 @@ export default function Profile() {
     picksCount: number,
     totalBouts: number,
     correctCount?: number,
-    isUpcoming: boolean = false
+    isUpcoming: boolean = false,
+    isSubmitted: boolean = false
   ) => {
     const eventAccuracy = !isUpcoming && totalBouts > 0
       ? Math.round(((correctCount || 0) / totalBouts) * 100)
@@ -510,10 +512,37 @@ export default function Profile() {
       return colors.danger;
     };
 
+    // Badge logic for upcoming events
+    const getBadgeContent = () => {
+      if (isSubmitted) {
+        return { text: 'Submitted', color: colors.success, bgColor: colors.successSoft };
+      }
+      if (picksCount === totalBouts && totalBouts > 0) {
+        return { text: 'Complete', color: colors.success, bgColor: colors.successSoft };
+      }
+      if (picksCount > 0) {
+        return { text: 'In Progress', color: colors.accent, bgColor: colors.accent + '20' };
+      }
+      return null;
+    };
+
+    // Glow style for submitted cards
+    const submittedGlow = isSubmitted ? {
+      shadowColor: colors.success,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.3,
+      shadowRadius: 12,
+      elevation: 6,
+    } : {};
+
     return (
       <TouchableOpacity
         key={eventId}
-        style={[styles.eventCard, { backgroundColor: colors.surfaceAlt }]}
+        style={[
+          styles.eventCard,
+          { backgroundColor: colors.surfaceAlt },
+          submittedGlow,
+        ]}
         onPress={() => navigateToEvent(eventId)}
         activeOpacity={0.7}
       >
@@ -530,13 +559,16 @@ export default function Profile() {
               <Text style={[styles.eventCardScore, { color: colors.textSecondary }]}>
                 {picksCount}/{totalBouts} picks
               </Text>
-              {picksCount > 0 && (
-                <View style={[styles.picksBadge, { backgroundColor: colors.accent + '20' }]}>
-                  <Text style={[styles.picksBadgeText, { color: colors.accent }]}>
-                    {picksCount === totalBouts ? 'Complete' : 'In Progress'}
-                  </Text>
-                </View>
-              )}
+              {(() => {
+                const badge = getBadgeContent();
+                return badge ? (
+                  <View style={[styles.picksBadge, { backgroundColor: badge.bgColor }]}>
+                    <Text style={[styles.picksBadgeText, { color: badge.color }]}>
+                      {badge.text}
+                    </Text>
+                  </View>
+                ) : null;
+              })()}
             </>
           ) : (
             <>
@@ -933,13 +965,20 @@ function UpcomingEventCard({
     picksCount: number,
     totalBouts: number,
     correctCount: number | undefined,
-    isUpcoming: boolean
+    isUpcoming: boolean,
+    isSubmitted: boolean
   ) => React.ReactNode;
 }) {
   const { data: picksCount } = useUserPicksCount(eventId, userId);
   const { data: boutsCount } = useBoutsCount(eventId);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
-  return renderCard(eventId, eventName, picksCount || 0, boutsCount || 0, undefined, true);
+  // Check submission status
+  useEffect(() => {
+    isEventSubmitted(eventId).then(setIsSubmitted);
+  }, [eventId]);
+
+  return renderCard(eventId, eventName, picksCount || 0, boutsCount || 0, undefined, true, isSubmitted);
 }
 
 const styles = StyleSheet.create({

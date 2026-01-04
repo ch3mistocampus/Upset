@@ -19,15 +19,20 @@ interface EventCardProps {
   picksCount: number;
   totalBouts: number;
   isFirstUpcoming?: boolean;
+  isSubmitted?: boolean;
 }
 
-export function EventCard({ event, picksCount, totalBouts, isFirstUpcoming }: EventCardProps) {
+export function EventCard({ event, picksCount, totalBouts, isFirstUpcoming, isSubmitted }: EventCardProps) {
   const router = useRouter();
   const { colors } = useTheme();
 
   // Press animation
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const opacityAnim = useRef(new Animated.Value(1)).current;
+
+  // Check locked status for glow logic
+  const isEventLocked = event.status === 'completed' || event.status === 'in_progress' || new Date(event.event_date) <= new Date();
+  const showGlow = isSubmitted && !isEventLocked;
 
   const handlePressIn = () => {
     Animated.parallel([
@@ -109,6 +114,15 @@ export function EventCard({ event, picksCount, totalBouts, isFirstUpcoming }: Ev
     return null;
   };
 
+  // Static glow style for submitted cards
+  const submittedGlowStyle = showGlow ? {
+    shadowColor: colors.success,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
+    elevation: 8,
+  } : {};
+
   return (
     <TouchableOpacity
       onPress={handlePress}
@@ -117,10 +131,13 @@ export function EventCard({ event, picksCount, totalBouts, isFirstUpcoming }: Ev
       activeOpacity={1}
     >
       <Animated.View
-        style={{
-          transform: [{ scale: scaleAnim }],
-          opacity: opacityAnim,
-        }}
+        style={[
+          {
+            transform: [{ scale: scaleAnim }],
+            opacity: opacityAnim,
+          },
+          submittedGlowStyle,
+        ]}
       >
         <SurfaceCard
           weakWash
@@ -171,19 +188,22 @@ export function EventCard({ event, picksCount, totalBouts, isFirstUpcoming }: Ev
               </Text>
             </View>
 
-            {totalBouts > 0 && picksCount === totalBouts && !isLocked && (
+            {isSubmitted && !isLocked ? (
+              <View style={[styles.submittedBadge, { backgroundColor: colors.successSoft }]}>
+                <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+                <Text style={[styles.submittedText, { color: colors.success }]}>Submitted</Text>
+              </View>
+            ) : totalBouts > 0 && picksCount === totalBouts && !isLocked ? (
               <View style={[styles.completeBadge, { backgroundColor: colors.successSoft }]}>
                 <Ionicons name="checkmark-circle" size={14} color={colors.success} />
                 <Text style={[styles.completeText, { color: colors.success }]}>Complete</Text>
               </View>
-            )}
-
-            {isLocked && (
+            ) : isLocked ? (
               <View style={[styles.lockedBadge, { backgroundColor: colors.surfaceAlt }]}>
                 <Ionicons name="lock-closed" size={12} color={colors.textTertiary} />
                 <Text style={[styles.lockedText, { color: colors.textTertiary }]}>Locked</Text>
               </View>
-            )}
+            ) : null}
           </View>
         </SurfaceCard>
       </Animated.View>
@@ -279,6 +299,18 @@ const styles = StyleSheet.create({
   completeText: {
     ...typography.meta,
     fontWeight: '600',
+  },
+  submittedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
+  },
+  submittedText: {
+    ...typography.meta,
+    fontWeight: '700',
   },
   lockedBadge: {
     flexDirection: 'row',

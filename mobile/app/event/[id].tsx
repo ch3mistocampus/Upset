@@ -4,8 +4,8 @@
  * Theme-aware design with SurfaceCard and entrance animations
  */
 
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Animated, Easing } from 'react-native';
-import { useState, useRef, useMemo, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Animated, Easing, Modal } from 'react-native';
+import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -18,6 +18,7 @@ import { useToast } from '../../hooks/useToast';
 import { useOnboarding } from '../../hooks/useOnboarding';
 import { useTheme } from '../../lib/theme';
 import { spacing, radius, typography } from '../../lib/tokens';
+import { submitEvent, isEventSubmitted, unsubmitEvent } from '../../lib/storage';
 import { SurfaceCard, EmptyState } from '../../components/ui';
 import { ErrorState } from '../../components/ErrorState';
 import { SkeletonFightCard } from '../../components/SkeletonFightCard';
@@ -140,6 +141,10 @@ export default function EventDetail() {
   const { state: onboardingState, markSeen } = useOnboarding();
 
   const [showLockExplainer, setShowLockExplainer] = useState(false);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const submitModalScale = useRef(new Animated.Value(0.9)).current;
+  const submitModalOpacity = useRef(new Animated.Value(0)).current;
 
   const { data: event, isLoading: eventLoading, isError: eventError, refetch: refetchEvent } = useEvent(id || null);
   const { data: bouts, isLoading: boutsLoading, isError: boutsError, refetch: refetchBouts } = useBoutsForEvent(
@@ -179,9 +184,76 @@ export default function EventDetail() {
     }
   }, [onboardingState.hasSeenLockExplainer, event, eventLoading]);
 
+  // Load submission state when event changes
+  useEffect(() => {
+    if (id) {
+      isEventSubmitted(id).then(setIsSubmitted);
+    }
+  }, [id]);
+
+  // Reset submission when picks change (user edits after submitting)
+  useEffect(() => {
+    if (isSubmitted && picksCount === 0) {
+      // If user cleared all picks, reset submission
+      if (id) {
+        unsubmitEvent(id);
+        setIsSubmitted(false);
+      }
+    }
+  }, [picksCount, isSubmitted, id]);
+
+  // Animate submit modal
+  useEffect(() => {
+    if (showSubmitModal) {
+      Animated.parallel([
+        Animated.spring(submitModalScale, {
+          toValue: 1,
+          tension: 100,
+          friction: 10,
+          useNativeDriver: true,
+        }),
+        Animated.timing(submitModalOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      submitModalScale.setValue(0.9);
+      submitModalOpacity.setValue(0);
+    }
+  }, [showSubmitModal, submitModalScale, submitModalOpacity]);
+
   const handleDismissLockExplainer = () => {
     setShowLockExplainer(false);
     markSeen('hasSeenLockExplainer');
+  };
+
+  // Handle opening submit modal
+  const handleOpenSubmitModal = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowSubmitModal(true);
+  };
+
+  // Handle submitting picks
+  const handleSubmitPicks = async () => {
+    if (!id) return;
+
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    await submitEvent(id, picksCount);
+    setIsSubmitted(true);
+    setShowSubmitModal(false);
+    toast.showNeutral('Picks submitted!');
+  };
+
+  // Handle editing picks after submission
+  const handleEditPicks = async () => {
+    if (!id) return;
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await unsubmitEvent(id);
+    setIsSubmitted(false);
+    toast.showNeutral('You can now edit your picks');
   };
 
   const onRefresh = async () => {
@@ -207,6 +279,13 @@ export default function EventDetail() {
     if (locked) {
       toast.showError('Event has already started. Picks cannot be changed.');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+
+    // Block picks when card is submitted (user must click Edit first)
+    if (isSubmitted) {
+      toast.showNeutral('Tap "Edit" to modify your picks');
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       return;
     }
 
@@ -256,7 +335,7 @@ export default function EventDetail() {
 
   // Clear all picks for this event
   const handleClearAllPicks = async () => {
-    if (!event || locked || !bouts) return;
+    if (!event || locked || isSubmitted || !bouts) return;
 
     const boutsWithPicks = bouts.filter((b) => b.pick);
     if (boutsWithPicks.length === 0) return;
@@ -314,6 +393,13 @@ export default function EventDetail() {
             <Ionicons name="lock-closed" size={14} color={colors.warning} />
             <Text style={[styles.progressText, { color: colors.warning }]}>
               Picks locked
+            </Text>
+          </>
+        ) : isSubmitted ? (
+          <>
+            <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+            <Text style={[styles.progressText, { color: colors.success }]}>
+              Card submitted
             </Text>
           </>
         ) : (
@@ -425,6 +511,22 @@ export default function EventDetail() {
           />
         }
       >
+        {/* Submitted Banner */}
+        {isSubmitted && !locked && (
+          <View style={[styles.submittedBanner, { backgroundColor: colors.successSoft, borderColor: colors.success }]}>
+            <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+            <Text style={[styles.submittedBannerText, { color: colors.success }]}>
+              Card Submitted
+            </Text>
+            <Text style={[styles.submittedBannerSubtext, { color: colors.textSecondary }]}>
+              {picksCount} picks
+            </Text>
+            <TouchableOpacity onPress={handleEditPicks} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Text style={[styles.editLinkText, { color: colors.accent }]}>Edit</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Event Info */}
         <View style={styles.eventInfo}>
           {event.location && (
@@ -447,7 +549,7 @@ export default function EventDetail() {
             </Text>
           </View>
           {/* Progress row with clear button */}
-          {!locked && (
+          {!locked && !isSubmitted && (
             <View style={styles.picksProgressRow}>
               <Text style={[styles.picksProgressText, { color: colors.textSecondary }]}>
                 {picksCount} of {totalBouts} picks
@@ -485,7 +587,13 @@ export default function EventDetail() {
 
         {/* Fights List */}
         {bouts.map((bout, index) => (
-          <SurfaceCard key={bout.id} weakWash animatedBorder={index === 0} paddingSize="sm" style={styles.fightCard}>
+          <SurfaceCard
+            key={bout.id}
+            weakWash
+            animatedBorder={index === 0 && !isSubmitted}
+            paddingSize="sm"
+            style={styles.fightCard}
+          >
             {/* Order Index / Weight Class */}
             <View style={styles.fightHeader}>
               <Text style={[styles.fightOrder, { color: colors.accent }]}>
@@ -538,7 +646,7 @@ export default function EventDetail() {
                       name={bout.red_name}
                       corner="red"
                       isSelected={pickedRed}
-                      locked={locked || bout.status !== 'scheduled'}
+                      locked={locked || isSubmitted || bout.status !== 'scheduled'}
                       onPress={() => handlePickFighter(bout, 'red')}
                     />
 
@@ -548,7 +656,7 @@ export default function EventDetail() {
                       name={bout.blue_name}
                       corner="blue"
                       isSelected={pickedBlue}
-                      locked={locked || bout.status !== 'scheduled'}
+                      locked={locked || isSubmitted || bout.status !== 'scheduled'}
                       onPress={() => handlePickFighter(bout, 'blue')}
                     />
                   </View>
@@ -586,25 +694,30 @@ export default function EventDetail() {
 
                   {/* Community Bar - two-color split showing both corners */}
                   {showCommunity && (
-                    <View style={styles.communityBar}>
-                      <View
-                        style={[
-                          styles.communityBarRed,
-                          {
-                            backgroundColor: cornerColors.red,
-                            width: `${redPct}%`,
-                          }
-                        ]}
-                      />
-                      <View
-                        style={[
-                          styles.communityBarBlue,
-                          {
-                            backgroundColor: cornerColors.blue,
-                            flex: 1,
-                          }
-                        ]}
-                      />
+                    <View style={styles.communityBarContainer}>
+                      <View style={styles.communityBar}>
+                        <View
+                          style={[
+                            styles.communityBarRed,
+                            {
+                              backgroundColor: cornerColors.red,
+                              width: `${redPct}%`,
+                            }
+                          ]}
+                        />
+                        <View
+                          style={[
+                            styles.communityBarBlue,
+                            {
+                              backgroundColor: cornerColors.blue,
+                              flex: 1,
+                            }
+                          ]}
+                        />
+                      </View>
+                      <Text style={[styles.communityLabel, { color: colors.textTertiary }]}>
+                        Community picks
+                      </Text>
                     </View>
                   )}
                 </>
@@ -647,8 +760,8 @@ export default function EventDetail() {
           </SurfaceCard>
         ))}
 
-        {/* Bottom padding for safe area */}
-        <View style={{ height: insets.bottom + spacing.lg }} />
+        {/* Bottom padding for safe area and submit button */}
+        <View style={{ height: insets.bottom + spacing.lg + (picksCount > 0 && !locked && !isSubmitted ? 70 : 0) }} />
       </ScrollView>
 
       {/* Lock Explainer Modal */}
@@ -671,6 +784,92 @@ export default function EventDetail() {
         }}
         context={gateContext || 'history'}
       />
+
+      {/* Submit Button - Fixed at bottom (only when not submitted) */}
+      {!locked && picksCount > 0 && !isSubmitted && (
+        <View style={[styles.submitContainer, { paddingBottom: insets.bottom + spacing.md }]}>
+          <TouchableOpacity
+            style={[styles.submitButton, { backgroundColor: colors.accent }]}
+            onPress={handleOpenSubmitModal}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.submitButtonText}>
+              Submit Card ({picksCount} {picksCount === 1 ? 'pick' : 'picks'})
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Submit Confirmation Modal */}
+      <Modal
+        visible={showSubmitModal}
+        transparent
+        animationType="none"
+        onRequestClose={() => setShowSubmitModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setShowSubmitModal(false)}
+        >
+          <Animated.View
+            style={[
+              styles.modalContent,
+              {
+                backgroundColor: colors.surface,
+                transform: [{ scale: submitModalScale }],
+                opacity: submitModalOpacity,
+              },
+            ]}
+          >
+            <TouchableOpacity activeOpacity={1}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Submit Your Picks?
+              </Text>
+
+              <Text style={[styles.modalDescription, { color: colors.textSecondary }]}>
+                You're submitting {picksCount} of {totalBouts} picks for {event?.name}.
+              </Text>
+
+              {picksCount < totalBouts && (
+                <View style={[styles.modalHint, { backgroundColor: colors.warningSoft }]}>
+                  <Ionicons name="information-circle" size={18} color={colors.warning} />
+                  <Text style={[styles.modalHintText, { color: colors.warning }]}>
+                    You can still pick {totalBouts - picksCount} more {totalBouts - picksCount === 1 ? 'fight' : 'fights'}
+                  </Text>
+                </View>
+              )}
+
+              {picksCount === totalBouts && (
+                <View style={[styles.modalHint, { backgroundColor: colors.successSoft }]}>
+                  <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+                  <Text style={[styles.modalHintText, { color: colors.success }]}>
+                    Full card complete!
+                  </Text>
+                </View>
+              )}
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalCancelButton, { backgroundColor: colors.surfaceAlt }]}
+                  onPress={() => setShowSubmitModal(false)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.modalCancelText, { color: colors.text }]}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalSubmitButton, { backgroundColor: colors.accent }]}
+                  onPress={handleSubmitPicks}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.modalSubmitText}>Submit</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -763,6 +962,28 @@ const styles = StyleSheet.create({
   dateText: {
     ...typography.body,
   },
+  submittedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderRadius: radius.sm,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+  },
+  submittedBannerText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  submittedBannerSubtext: {
+    fontSize: 12,
+    marginLeft: 'auto',
+  },
+  editLinkText: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginLeft: spacing.sm,
+  },
   lockedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -842,11 +1063,13 @@ const styles = StyleSheet.create({
   labelSpacer: {
     width: 24,
   },
+  communityBarContainer: {
+    marginTop: 4,
+  },
   communityBar: {
     flexDirection: 'row',
     height: 3,
     borderRadius: 1.5,
-    marginTop: 4,
     overflow: 'hidden',
   },
   communityBarRed: {
@@ -854,6 +1077,12 @@ const styles = StyleSheet.create({
   },
   communityBarBlue: {
     height: '100%',
+  },
+  communityLabel: {
+    fontSize: 9,
+    textAlign: 'center',
+    marginTop: 3,
+    fontWeight: '500',
   },
   resultContainer: {
     marginTop: spacing.xs,
@@ -884,6 +1113,118 @@ const styles = StyleSheet.create({
   },
   gradeText: {
     fontSize: 10,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  // Submit Button & Modal
+  submitContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    backgroundColor: 'transparent',
+  },
+  submitButton: {
+    paddingVertical: 14,
+    borderRadius: radius.button,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  submittedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  submittedBadge: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: 12,
+    borderRadius: radius.button,
+  },
+  submittedText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  editButton: {
+    paddingVertical: 12,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.button,
+  },
+  editButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  // Modal styles
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: radius.card,
+    padding: spacing.lg,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  modalDescription: {
+    fontSize: 15,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: spacing.md,
+  },
+  modalHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.sm,
+    marginBottom: spacing.lg,
+  },
+  modalHintText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  modalCancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: radius.button,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  modalSubmitButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: radius.button,
+    alignItems: 'center',
+  },
+  modalSubmitText: {
+    fontSize: 15,
     fontWeight: '700',
     color: '#fff',
   },
