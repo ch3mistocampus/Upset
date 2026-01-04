@@ -25,7 +25,7 @@ import { useTheme } from '../../lib/theme';
 import { spacing, radius, typography } from '../../lib/tokens';
 import { ErrorState } from '../../components/ErrorState';
 import { SkeletonCard } from '../../components/SkeletonCard';
-import { EmptyState, SurfaceCard, Button } from '../../components/ui';
+import { EmptyState, SurfaceCard } from '../../components/ui';
 import { AccuracyRing } from '../../components/AccuracyRing';
 import { MiniChart } from '../../components/MiniChart';
 import type { FriendshipStatus } from '../../types/social';
@@ -274,23 +274,27 @@ export default function UserProfile() {
           onPress={handleUnfollow}
           disabled={isActionLoading}
           activeOpacity={0.8}
-          style={[styles.followingBadge, { backgroundColor: colors.surfaceAlt }]}
+          style={[styles.followBadge, { backgroundColor: colors.surfaceAlt }]}
         >
           <Ionicons name="checkmark-circle" size={14} color={colors.textSecondary} />
-          <Text style={[styles.followingText, { color: colors.textSecondary }]}>Following</Text>
+          <Text style={[styles.followBadgeText, { color: colors.textSecondary }]}>Following</Text>
         </TouchableOpacity>
       );
     }
 
     return (
-      <Button
-        title="Follow"
+      <TouchableOpacity
         onPress={handleFollow}
-        variant="primary"
-        loading={followLoading}
         disabled={isActionLoading}
-        style={styles.actionButton}
-      />
+        activeOpacity={0.8}
+        style={[styles.followBadge, { backgroundColor: colors.accent }]}
+      >
+        {followLoading ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <Text style={[styles.followBadgeText, { color: '#fff' }]}>Follow</Text>
+        )}
+      </TouchableOpacity>
     );
   };
 
@@ -692,9 +696,6 @@ const styles = StyleSheet.create({
   actionContainer: {
     marginTop: 2,
   },
-  actionButton: {
-    minWidth: 140,
-  },
   pendingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -707,16 +708,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  followingBadge: {
+  followBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 8,
     borderRadius: 16,
     gap: 4,
+    minWidth: 100,
   },
-  followingText: {
-    fontSize: 13,
+  followBadgeText: {
+    fontSize: 14,
     fontWeight: '600',
   },
   tabContainer: {
