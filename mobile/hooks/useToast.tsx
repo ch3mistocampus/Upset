@@ -17,6 +17,7 @@ interface ToastContextType {
   showSuccess: (message: string) => void;
   showError: (message: string) => void;
   showInfo: (message: string) => void;
+  showNeutral: (message: string) => void;
   dismiss: (id: string) => void;
 }
 
@@ -48,8 +49,12 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addToast('info', message);
   }, [addToast]);
 
+  const showNeutral = useCallback((message: string) => {
+    addToast('neutral', message);
+  }, [addToast]);
+
   return (
-    <ToastContext.Provider value={{ showSuccess, showError, showInfo, dismiss }}>
+    <ToastContext.Provider value={{ showSuccess, showError, showInfo, showNeutral, dismiss }}>
       {children}
       <View style={styles.toastContainer} pointerEvents="box-none">
         {toasts.map((toast, index) => (

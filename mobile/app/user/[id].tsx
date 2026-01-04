@@ -74,6 +74,7 @@ export default function UserProfile() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [showUnfollowConfirm, setShowUnfollowConfirm] = useState(false);
 
   // Entrance animations
   const headerOpacity = useRef(new Animated.Value(0)).current;
@@ -242,11 +243,19 @@ export default function UserProfile() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await follow(id!);
       setIsFollowing(true);
-      toast.showSuccess('Now following @' + profile?.username);
+      toast.showNeutral('Now following @' + profile?.username);
     } catch (error: any) {
       toast.showError(error.message || 'Failed to follow');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
+  };
+
+  const handleFollowingTap = () => {
+    // First tap: show unfollow confirmation state
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowUnfollowConfirm(true);
+    // Auto-reset after 3 seconds if user doesn't confirm
+    setTimeout(() => setShowUnfollowConfirm(false), 3000);
   };
 
   const handleUnfollow = async () => {
@@ -254,7 +263,8 @@ export default function UserProfile() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await unfollow(id!);
       setIsFollowing(false);
-      toast.showSuccess('Unfollowed @' + profile?.username);
+      setShowUnfollowConfirm(false);
+      toast.showNeutral('Unfollowed @' + profile?.username);
     } catch (error: any) {
       toast.showError(error.message || 'Failed to unfollow');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -270,9 +280,27 @@ export default function UserProfile() {
     const isActionLoading = followLoading || unfollowLoading;
 
     if (isFollowing) {
+      // Two-tap unfollow: first tap shows "Unfollow", second tap confirms
+      if (showUnfollowConfirm) {
+        return (
+          <TouchableOpacity
+            onPress={handleUnfollow}
+            disabled={isActionLoading}
+            activeOpacity={0.8}
+            style={[styles.followBadge, { backgroundColor: colors.danger }]}
+          >
+            {unfollowLoading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={[styles.followBadgeText, { color: '#fff' }]}>Unfollow</Text>
+            )}
+          </TouchableOpacity>
+        );
+      }
+
       return (
         <TouchableOpacity
-          onPress={handleUnfollow}
+          onPress={handleFollowingTap}
           disabled={isActionLoading}
           activeOpacity={0.8}
           style={[styles.followBadge, { backgroundColor: colors.surfaceAlt }]}

@@ -20,7 +20,7 @@ import { radius, spacing } from '../lib/tokens';
 
 const { width } = Dimensions.get('window');
 
-export type ToastType = 'success' | 'error' | 'info';
+export type ToastType = 'success' | 'error' | 'info' | 'neutral';
 
 export interface ToastProps {
   id: string;
@@ -46,6 +46,11 @@ const TOAST_CONFIG = {
     color: '#06b6d4',
     bgGradient: 'rgba(6, 182, 212, 0.15)',
   },
+  neutral: {
+    icon: 'checkmark-circle' as const,
+    color: '#6b7280',
+    bgGradient: 'rgba(107, 114, 128, 0.12)',
+  },
 };
 
 export const Toast: React.FC<ToastProps> = ({ id, type, message, onDismiss, index }) => {
@@ -62,6 +67,8 @@ export const Toast: React.FC<ToastProps> = ({ id, type, message, onDismiss, inde
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } else if (type === 'success') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else if (type === 'neutral') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } else {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
