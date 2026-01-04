@@ -37,7 +37,7 @@ const TAB_CONFIG: Record<string, {
   profile: { icon: 'person', iconOutline: 'person-outline', label: 'Profile' },
 };
 
-// Animated tab button with scale effect
+// Animated tab button with bounce effect
 function TabButton({
   isFocused,
   iconName,
@@ -59,16 +59,51 @@ function TabButton({
   onPress: () => void;
   onLongPress: () => void;
 }) {
-  const scaleAnim = useRef(new Animated.Value(isFocused ? 1.02 : 1)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const translateYAnim = useRef(new Animated.Value(0)).current;
+  const wasFocused = useRef(isFocused);
 
   useEffect(() => {
-    Animated.spring(scaleAnim, {
-      toValue: isFocused ? 1.02 : 1,
-      tension: 300,
-      friction: 20,
-      useNativeDriver: true,
-    }).start();
-  }, [isFocused, scaleAnim]);
+    // Only animate when becoming focused (not on initial render or unfocus)
+    if (isFocused && !wasFocused.current) {
+      // Bounce up and scale animation
+      Animated.parallel([
+        Animated.sequence([
+          // Quick scale up
+          Animated.spring(scaleAnim, {
+            toValue: 1.2,
+            tension: 400,
+            friction: 8,
+            useNativeDriver: true,
+          }),
+          // Settle back
+          Animated.spring(scaleAnim, {
+            toValue: 1,
+            tension: 200,
+            friction: 12,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.sequence([
+          // Quick bounce up
+          Animated.spring(translateYAnim, {
+            toValue: -4,
+            tension: 400,
+            friction: 8,
+            useNativeDriver: true,
+          }),
+          // Settle back
+          Animated.spring(translateYAnim, {
+            toValue: 0,
+            tension: 200,
+            friction: 12,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]).start();
+    }
+    wasFocused.current = isFocused;
+  }, [isFocused, scaleAnim, translateYAnim]);
 
   return (
     <Pressable
@@ -79,7 +114,17 @@ function TabButton({
       accessibilityState={isFocused ? { selected: true } : {}}
       accessibilityLabel={label}
     >
-      <Animated.View style={[styles.tabContent, { transform: [{ scale: scaleAnim }] }]}>
+      <Animated.View
+        style={[
+          styles.tabContent,
+          {
+            transform: [
+              { scale: scaleAnim },
+              { translateY: translateYAnim },
+            ],
+          },
+        ]}
+      >
         <View style={styles.iconContainer}>
           <Ionicons
             name={iconName}
