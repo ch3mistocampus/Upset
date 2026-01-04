@@ -5,12 +5,13 @@
  * Theme-aware design with SurfaceCard and entrance animations
  */
 
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Animated, Easing, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Animated, Easing, TouchableOpacity, TextInput, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../hooks/useAuth';
+import { useToast } from '../../hooks/useToast';
 import { useGuestPicks } from '../../hooks/useGuestPicks';
 import { useUserStats, useRecentPicksSummary } from '../../hooks/useQueries';
 import { useTheme } from '../../lib/theme';
@@ -61,8 +62,9 @@ function AnimatedSection({ children, index }: { children: React.ReactNode; index
 
 export default function Profile() {
   const router = useRouter();
+  const toast = useToast();
   const { colors, themeMode, setThemeMode } = useTheme();
-  const { profile, user, signOut, isGuest } = useAuth();
+  const { profile, user, signOut, isGuest, updateProfile } = useAuth();
   const { getTotalPickCount, getEventsPickedCount } = useGuestPicks();
   const { data: stats, isLoading: statsLoading, isError: statsError, refetch: refetchStats } = useUserStats(user?.id || null);
   const { data: recentSummary, isLoading: summaryLoading, refetch: refetchSummary } = useRecentPicksSummary(
@@ -71,6 +73,29 @@ export default function Profile() {
   );
 
   const [refreshing, setRefreshing] = useState(false);
+  const [showBioModal, setShowBioModal] = useState(false);
+  const [bioText, setBioText] = useState(profile?.bio || '');
+  const [savingBio, setSavingBio] = useState(false);
+
+  // Update bioText when profile changes
+  useEffect(() => {
+    setBioText(profile?.bio || '');
+  }, [profile?.bio]);
+
+  const handleSaveBio = async () => {
+    try {
+      setSavingBio(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await updateProfile({ bio: bioText.trim() || null });
+      setShowBioModal(false);
+      toast.showNeutral('Bio updated');
+    } catch (error: any) {
+      toast.showError(error.message || 'Failed to update bio');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setSavingBio(false);
+    }
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -257,6 +282,27 @@ export default function Profile() {
               </Text>
             </View>
           </View>
+
+          {/* Bio Section */}
+          <TouchableOpacity
+            style={[styles.bioSection, { backgroundColor: colors.surfaceAlt }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setShowBioModal(true);
+            }}
+            activeOpacity={0.7}
+          >
+            {profile?.bio ? (
+              <Text style={[styles.bioText, { color: colors.text }]} numberOfLines={3}>
+                {profile.bio}
+              </Text>
+            ) : (
+              <Text style={[styles.bioPlaceholder, { color: colors.textTertiary }]}>
+                Add a bio...
+              </Text>
+            )}
+            <Ionicons name="pencil" size={16} color={colors.textTertiary} style={styles.bioEditIcon} />
+          </TouchableOpacity>
         </SurfaceCard>
       </AnimatedSection>
 
@@ -492,6 +538,54 @@ export default function Profile() {
           UFC Picks Tracker v1.0.0
         </Text>
       </View>
+
+      {/* Bio Edit Modal */}
+      <Modal
+        visible={showBioModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowBioModal(false)}
+      >
+        <KeyboardAvoidingView
+          style={[styles.modalContainer, { backgroundColor: colors.background }]}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <TouchableOpacity onPress={() => setShowBioModal(false)}>
+              <Text style={[styles.modalCancel, { color: colors.textSecondary }]}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Bio</Text>
+            <TouchableOpacity onPress={handleSaveBio} disabled={savingBio}>
+              <Text style={[styles.modalSave, { color: savingBio ? colors.textTertiary : colors.accent }]}>
+                {savingBio ? 'Saving...' : 'Save'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.modalContent}>
+            <TextInput
+              style={[
+                styles.bioInput,
+                {
+                  backgroundColor: colors.surfaceAlt,
+                  color: colors.text,
+                  borderColor: colors.border,
+                },
+              ]}
+              value={bioText}
+              onChangeText={setBioText}
+              placeholder="Tell us about yourself..."
+              placeholderTextColor={colors.textTertiary}
+              multiline
+              maxLength={280}
+              autoFocus
+            />
+            <Text style={[styles.bioCharCount, { color: colors.textTertiary }]}>
+              {bioText.length}/280
+            </Text>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </ScrollView>
   );
 }
@@ -725,5 +819,65 @@ const styles = StyleSheet.create({
   },
   guestNoticeText: {
     ...typography.meta,
+  },
+  // Bio Section
+  bioSection: {
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.sm,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  bioText: {
+    ...typography.body,
+    flex: 1,
+    lineHeight: 22,
+  },
+  bioPlaceholder: {
+    ...typography.body,
+    flex: 1,
+    fontStyle: 'italic',
+  },
+  bioEditIcon: {
+    marginLeft: spacing.sm,
+    marginTop: 2,
+  },
+  // Bio Modal
+  modalContainer: {
+    flex: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+  },
+  modalTitle: {
+    ...typography.h3,
+  },
+  modalCancel: {
+    ...typography.body,
+  },
+  modalSave: {
+    ...typography.body,
+    fontWeight: '600',
+  },
+  modalContent: {
+    padding: spacing.lg,
+  },
+  bioInput: {
+    ...typography.body,
+    padding: spacing.md,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    minHeight: 120,
+    textAlignVertical: 'top',
+  },
+  bioCharCount: {
+    ...typography.meta,
+    textAlign: 'right',
+    marginTop: spacing.sm,
   },
 });

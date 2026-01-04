@@ -232,6 +232,28 @@ export function useAuth() {
     return data;
   };
 
+  const updateProfile = async (updates: { bio?: string | null }) => {
+    if (!user) throw new Error('No user logged in');
+
+    logger.breadcrumb('Updating profile', 'profile', { updates });
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('user_id', user.id)
+      .select()
+      .single();
+
+    if (error) {
+      logger.error('Failed to update profile', error);
+      throw error;
+    }
+
+    setProfile(data);
+    logger.info('Profile updated successfully');
+    return data;
+  };
+
   const signUp = async (email: string, password: string) => {
     logger.breadcrumb('Sign up attempt', 'auth', { email });
 
@@ -376,6 +398,7 @@ export function useAuth() {
     updatePassword,
     // Profile
     createProfile,
+    updateProfile,
     signOut,
   };
 }
