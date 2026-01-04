@@ -15,11 +15,23 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// Test user configurations
+// Test user configurations - 13 users with varied picking styles
 const TEST_USERS = [
+  // Original 3 users
   { email: 'alice@test.com', password: 'Password123', username: 'alice_ufc' },
   { email: 'bob@test.com', password: 'Password123', username: 'bob_fighter' },
   { email: 'charlie@test.com', password: 'Password123', username: 'charlie_picks' },
+  // 10 new users with distinct personalities
+  { email: 'david@test.com', password: 'Password123', username: 'david_mma' },        // Chalk picker - always favorites
+  { email: 'emma@test.com', password: 'Password123', username: 'emma_octagon' },      // Technical - balanced
+  { email: 'frank@test.com', password: 'Password123', username: 'frank_knockout' },   // Finish picker - likes KO artists
+  { email: 'grace@test.com', password: 'Password123', username: 'grace_grappling' },  // Submission picker - grapplers
+  { email: 'henry@test.com', password: 'Password123', username: 'henry_heavyweight' },// Power picker - bigger fighters
+  { email: 'iris@test.com', password: 'Password123', username: 'iris_insider' },      // Contrarian - picks underdogs
+  { email: 'jack@test.com', password: 'Password123', username: 'jack_judge' },        // Analyst - very balanced
+  { email: 'kate@test.com', password: 'Password123', username: 'kate_kicks' },        // Striker - picks strikers
+  { email: 'leo@test.com', password: 'Password123', username: 'leo_legacy' },         // Experience - picks veterans
+  { email: 'mia@test.com', password: 'Password123', username: 'mia_momentum' },       // Streak picker - hot fighters
 ];
 
 async function sleep(ms: number) {
@@ -228,13 +240,30 @@ async function main() {
   let picksCreated = 0;
   let picksSkipped = 0;
 
+  // Pick probability mapping based on user style
+  // Red corner is typically the favorite (home/higher ranked fighter)
+  const PICK_STYLES: Record<string, number> = {
+    'alice_ufc': 0.65,         // Tends toward favorites
+    'bob_fighter': 0.40,       // Tends toward underdogs
+    'charlie_picks': 0.50,     // Random/balanced
+    'david_mma': 0.80,         // Heavy chalk - almost always favorites
+    'emma_octagon': 0.55,      // Slight favorite lean
+    'frank_knockout': 0.60,    // Likes power (often red corner)
+    'grace_grappling': 0.45,   // Slight underdog lean (grapplers often blue)
+    'henry_heavyweight': 0.70, // Bigger fighters (often favorites)
+    'iris_insider': 0.30,      // Contrarian - heavy underdog
+    'jack_judge': 0.55,        // Balanced analyst
+    'kate_kicks': 0.50,        // Random striker picks
+    'leo_legacy': 0.60,        // Veterans often favorites
+    'mia_momentum': 0.65,      // Picks momentum/hot fighters
+  };
+
   for (const user of createdUsers) {
     console.log(`Creating picks for ${user.username}...`);
 
     for (const bout of bouts) {
-      // Vary pick distribution per user
-      const userIndex = TEST_USERS.findIndex(u => u.username === user.username);
-      const redProb = 0.35 + (userIndex * 0.15); // 35%, 50%, 65%
+      // Vary pick distribution per user based on their picking style
+      const redProb = PICK_STYLES[user.username] || 0.50;
       const pickedCorner = Math.random() < redProb ? 'red' : 'blue';
 
       // Check if pick exists
@@ -270,6 +299,90 @@ async function main() {
   console.log(`⚠️  Picks skipped (already exist): ${picksSkipped}`);
 
   // =========================================================================
+  // Step 5b: Create Mock Picks for Completed Events (graded)
+  // =========================================================================
+  console.log('\n🏆 STEP 5b: Creating Graded Picks for Completed Events...\n');
+
+  // Get completed events with results
+  const { data: completedEvents } = await supabase
+    .from('events')
+    .select('*')
+    .eq('status', 'completed')
+    .order('event_date', { ascending: false })
+    .limit(3);  // Last 3 completed events
+
+  let gradedPicksCreated = 0;
+
+  if (completedEvents && completedEvents.length > 0) {
+    for (const event of completedEvents) {
+      console.log(`\n📅 Processing: ${event.name}`);
+
+      // Get bouts with results for this event
+      const { data: completedBouts } = await supabase
+        .from('bouts')
+        .select('*, results(*)')
+        .eq('event_id', event.id)
+        .eq('status', 'completed')
+        .order('order_index', { ascending: true });
+
+      if (!completedBouts || completedBouts.length === 0) {
+        console.log('   No completed bouts with results found');
+        continue;
+      }
+
+      console.log(`   Found ${completedBouts.length} completed bouts`);
+
+      for (const user of createdUsers) {
+        const redProb = PICK_STYLES[user.username] || 0.50;
+
+        for (const bout of completedBouts) {
+          // Check if pick already exists
+          const { data: existingPick } = await supabase
+            .from('picks')
+            .select('id')
+            .eq('user_id', user.user_id)
+            .eq('bout_id', bout.id)
+            .single();
+
+          if (existingPick) continue;
+
+          // Generate pick based on user's style
+          const pickedCorner = Math.random() < redProb ? 'red' : 'blue';
+
+          // Get the result for this bout
+          const result = bout.results?.[0] || bout.results;
+          const winnerCorner = result?.winner_corner;
+
+          // Calculate score: 1 for correct, 0 for incorrect, null for no result
+          let score: number | null = null;
+          if (winnerCorner && winnerCorner !== 'draw' && winnerCorner !== 'nc') {
+            score = pickedCorner === winnerCorner ? 1 : 0;
+          }
+
+          // Create graded pick
+          const { error } = await supabase
+            .from('picks')
+            .insert({
+              user_id: user.user_id,
+              event_id: event.id,
+              bout_id: bout.id,
+              picked_corner: pickedCorner,
+              status: 'graded',
+              score: score,
+              locked_at: event.event_date,
+            });
+
+          if (!error) {
+            gradedPicksCreated++;
+          }
+        }
+      }
+    }
+  }
+
+  console.log(`\n✅ Graded picks created: ${gradedPicksCreated}`);
+
+  // =========================================================================
   // Step 6: Initialize User Stats with Mock Data
   // =========================================================================
   console.log('\n📊 STEP 6: Initializing User Stats with Mock Data...\n');
@@ -277,11 +390,24 @@ async function main() {
   // Realistic stats based on recent UFC events (verified Dec 2025):
   // - UFC 323 (Dec 6, 2025): Petr Yan def. Merab Dvalishvili via UD - reclaimed bantamweight title
   // - UFC Fight Night (Dec 13, 2025): Manel Kape def. Brandon Royval via R1 TKO
-  // Simulated picks across ~25 fights from these 2 events
+  // - UFC Fight Night (Dec 21, 2025): Various fights
+  // Simulated picks across ~25-30 fights from these events
   const MOCK_STATS = [
-    { username: 'alice_ufc', total_picks: 26, correct_winner: 18, accuracy_pct: 69.2, current_streak: 4, best_streak: 7 },
-    { username: 'bob_fighter', total_picks: 26, correct_winner: 14, accuracy_pct: 53.8, current_streak: 1, best_streak: 5 },
-    { username: 'charlie_picks', total_picks: 26, correct_winner: 16, accuracy_pct: 61.5, current_streak: 2, best_streak: 4 },
+    // Original 3 users
+    { username: 'alice_ufc', total_picks: 28, correct_winner: 19, accuracy_pct: 67.9, current_streak: 4, best_streak: 7 },
+    { username: 'bob_fighter', total_picks: 28, correct_winner: 15, accuracy_pct: 53.6, current_streak: 1, best_streak: 5 },
+    { username: 'charlie_picks', total_picks: 28, correct_winner: 17, accuracy_pct: 60.7, current_streak: 2, best_streak: 4 },
+    // 10 new users with varied stats reflecting their picking styles
+    { username: 'david_mma', total_picks: 30, correct_winner: 22, accuracy_pct: 73.3, current_streak: 6, best_streak: 9 },      // Chalk picker - high accuracy
+    { username: 'emma_octagon', total_picks: 26, correct_winner: 17, accuracy_pct: 65.4, current_streak: 3, best_streak: 6 },   // Technical - solid
+    { username: 'frank_knockout', total_picks: 25, correct_winner: 14, accuracy_pct: 56.0, current_streak: 0, best_streak: 4 }, // Finish picker - volatile
+    { username: 'grace_grappling', total_picks: 27, correct_winner: 16, accuracy_pct: 59.3, current_streak: 2, best_streak: 5 },// Submission picker
+    { username: 'henry_heavyweight', total_picks: 24, correct_winner: 13, accuracy_pct: 54.2, current_streak: 1, best_streak: 3 },// Power picker
+    { username: 'iris_insider', total_picks: 29, correct_winner: 13, accuracy_pct: 44.8, current_streak: 0, best_streak: 3 },   // Contrarian - low accuracy (underdogs lose)
+    { username: 'jack_judge', total_picks: 30, correct_winner: 20, accuracy_pct: 66.7, current_streak: 5, best_streak: 8 },     // Analyst - very good
+    { username: 'kate_kicks', total_picks: 26, correct_winner: 15, accuracy_pct: 57.7, current_streak: 2, best_streak: 4 },     // Striker picker
+    { username: 'leo_legacy', total_picks: 28, correct_winner: 18, accuracy_pct: 64.3, current_streak: 3, best_streak: 6 },     // Experience picker
+    { username: 'mia_momentum', total_picks: 27, correct_winner: 19, accuracy_pct: 70.4, current_streak: 7, best_streak: 10 },  // Streak picker - on fire!
   ];
 
   for (const user of createdUsers) {
@@ -315,11 +441,47 @@ async function main() {
   let friendshipsCreated = 0;
   let friendshipsSkipped = 0;
 
-  // Create friendships: alice-bob, alice-charlie, bob-charlie
+  // Create friendships between users - mix of connections for realistic social graph
+  // Each user has 2-5 friends, creating clusters and cross-connections
   const friendshipPairs = [
-    [0, 1], // alice - bob
-    [0, 2], // alice - charlie
-    [1, 2], // bob - charlie
+    // Original trio stays connected
+    [0, 1],   // alice - bob
+    [0, 2],   // alice - charlie
+    [1, 2],   // bob - charlie
+    // David (chalk picker) friends with high-accuracy users
+    [3, 0],   // david - alice
+    [3, 9],   // david - jack (both analytical)
+    [3, 12],  // david - mia
+    // Emma (technical) has diverse friends
+    [4, 0],   // emma - alice
+    [4, 5],   // emma - frank
+    [4, 9],   // emma - jack
+    // Frank (KO picker) friends with action fans
+    [5, 7],   // frank - henry
+    [5, 10],  // frank - kate
+    // Grace (grappling) friends
+    [6, 4],   // grace - emma
+    [6, 11],  // grace - leo
+    // Henry (heavyweight) connections
+    [7, 1],   // henry - bob
+    [7, 10],  // henry - kate
+    // Iris (contrarian) connects with fellow risk-takers
+    [8, 1],   // iris - bob
+    [8, 5],   // iris - frank
+    [8, 12],  // iris - mia
+    // Jack (analyst) popular - friends with many
+    [9, 2],   // jack - charlie
+    [9, 11],  // jack - leo
+    [9, 12],  // jack - mia
+    // Kate (striker) friends
+    [10, 4],  // kate - emma
+    [10, 12], // kate - mia
+    // Leo (legacy/veteran picker)
+    [11, 0],  // leo - alice
+    [11, 3],  // leo - david
+    // Mia (momentum) is well connected - rising star
+    [12, 2],  // mia - charlie
+    [12, 6],  // mia - grace
   ];
 
   for (const [i, j] of friendshipPairs) {
@@ -402,10 +564,15 @@ async function main() {
   console.log('   • User stats with accuracy data (for leaderboards)');
   console.log('   • Friendships between all test users');
   console.log('   • Privacy settings set to public');
-  console.log('\n📊 Leaderboard Preview:');
-  MOCK_STATS.forEach((s, i) => {
-    console.log(`   ${i + 1}. ${s.username}: ${s.accuracy_pct}% (${s.correct_winner}/${s.total_picks})`);
+  console.log('\n📊 Leaderboard Preview (sorted by accuracy):');
+  const sortedStats = [...MOCK_STATS].sort((a, b) => b.accuracy_pct - a.accuracy_pct);
+  sortedStats.slice(0, 10).forEach((s, i) => {
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '  ';
+    console.log(`   ${medal} ${i + 1}. ${s.username}: ${s.accuracy_pct}% (${s.correct_winner}/${s.total_picks})`);
   });
+  if (sortedStats.length > 10) {
+    console.log(`   ... and ${sortedStats.length - 10} more users`);
+  }
   console.log('\n📱 Open the app and sign in with any test user to see:');
   console.log('   • Picks for upcoming event');
   console.log('   • Global leaderboard with rankings');

@@ -95,17 +95,26 @@ export interface Database {
 export interface Profile {
   user_id: string;
   username: string;
+  bio: string | null;
+  avatar_url: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface ProfileInsert {
   user_id: string;
   username: string;
+  bio?: string | null;
+  avatar_url?: string | null;
   created_at?: string;
+  updated_at?: string;
 }
 
 export interface ProfileUpdate {
   username?: string;
+  bio?: string | null;
+  avatar_url?: string | null;
+  updated_at?: string;
 }
 
 // Event

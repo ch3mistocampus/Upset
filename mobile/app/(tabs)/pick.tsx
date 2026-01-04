@@ -7,7 +7,7 @@ import { useState, useRef, useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../hooks/useAuth';
-import { useNextEvent, useBoutsForEvent, useUpsertPick, isEventLocked } from '../../hooks/useQueries';
+import { useNextEvent, useBoutsForEvent, useUpsertPick, useDeleteAllPicks, isEventLocked } from '../../hooks/useQueries';
 import { useEventCommunityPercentages } from '../../hooks/useLeaderboard';
 import { useToast } from '../../hooks/useToast';
 import { useTheme } from '../../lib/theme';
@@ -278,8 +278,14 @@ export default function Pick() {
     user?.id || null
   );
   const upsertPick = useUpsertPick();
+  const deleteAllPicks = useDeleteAllPicks();
 
   const boutIds = useMemo(() => bouts?.map((b) => b.id) || [], [bouts]);
+
+  // Count active picks that can be unselected
+  const activePickCount = useMemo(() => {
+    return bouts?.filter((b) => b.pick && b.pick.status === 'active').length || 0;
+  }, [bouts]);
   const { data: communityPercentages, refetch: refetchPercentages } = useEventCommunityPercentages(boutIds);
 
   const [refreshing, setRefreshing] = useState(false);
@@ -327,6 +333,36 @@ export default function Pick() {
       } else {
         toast.showError('Failed to save pick. Please try again.');
       }
+    }
+  };
+
+  const handleUnselectAll = async () => {
+    if (!user || !nextEvent) return;
+
+    if (locked) {
+      toast.showError('Event has already started. Picks cannot be changed.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+
+    if (activePickCount === 0) {
+      toast.showError('No picks to unselect.');
+      return;
+    }
+
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      await deleteAllPicks.mutateAsync({
+        userId: user.id,
+        eventId: nextEvent.id,
+      });
+
+      toast.showSuccess(`Cleared ${activePickCount} pick${activePickCount > 1 ? 's' : ''}`);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      toast.showError('Failed to clear picks. Please try again.');
     }
   };
 
@@ -409,15 +445,36 @@ export default function Pick() {
     >
       {/* Event Header */}
       <View style={styles.header}>
-        <Text style={[styles.eventName, { color: colors.textPrimary }]}>
-          {nextEvent.name}
-        </Text>
+        <View style={styles.headerTop}>
+          <Text style={[styles.eventName, { color: colors.textPrimary }]}>
+            {nextEvent.name}
+          </Text>
+          {/* Unselect All Button - only show when there are active picks and not locked */}
+          {!locked && activePickCount > 0 && (
+            <TouchableOpacity
+              style={[styles.unselectAllButton, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}
+              onPress={handleUnselectAll}
+              disabled={deleteAllPicks.isPending}
+            >
+              <Ionicons name="close-circle-outline" size={16} color={colors.textSecondary} />
+              <Text style={[styles.unselectAllText, { color: colors.textSecondary }]}>
+                Clear All
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
         {locked && (
           <View style={[styles.lockedBanner, { backgroundColor: colors.surfaceAlt }]}>
             <Text style={[styles.lockedText, { color: colors.textSecondary }]}>
               🔒 Picks Locked
             </Text>
           </View>
+        )}
+        {/* Pick count indicator */}
+        {!locked && bouts && bouts.length > 0 && (
+          <Text style={[styles.pickCount, { color: colors.textTertiary }]}>
+            {activePickCount} of {bouts.length} fights picked
+          </Text>
         )}
       </View>
 
@@ -518,8 +575,32 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: spacing.sm,
   },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+  },
   eventName: {
     ...typography.h2,
+    flex: 1,
+    marginBottom: spacing.sm,
+  },
+  unselectAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+  },
+  unselectAllText: {
+    ...typography.meta,
+    fontWeight: '600',
+  },
+  pickCount: {
+    ...typography.meta,
     marginBottom: spacing.sm,
   },
   lockedBanner: {

@@ -15,9 +15,21 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { load } from 'https://esm.sh/cheerio@1.0.0-rc.12';
 
 const TEST_USERS = [
-  { username: 'alice_ufc', pickStyle: 'favorite' },    // Tends to pick favorites
-  { username: 'bob_fighter', pickStyle: 'underdog' },  // Tends to pick underdogs
-  { username: 'charlie_picks', pickStyle: 'random' },  // Random picks
+  // Original 3 users
+  { username: 'alice_ufc', pickStyle: 'favorite' },        // Tends to pick favorites
+  { username: 'bob_fighter', pickStyle: 'underdog' },      // Tends to pick underdogs
+  { username: 'charlie_picks', pickStyle: 'random' },      // Random picks
+  // 10 new users with distinct picking styles
+  { username: 'david_mma', pickStyle: 'heavy_favorite' },  // Almost always picks chalk
+  { username: 'emma_octagon', pickStyle: 'slight_favorite' }, // Technical - slight fav lean
+  { username: 'frank_knockout', pickStyle: 'favorite' },   // Likes power/finishers
+  { username: 'grace_grappling', pickStyle: 'slight_underdog' }, // Grapplers often underdogs
+  { username: 'henry_heavyweight', pickStyle: 'favorite' }, // Picks bigger fighters
+  { username: 'iris_insider', pickStyle: 'heavy_underdog' }, // Contrarian - always underdogs
+  { username: 'jack_judge', pickStyle: 'slight_favorite' }, // Balanced analyst
+  { username: 'kate_kicks', pickStyle: 'random' },         // Random striker picks
+  { username: 'leo_legacy', pickStyle: 'favorite' },       // Veterans often favorites
+  { username: 'mia_momentum', pickStyle: 'favorite' },     // Hot fighters often favorites
 ];
 
 const DELAY_MS = 800;
@@ -205,28 +217,26 @@ async function getEventResults(eventUrl: string, eventName: string): Promise<Fig
 
 /**
  * Simulate a user's pick for a fight based on their pick style
+ * Red corner is typically the favorite (home/higher ranked fighter)
  */
 function simulatePick(
   fight: FightResult,
-  pickStyle: 'favorite' | 'underdog' | 'random',
+  pickStyle: string,
   fightIndex: number
 ): 'red' | 'blue' {
-  switch (pickStyle) {
-    case 'favorite':
-      // Favorites tend to be in the red corner (first listed) 70% of the time
-      return Math.random() < 0.7 ? 'red' : 'blue';
+  // Define probability of picking red corner (favorite) based on style
+  const redProbabilities: Record<string, number> = {
+    'heavy_favorite': 0.85,    // Almost always picks chalk
+    'favorite': 0.70,          // Strongly favors favorites
+    'slight_favorite': 0.58,   // Slight lean toward favorites
+    'random': 0.50,            // True 50/50
+    'slight_underdog': 0.42,   // Slight lean toward underdogs
+    'underdog': 0.35,          // Prefers underdogs
+    'heavy_underdog': 0.20,    // Almost always picks underdogs
+  };
 
-    case 'underdog':
-      // Underdogs tend to be in the blue corner 60% of the time
-      return Math.random() < 0.6 ? 'blue' : 'red';
-
-    case 'random':
-      // Truly random 50/50
-      return Math.random() < 0.5 ? 'red' : 'blue';
-
-    default:
-      return 'red';
-  }
+  const redProb = redProbabilities[pickStyle] ?? 0.50;
+  return Math.random() < redProb ? 'red' : 'blue';
 }
 
 async function main() {
@@ -319,7 +329,7 @@ async function main() {
           continue; // Skip draws and no-contests
         }
 
-        const userPick = simulatePick(fight, testUser.pickStyle as any, i);
+        const userPick = simulatePick(fight, testUser.pickStyle, i);
         const isCorrect = userPick === fight.winnerCorner;
 
         stats.totalPicks++;
