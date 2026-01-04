@@ -18,13 +18,18 @@ import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import { useFriends } from '../../hooks/useFriends';
 import { useToast } from '../../hooks/useToast';
+import { useTheme } from '../../lib/theme';
+import { spacing, radius, typography } from '../../lib/tokens';
 import { ErrorState } from '../../components/ErrorState';
 import { SkeletonCard } from '../../components/SkeletonCard';
 import { EmptyState } from '../../components/EmptyState';
 import { AccuracyRing } from '../../components/AccuracyRing';
+import { Avatar } from '../../components/Avatar';
 
 interface FriendProfile {
   username: string;
+  bio: string | null;
+  avatar_url: string | null;
   total_picks: number;
   correct_picks: number;
   accuracy: number;
@@ -47,6 +52,7 @@ export default function FriendProfile() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const toast = useToast();
+  const { colors } = useTheme();
   const { removeFriend, removeFriendLoading } = useFriends();
 
   const [activeTab, setActiveTab] = useState<TabType>('picks');
@@ -65,7 +71,7 @@ export default function FriendProfile() {
       // Fetch friend's profile and stats
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('username')
+        .select('username, bio, avatar_url')
         .eq('user_id', id)
         .single();
 
@@ -83,6 +89,8 @@ export default function FriendProfile() {
 
       setProfile({
         username: profileData.username,
+        bio: profileData.bio,
+        avatar_url: profileData.avatar_url,
         total_picks: totalPicks,
         correct_picks: correctPicks,
         accuracy,
@@ -168,12 +176,12 @@ export default function FriendProfile() {
 
   if (isLoading) {
     return (
-      <View style={styles.container}>
-        <View style={styles.header}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { backgroundColor: colors.surface }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Loading...</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Loading...</Text>
           <View style={styles.placeholder} />
         </View>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
@@ -187,12 +195,12 @@ export default function FriendProfile() {
 
   if (error || !profile) {
     return (
-      <View style={styles.container}>
-        <View style={styles.header}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { backgroundColor: colors.surface }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Error</Text>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Error</Text>
           <View style={styles.placeholder} />
         </View>
         <ErrorState
@@ -208,9 +216,9 @@ export default function FriendProfile() {
     const isGraded = pick.is_correct !== null;
 
     return (
-      <View key={pick.id} style={styles.pickCard}>
+      <View key={pick.id} style={[styles.pickCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.pickHeader}>
-          <Text style={styles.eventName} numberOfLines={1}>
+          <Text style={[styles.eventName, { color: colors.textTertiary }]} numberOfLines={1}>
             {pick.event_name}
           </Text>
           {isGraded && (
@@ -223,64 +231,73 @@ export default function FriendProfile() {
         </View>
 
         <View style={styles.fightInfo}>
-          <Text style={[styles.fighterName, pick.picked_corner === 'red' && styles.selectedFighter]}>
+          <Text style={[styles.fighterName, { color: colors.textPrimary }, pick.picked_corner === 'red' && { color: colors.accent, fontWeight: '600' }]}>
             {pick.red_name}
           </Text>
-          <Text style={styles.vs}>vs</Text>
-          <Text style={[styles.fighterName, pick.picked_corner === 'blue' && styles.selectedFighter]}>
+          <Text style={[styles.vs, { color: colors.textTertiary }]}>vs</Text>
+          <Text style={[styles.fighterName, { color: colors.textPrimary }, pick.picked_corner === 'blue' && { color: colors.accent, fontWeight: '600' }]}>
             {pick.blue_name}
           </Text>
         </View>
 
-        <Text style={styles.pickLabel}>
-          Picked: <Text style={styles.pickedFighter}>{pickedFighter}</Text>
+        <Text style={[styles.pickLabel, { color: colors.textSecondary }]}>
+          Picked: <Text style={[styles.pickedFighter, { color: colors.accent }]}>{pickedFighter}</Text>
         </Text>
       </View>
     );
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.surface }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{profile.username}</Text>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{profile.username}</Text>
         <TouchableOpacity onPress={handleUnfriend} style={styles.unfriendButton}>
-          <Ionicons name="person-remove-outline" size={22} color="#ef4444" />
+          <Ionicons name="person-remove-outline" size={22} color={colors.danger} />
         </TouchableOpacity>
       </View>
 
       {/* Profile Summary */}
-      <View style={styles.profileSummary}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {profile.username.charAt(0).toUpperCase()}
+      <View style={[styles.profileSummary, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <Avatar
+          imageUrl={profile.avatar_url}
+          username={profile.username}
+          size="large"
+          expandable
+        />
+        <Text style={[styles.username, { color: colors.textPrimary }]}>{profile.username}</Text>
+
+        {/* Bio */}
+        {profile.bio && (
+          <Text style={[styles.bioText, { color: colors.textSecondary }]}>
+            {profile.bio}
           </Text>
-        </View>
-        <Text style={styles.username}>{profile.username}</Text>
-        <Text style={styles.statsText}>
+        )}
+
+        <Text style={[styles.statsText, { color: colors.textTertiary }]}>
           {profile.accuracy.toFixed(1)}% accuracy • {profile.total_picks} picks
         </Text>
       </View>
 
       {/* Tabs */}
-      <View style={styles.tabContainer}>
+      <View style={[styles.tabContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'picks' && styles.tabActive]}
+          style={[styles.tab, activeTab === 'picks' && { borderBottomColor: colors.accent }]}
           onPress={() => setActiveTab('picks')}
         >
-          <Text style={[styles.tabText, activeTab === 'picks' && styles.tabTextActive]}>
+          <Text style={[styles.tabText, { color: colors.textTertiary }, activeTab === 'picks' && { color: colors.textPrimary }]}>
             Picks
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'stats' && styles.tabActive]}
+          style={[styles.tab, activeTab === 'stats' && { borderBottomColor: colors.accent }]}
           onPress={() => setActiveTab('stats')}
         >
-          <Text style={[styles.tabText, activeTab === 'stats' && styles.tabTextActive]}>
+          <Text style={[styles.tabText, { color: colors.textTertiary }, activeTab === 'stats' && { color: colors.textPrimary }]}>
             Stats
           </Text>
         </TouchableOpacity>
@@ -294,8 +311,8 @@ export default function FriendProfile() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#d4202a"
-            colors={['#d4202a']}
+            tintColor={colors.accent}
+            colors={[colors.accent]}
           />
         }
       >
@@ -310,23 +327,23 @@ export default function FriendProfile() {
             picks.map(renderPickItem)
           )
         ) : (
-          <View style={styles.statsContainer}>
+          <View style={[styles.statsContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.accuracyRingContainer}>
               <AccuracyRing percentage={profile.accuracy} label="Accuracy" />
             </View>
 
             <View style={styles.statsGrid}>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{profile.total_picks}</Text>
-                <Text style={styles.statLabel}>Total Picks</Text>
+                <Text style={[styles.statValue, { color: colors.textPrimary }]}>{profile.total_picks}</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total Picks</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{profile.correct_picks}</Text>
-                <Text style={styles.statLabel}>Correct</Text>
+                <Text style={[styles.statValue, { color: colors.success }]}>{profile.correct_picks}</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Correct</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{profile.total_picks - profile.correct_picks}</Text>
-                <Text style={styles.statLabel}>Missed</Text>
+                <Text style={[styles.statValue, { color: colors.danger }]}>{profile.total_picks - profile.correct_picks}</Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Missed</Text>
               </View>
             </View>
           </View>
@@ -339,109 +356,82 @@ export default function FriendProfile() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
     paddingTop: 60,
-    paddingBottom: 16,
-    backgroundColor: '#1a1a1a',
+    paddingBottom: spacing.md,
   },
   backButton: {
-    padding: 4,
+    padding: spacing.xs,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
+    ...typography.h3,
   },
   placeholder: {
     width: 32,
   },
   unfriendButton: {
-    padding: 4,
+    padding: spacing.xs,
   },
   profileSummary: {
     alignItems: 'center',
-    paddingVertical: 24,
-    backgroundColor: '#1a1a1a',
+    paddingVertical: spacing.xl,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#d4202a',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  avatarText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
   },
   username: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
+    ...typography.h2,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  bioText: {
+    ...typography.body,
+    textAlign: 'center',
+    paddingHorizontal: spacing.xl,
+    marginBottom: spacing.sm,
+    lineHeight: 22,
   },
   statsText: {
-    fontSize: 14,
-    color: '#999',
+    ...typography.meta,
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#1a1a1a',
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   tab: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: spacing.md,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
-  tabActive: {
-    borderBottomColor: '#d4202a',
-  },
   tabText: {
-    fontSize: 15,
+    ...typography.body,
     fontWeight: '600',
-    color: '#666',
-  },
-  tabTextActive: {
-    color: '#fff',
   },
   scrollView: {
     flex: 1,
   },
   content: {
-    padding: 16,
+    padding: spacing.lg,
   },
   pickCard: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: radius.card,
+    padding: spacing.md,
+    marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: '#333',
   },
   pickHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   eventName: {
-    fontSize: 12,
-    color: '#999',
+    ...typography.caption,
     flex: 1,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -468,40 +458,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   fighterName: {
-    fontSize: 14,
-    color: '#fff',
+    ...typography.body,
     flex: 1,
   },
-  selectedFighter: {
-    color: '#d4202a',
-    fontWeight: '600',
-  },
   vs: {
-    fontSize: 12,
-    color: '#666',
-    marginHorizontal: 12,
+    ...typography.meta,
+    marginHorizontal: spacing.md,
   },
   pickLabel: {
-    fontSize: 13,
-    color: '#999',
+    ...typography.meta,
   },
   pickedFighter: {
-    color: '#d4202a',
     fontWeight: '600',
   },
   statsContainer: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 20,
+    borderRadius: radius.card,
+    padding: spacing.lg,
     borderWidth: 1,
-    borderColor: '#333',
   },
   accuracyRingContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: spacing.xl,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -513,11 +493,9 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#fff',
   },
   statLabel: {
-    fontSize: 13,
-    color: '#999',
-    marginTop: 4,
+    ...typography.meta,
+    marginTop: spacing.xs,
   },
 });

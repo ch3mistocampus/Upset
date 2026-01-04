@@ -12,6 +12,8 @@ import {
   BoutWithPick,
   PickInsert,
   Result,
+  Profile,
+  ProfileUpdate,
 } from '../types/database';
 
 // ============================================================================
@@ -380,6 +382,66 @@ export function useRecentPicksSummary(userId: string | null, limit = 5) {
     },
     enabled: !!userId,
     staleTime: 1000 * 60 * 5,
+  });
+}
+
+// ============================================================================
+// PROFILE
+// ============================================================================
+
+/**
+ * Get a user's profile by ID
+ */
+export function useProfile(userId: string | null) {
+  return useQuery({
+    queryKey: ['profile', userId],
+    queryFn: async (): Promise<Profile | null> => {
+      if (!userId) return null;
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      return data;
+    },
+    enabled: !!userId,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+}
+
+/**
+ * Update the current user's profile (bio, avatar_url)
+ */
+export function useUpdateProfile() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId, updates }: { userId: string; updates: ProfileUpdate }) => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('user_id', userId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return data as Profile;
+    },
+    onSuccess: (data) => {
+      // Update profile cache
+      queryClient.setQueryData(['profile', data.user_id], data);
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['friends'] });
+      queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
+    },
   });
 }
 
