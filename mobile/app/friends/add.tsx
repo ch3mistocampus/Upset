@@ -125,6 +125,11 @@ export default function AddFriend() {
     return { label: 'Follow', disabled: false, bgColor: colors.accent, textColor: '#fff' };
   };
 
+  const handleViewUser = (userId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push(`/user/${userId}`);
+  };
+
   const renderUserItem = (user: UserSearchResult, index: number) => {
     const buttonConfig = getButtonConfig(user);
     const isLoading = pendingRequests.has(user.user_id);
@@ -139,18 +144,24 @@ export default function AddFriend() {
       >
         <SurfaceCard weakWash style={{ marginBottom: spacing.sm }}>
           <View style={styles.userRow}>
-            <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
-              <Text style={styles.avatarText}>
-                {user.username.charAt(0).toUpperCase()}
-              </Text>
-            </View>
+            <TouchableOpacity
+              style={styles.userInfoTouchable}
+              onPress={() => handleViewUser(user.user_id)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
+                <Text style={styles.avatarText}>
+                  {user.username.charAt(0).toUpperCase()}
+                </Text>
+              </View>
 
-            <View style={styles.userInfo}>
-              <Text style={[styles.userName, { color: colors.text }]}>@{user.username}</Text>
-              <Text style={[styles.userStats, { color: colors.textSecondary }]}>
-                {user.accuracy.toFixed(1)}% accuracy • {user.total_picks} picks
-              </Text>
-            </View>
+              <View style={styles.userInfo}>
+                <Text style={[styles.userName, { color: colors.text }]}>@{user.username}</Text>
+                <Text style={[styles.userStats, { color: colors.textSecondary }]}>
+                  {user.accuracy.toFixed(1)}% accuracy • {user.total_picks} picks
+                </Text>
+              </View>
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: buttonConfig.bgColor }]}
@@ -332,6 +343,11 @@ const styles = StyleSheet.create({
   userRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  userInfoTouchable: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   avatar: {
     width: 48,
