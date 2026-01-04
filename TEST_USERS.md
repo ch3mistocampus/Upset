@@ -6,11 +6,43 @@ This document describes the test users available for development and testing.
 
 All test users share the same password for convenience: **Password123**
 
-| Username | Email | Password | Description |
-|----------|-------|----------|-------------|
-| alice_ufc | alice@test.com | Password123 | Primary test user |
-| bob_fighter | bob@test.com | Password123 | Secondary test user |
-| charlie_picks | charlie@test.com | Password123 | Third test user |
+### Original Users
+| Username | Email | Password | Pick Style |
+|----------|-------|----------|------------|
+| alice_ufc | alice@test.com | Password123 | Tends toward favorites (~65%) |
+| bob_fighter | bob@test.com | Password123 | Tends toward underdogs (~40%) |
+| charlie_picks | charlie@test.com | Password123 | Random/balanced (~50%) |
+
+### Extended Test Users (10 Additional)
+| Username | Email | Password | Pick Style | Description |
+|----------|-------|----------|------------|-------------|
+| david_mma | david@test.com | Password123 | Heavy chalk (~80%) | Almost always picks favorites |
+| emma_octagon | emma@test.com | Password123 | Slight favorite (~55%) | Technical analyst |
+| frank_knockout | frank@test.com | Password123 | Power picker (~60%) | Likes KO artists |
+| grace_grappling | grace@test.com | Password123 | Slight underdog (~45%) | Favors grapplers |
+| henry_heavyweight | henry@test.com | Password123 | Power picker (~70%) | Picks bigger fighters |
+| iris_insider | iris@test.com | Password123 | Contrarian (~30%) | Heavy underdog picker |
+| jack_judge | jack@test.com | Password123 | Balanced analyst (~55%) | Very analytical |
+| kate_kicks | kate@test.com | Password123 | Random striker (~50%) | Striker focused |
+| leo_legacy | leo@test.com | Password123 | Experience picker (~60%) | Picks veterans |
+| mia_momentum | mia@test.com | Password123 | Momentum picker (~65%) | Picks hot fighters |
+
+### Leaderboard Preview (by accuracy)
+| Rank | Username | Accuracy | Correct/Total | Style |
+|------|----------|----------|---------------|-------|
+| 🥇 1 | david_mma | 73.3% | 22/30 | Chalk |
+| 🥈 2 | mia_momentum | 70.4% | 19/27 | Momentum |
+| 🥉 3 | alice_ufc | 67.9% | 19/28 | Favorite |
+| 4 | jack_judge | 66.7% | 20/30 | Analyst |
+| 5 | emma_octagon | 65.4% | 17/26 | Technical |
+| 6 | leo_legacy | 64.3% | 18/28 | Experience |
+| 7 | charlie_picks | 60.7% | 17/28 | Random |
+| 8 | grace_grappling | 59.3% | 16/27 | Grappling |
+| 9 | kate_kicks | 57.7% | 15/26 | Striker |
+| 10 | frank_knockout | 56.0% | 14/25 | Finishes |
+| 11 | henry_heavyweight | 54.2% | 13/24 | Power |
+| 12 | bob_fighter | 53.6% | 15/28 | Underdog |
+| 13 | iris_insider | 44.8% | 13/29 | Contrarian |
 
 ---
 
@@ -160,20 +192,27 @@ If you want to test the OTP flow:
 
 ### Scenario 5: Multiple Users for Social Testing
 ```
-1. Sign in as alice_ufc
-2. Make some picks
-3. Sign out
-4. Sign in as bob_fighter
-5. Make some picks
-6. Sign out
-7. Sign in as charlie_picks
-8. Make some picks
+With 13 test users available, you can test rich social interactions:
 
-Later (Sprint 2):
-- Add alice as friend
-- View alice's picks
-- Create a league
-- Invite bob and charlie
+1. Sign in as alice_ufc (favorites picker)
+2. Check leaderboard - see david_mma at top (73.3%)
+3. View friend list - see connections to bob, charlie, emma, leo
+4. Sign out
+
+5. Sign in as iris_insider (contrarian/underdog picker)
+6. Check leaderboard - lowest accuracy (44.8%)
+7. Make some underdog picks
+8. Sign out
+
+9. Sign in as mia_momentum (streak picker - 7 streak!)
+10. View stats - highest current streak
+11. Check friend connections
+
+Social Features:
+- View friends' picks and stats
+- Compare accuracy across different picking styles
+- See how chalk pickers vs underdog pickers perform
+- Create a league and invite multiple users
 ```
 
 ---
@@ -182,9 +221,9 @@ Later (Sprint 2):
 
 ### Option 1: Supabase Dashboard
 - Go to Authentication → Users
-- Should see 3 users with confirmed emails
+- Should see 13 users with confirmed emails
 - Go to Table Editor → profiles
-- Should see 3 profiles with usernames
+- Should see 13 profiles with usernames
 
 ### Option 2: SQL Query
 ```sql
@@ -198,13 +237,23 @@ JOIN auth.users au ON au.id = p.user_id
 ORDER BY p.created_at DESC;
 ```
 
-Expected output:
+Expected output (showing 13 test users):
 ```
-username       | email              | email_confirmed | created_at
----------------|--------------------|-----------------|-----------
-charlie_picks  | charlie@test.com   | true           | ...
-bob_fighter    | bob@test.com       | true           | ...
-alice_ufc      | alice@test.com     | true           | ...
+username          | email              | email_confirmed | created_at
+------------------|--------------------|-----------------|-----------
+mia_momentum      | mia@test.com       | true           | ...
+leo_legacy        | leo@test.com       | true           | ...
+kate_kicks        | kate@test.com      | true           | ...
+jack_judge        | jack@test.com      | true           | ...
+iris_insider      | iris@test.com      | true           | ...
+henry_heavyweight | henry@test.com     | true           | ...
+grace_grappling   | grace@test.com     | true           | ...
+frank_knockout    | frank@test.com     | true           | ...
+emma_octagon      | emma@test.com      | true           | ...
+david_mma         | david@test.com     | true           | ...
+charlie_picks     | charlie@test.com   | true           | ...
+bob_fighter       | bob@test.com       | true           | ...
+alice_ufc         | alice@test.com     | true           | ...
 ```
 
 ---
@@ -216,7 +265,12 @@ If you want to start fresh:
 ### Delete All Test Users
 ```sql
 -- Delete profiles (cascades from auth.users)
-DELETE FROM profiles WHERE username IN ('alice_ufc', 'bob_fighter', 'charlie_picks');
+DELETE FROM profiles WHERE username IN (
+  'alice_ufc', 'bob_fighter', 'charlie_picks',
+  'david_mma', 'emma_octagon', 'frank_knockout',
+  'grace_grappling', 'henry_heavyweight', 'iris_insider',
+  'jack_judge', 'kate_kicks', 'leo_legacy', 'mia_momentum'
+);
 ```
 
 **Then in Supabase Dashboard:**

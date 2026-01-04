@@ -18,21 +18,21 @@ interface TestUser {
 }
 
 const TEST_USERS: TestUser[] = [
-  {
-    email: 'alice@test.com',
-    password: 'Password123',
-    username: 'alice_ufc',
-  },
-  {
-    email: 'bob@test.com',
-    password: 'Password123',
-    username: 'bob_fighter',
-  },
-  {
-    email: 'charlie@test.com',
-    password: 'Password123',
-    username: 'charlie_picks',
-  },
+  // Original 3 users
+  { email: 'alice@test.com', password: 'Password123', username: 'alice_ufc' },
+  { email: 'bob@test.com', password: 'Password123', username: 'bob_fighter' },
+  { email: 'charlie@test.com', password: 'Password123', username: 'charlie_picks' },
+  // 10 new users with distinct personalities
+  { email: 'david@test.com', password: 'Password123', username: 'david_mma' },        // Chalk picker
+  { email: 'emma@test.com', password: 'Password123', username: 'emma_octagon' },      // Technical
+  { email: 'frank@test.com', password: 'Password123', username: 'frank_knockout' },   // Finish picker
+  { email: 'grace@test.com', password: 'Password123', username: 'grace_grappling' },  // Submission picker
+  { email: 'henry@test.com', password: 'Password123', username: 'henry_heavyweight' },// Power picker
+  { email: 'iris@test.com', password: 'Password123', username: 'iris_insider' },      // Contrarian
+  { email: 'jack@test.com', password: 'Password123', username: 'jack_judge' },        // Analyst
+  { email: 'kate@test.com', password: 'Password123', username: 'kate_kicks' },        // Striker picker
+  { email: 'leo@test.com', password: 'Password123', username: 'leo_legacy' },         // Experience picker
+  { email: 'mia@test.com', password: 'Password123', username: 'mia_momentum' },       // Streak picker
 ];
 
 async function main() {
