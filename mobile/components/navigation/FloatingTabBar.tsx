@@ -24,13 +24,17 @@ import { useTheme } from '../../lib/theme';
 import { useFriends } from '../../hooks/useFriends';
 import { useAuth } from '../../hooks/useAuth';
 
-// Tab configuration
-const TAB_CONFIG: Record<string, { icon: keyof typeof Ionicons.glyphMap; label: string }> = {
-  home: { icon: 'home', label: 'Home' },
-  pick: { icon: 'clipboard-outline', label: 'Picks' },
-  friends: { icon: 'people', label: 'Friends' },
-  leaderboards: { icon: 'trophy', label: 'Ranks' },
-  profile: { icon: 'person', label: 'Profile' },
+// Tab configuration with outline (inactive) and filled (active) icons
+const TAB_CONFIG: Record<string, {
+  icon: keyof typeof Ionicons.glyphMap;
+  iconOutline: keyof typeof Ionicons.glyphMap;
+  label: string
+}> = {
+  home: { icon: 'home', iconOutline: 'home-outline', label: 'Home' },
+  pick: { icon: 'clipboard', iconOutline: 'clipboard-outline', label: 'Picks' },
+  friends: { icon: 'people', iconOutline: 'people-outline', label: 'Friends' },
+  leaderboards: { icon: 'trophy', iconOutline: 'trophy-outline', label: 'Ranks' },
+  profile: { icon: 'person', iconOutline: 'person-outline', label: 'Profile' },
 };
 
 // Animated tab button with scale effect
@@ -129,12 +133,13 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
         <View style={styles.tabsRow}>
           {state.routes.map((route, index) => {
             const isFocused = state.index === index;
-            const config = TAB_CONFIG[route.name] || { icon: 'ellipse', label: route.name };
+            const config = TAB_CONFIG[route.name] || { icon: 'ellipse', iconOutline: 'ellipse-outline', label: route.name };
 
             // Handle profile tab guest state
             const isProfileTab = route.name === 'profile';
             const showGuestDot = isProfileTab && isGuest;
-            const iconName = (isProfileTab && isGuest ? 'person-outline' : config.icon) as keyof typeof Ionicons.glyphMap;
+            // Use filled icon when focused, outline when not
+            const iconName = (isFocused ? config.icon : config.iconOutline) as keyof typeof Ionicons.glyphMap;
             const label = isProfileTab && isGuest ? 'Guest' : config.label;
 
             // Handle friends badge
