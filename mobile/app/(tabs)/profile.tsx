@@ -22,7 +22,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
@@ -973,10 +973,12 @@ function UpcomingEventCard({
   const { data: boutsCount } = useBoutsCount(eventId);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  // Check submission status
-  useEffect(() => {
-    isEventSubmitted(eventId).then(setIsSubmitted);
-  }, [eventId]);
+  // Re-check submission status when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      isEventSubmitted(eventId).then(setIsSubmitted);
+    }, [eventId])
+  );
 
   return renderCard(eventId, eventName, picksCount || 0, boutsCount || 0, undefined, true, isSubmitted);
 }

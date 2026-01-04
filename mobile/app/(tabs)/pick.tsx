@@ -5,7 +5,8 @@
  */
 
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Animated, Easing } from 'react-native';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useUpcomingEvents, useBoutsCount, useUserPicksCount } from '../../hooks/useQueries';
 import { useTheme } from '../../lib/theme';
@@ -33,10 +34,12 @@ function EventCardWithCounts({ event, isFirstUpcoming, index }: EventCardWithCou
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateAnim = useRef(new Animated.Value(8)).current;
 
-  // Check submission status
-  useEffect(() => {
-    isEventSubmitted(event.id).then(setIsSubmitted);
-  }, [event.id]);
+  // Re-check submission status when screen is focused (e.g., after returning from event page)
+  useFocusEffect(
+    useCallback(() => {
+      isEventSubmitted(event.id).then(setIsSubmitted);
+    }, [event.id])
+  );
 
   useEffect(() => {
     const delay = 60 + index * 60; // 60ms base + 60ms stagger
