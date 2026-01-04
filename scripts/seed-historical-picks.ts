@@ -175,7 +175,7 @@ async function main() {
         const pickedCorner = pickRed ? 'red' : 'blue';
         const isCorrect = pickedCorner === winnerCorner;
 
-        // Create the pick
+        // Create the pick with score (graded)
         const { error: pickError } = await supabase
           .from('picks')
           .insert({
@@ -183,6 +183,8 @@ async function main() {
             event_id: event.id,
             bout_id: bout.id,
             picked_corner: pickedCorner,
+            score: isCorrect ? 1 : 0,
+            status: 'graded',
           });
 
         if (pickError) {
