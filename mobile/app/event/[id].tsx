@@ -397,8 +397,8 @@ export default function EventDetail() {
           </>
         ) : isSubmitted ? (
           <>
-            <Ionicons name="checkmark-circle" size={14} color={colors.success} />
-            <Text style={[styles.progressText, { color: colors.success }]}>
+            <Ionicons name="checkmark-circle" size={14} color={colors.accent} />
+            <Text style={[styles.progressText, { color: colors.accent }]}>
               Card submitted
             </Text>
           </>
