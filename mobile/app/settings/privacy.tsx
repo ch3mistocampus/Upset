@@ -1,5 +1,6 @@
 /**
  * Privacy Settings screen - control visibility of picks, profile, and stats
+ * Theme-aware design with SurfaceCard
  */
 
 import {
@@ -9,15 +10,20 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Animated,
+  Easing,
 } from 'react-native';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { usePrivacy } from '../../hooks/usePrivacy';
 import { useToast } from '../../hooks/useToast';
+import { useTheme } from '../../lib/theme';
+import { spacing, radius, typography } from '../../lib/tokens';
 import { ErrorState } from '../../components/ErrorState';
 import { SkeletonCard } from '../../components/SkeletonCard';
+import { SurfaceCard } from '../../components/ui';
 import type { VisibilityLevel } from '../../types/social';
 
 interface VisibilityOption {
@@ -54,6 +60,7 @@ interface SettingSectionProps {
   currentValue: VisibilityLevel;
   onSelect: (value: VisibilityLevel) => void;
   isLoading?: boolean;
+  colors: any;
 }
 
 function SettingSection({
@@ -62,11 +69,12 @@ function SettingSection({
   currentValue,
   onSelect,
   isLoading,
+  colors,
 }: SettingSectionProps) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <Text style={styles.sectionDescription}>{description}</Text>
+      <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
+      <Text style={[styles.sectionDescription, { color: colors.textSecondary }]}>{description}</Text>
 
       <View style={styles.optionsContainer}>
         {VISIBILITY_OPTIONS.map((option) => {
@@ -75,23 +83,39 @@ function SettingSection({
           return (
             <TouchableOpacity
               key={option.value}
-              style={[styles.option, isSelected && styles.optionSelected]}
-              onPress={() => onSelect(option.value)}
+              style={[
+                styles.option,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: isSelected ? colors.accent : colors.border,
+                },
+              ]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onSelect(option.value);
+              }}
               disabled={isLoading}
+              activeOpacity={0.8}
             >
               <Ionicons
                 name={option.icon}
                 size={20}
-                color={isSelected ? '#fff' : '#999'}
+                color={isSelected ? colors.accent : colors.textTertiary}
               />
               <View style={styles.optionText}>
-                <Text style={[styles.optionLabel, isSelected && styles.optionLabelSelected]}>
+                <Text style={[
+                  styles.optionLabel,
+                  { color: colors.text },
+                  isSelected && { fontWeight: '600' }
+                ]}>
                   {option.label}
                 </Text>
-                <Text style={styles.optionDescription}>{option.description}</Text>
+                <Text style={[styles.optionDescription, { color: colors.textTertiary }]}>
+                  {option.description}
+                </Text>
               </View>
               {isSelected && (
-                <Ionicons name="checkmark-circle" size={22} color="#22c55e" />
+                <Ionicons name="checkmark-circle" size={22} color={colors.success} />
               )}
             </TouchableOpacity>
           );
@@ -102,6 +126,7 @@ function SettingSection({
 }
 
 export default function PrivacySettings() {
+  const { colors } = useTheme();
   const router = useRouter();
   const toast = useToast();
   const { privacySettings, isLoading, error, updatePrivacySettings, updateLoading, refetch } =
@@ -109,13 +134,31 @@ export default function PrivacySettings() {
 
   const [saving, setSaving] = useState<string | null>(null);
 
+  // Entrance animation
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const translateAnim = useRef(new Animated.Value(6)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateAnim, {
+        toValue: 0,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, translateAnim]);
+
   const handleUpdate = async (field: string, value: VisibilityLevel) => {
     try {
       setSaving(field);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
       await updatePrivacySettings({ [field]: value });
-
       toast.showSuccess('Privacy settings updated');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error: any) {
@@ -128,12 +171,12 @@ export default function PrivacySettings() {
 
   if (isLoading) {
     return (
-      <View style={styles.container}>
-        <View style={styles.header}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Privacy Settings</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Privacy Settings</Text>
           <View style={styles.placeholder} />
         </View>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
@@ -147,12 +190,12 @@ export default function PrivacySettings() {
 
   if (error || !privacySettings) {
     return (
-      <View style={styles.container}>
-        <View style={styles.header}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Privacy Settings</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Privacy Settings</Text>
           <View style={styles.placeholder} />
         </View>
         <ErrorState
@@ -164,78 +207,90 @@ export default function PrivacySettings() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Privacy Settings</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Privacy Settings</Text>
         <View style={styles.placeholder}>
           {(updateLoading || saving) && (
-            <ActivityIndicator size="small" color="#d4202a" />
+            <ActivityIndicator size="small" color={colors.accent} />
           )}
         </View>
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        {/* Info Card */}
-        <View style={styles.infoCard}>
-          <Ionicons name="shield-checkmark-outline" size={24} color="#d4202a" />
-          <Text style={styles.infoText}>
-            Control who can see your picks, profile, and statistics. Changes take effect immediately.
-          </Text>
-        </View>
+        <Animated.View
+          style={{
+            opacity: fadeAnim,
+            transform: [{ translateY: translateAnim }],
+          }}
+        >
+          {/* Info Card */}
+          <SurfaceCard weakWash style={{ marginBottom: spacing.lg }}>
+            <View style={styles.infoRow}>
+              <Ionicons name="shield-checkmark-outline" size={24} color={colors.accent} />
+              <Text style={[styles.infoText, { color: colors.textSecondary }]}>
+                Control who can see your picks, profile, and statistics. Changes take effect immediately.
+              </Text>
+            </View>
+          </SurfaceCard>
 
-        {/* Profile Visibility */}
-        <SettingSection
-          title="Profile Visibility"
-          description="Who can see your profile information and username"
-          currentValue={privacySettings.profile_visibility}
-          onSelect={(value) => handleUpdate('profile_visibility', value)}
-          isLoading={saving === 'profile_visibility'}
-        />
+          {/* Profile Visibility */}
+          <SettingSection
+            title="Profile Visibility"
+            description="Who can see your profile information and username"
+            currentValue={privacySettings.profile_visibility}
+            onSelect={(value) => handleUpdate('profile_visibility', value)}
+            isLoading={saving === 'profile_visibility'}
+            colors={colors}
+          />
 
-        {/* Picks Visibility */}
-        <SettingSection
-          title="Picks Visibility"
-          description="Who can see your fight predictions"
-          currentValue={privacySettings.picks_visibility}
-          onSelect={(value) => handleUpdate('picks_visibility', value)}
-          isLoading={saving === 'picks_visibility'}
-        />
+          {/* Picks Visibility */}
+          <SettingSection
+            title="Picks Visibility"
+            description="Who can see your fight predictions"
+            currentValue={privacySettings.picks_visibility}
+            onSelect={(value) => handleUpdate('picks_visibility', value)}
+            isLoading={saving === 'picks_visibility'}
+            colors={colors}
+          />
 
-        {/* Stats Visibility */}
-        <SettingSection
-          title="Stats Visibility"
-          description="Who can see your accuracy and statistics"
-          currentValue={privacySettings.stats_visibility}
-          onSelect={(value) => handleUpdate('stats_visibility', value)}
-          isLoading={saving === 'stats_visibility'}
-        />
+          {/* Stats Visibility */}
+          <SettingSection
+            title="Stats Visibility"
+            description="Who can see your accuracy and statistics"
+            currentValue={privacySettings.stats_visibility}
+            onSelect={(value) => handleUpdate('stats_visibility', value)}
+            isLoading={saving === 'stats_visibility'}
+            colors={colors}
+          />
 
-        {/* Help Text */}
-        <View style={styles.helpSection}>
-          <Text style={styles.helpTitle}>About Privacy Levels</Text>
-          <View style={styles.helpItem}>
-            <Ionicons name="globe-outline" size={18} color="#999" />
-            <Text style={styles.helpText}>
-              <Text style={styles.helpBold}>Public:</Text> Anyone on the app can view this information
-            </Text>
-          </View>
-          <View style={styles.helpItem}>
-            <Ionicons name="people-outline" size={18} color="#999" />
-            <Text style={styles.helpText}>
-              <Text style={styles.helpBold}>Friends Only:</Text> Only users you've added as friends can view
-            </Text>
-          </View>
-          <View style={styles.helpItem}>
-            <Ionicons name="lock-closed-outline" size={18} color="#999" />
-            <Text style={styles.helpText}>
-              <Text style={styles.helpBold}>Private:</Text> Only you can see this information
-            </Text>
-          </View>
-        </View>
+          {/* Help Text */}
+          <SurfaceCard weakWash style={{ marginTop: spacing.xs }}>
+            <Text style={[styles.helpTitle, { color: colors.text }]}>About Privacy Levels</Text>
+            <View style={styles.helpItem}>
+              <Ionicons name="globe-outline" size={18} color={colors.textTertiary} />
+              <Text style={[styles.helpText, { color: colors.textSecondary }]}>
+                <Text style={[styles.helpBold, { color: colors.text }]}>Public:</Text> Anyone on the app can view this information
+              </Text>
+            </View>
+            <View style={styles.helpItem}>
+              <Ionicons name="people-outline" size={18} color={colors.textTertiary} />
+              <Text style={[styles.helpText, { color: colors.textSecondary }]}>
+                <Text style={[styles.helpBold, { color: colors.text }]}>Friends Only:</Text> Only users you've added as friends can view
+              </Text>
+            </View>
+            <View style={styles.helpItem}>
+              <Ionicons name="lock-closed-outline" size={18} color={colors.textTertiary} />
+              <Text style={[styles.helpText, { color: colors.textSecondary }]}>
+                <Text style={[styles.helpBold, { color: colors.text }]}>Private:</Text> Only you can see this information
+              </Text>
+            </View>
+          </SurfaceCard>
+        </Animated.View>
       </ScrollView>
     </View>
   );
@@ -244,26 +299,22 @@ export default function PrivacySettings() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     paddingTop: 60,
-    paddingBottom: 16,
-    backgroundColor: '#1a1a1a',
+    paddingBottom: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   backButton: {
     padding: 4,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: '700',
   },
   placeholder: {
     width: 32,
@@ -273,99 +324,68 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 16,
+    padding: spacing.md,
   },
-  infoCard: {
+  infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: '#333',
-    gap: 12,
+    gap: spacing.sm,
   },
   infoText: {
     flex: 1,
-    fontSize: 14,
-    color: '#999',
+    ...typography.meta,
     lineHeight: 20,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: spacing.lg,
   },
   sectionTitle: {
-    fontSize: 16,
+    ...typography.body,
     fontWeight: '600',
-    color: '#fff',
     marginBottom: 4,
   },
   sectionDescription: {
-    fontSize: 13,
-    color: '#999',
-    marginBottom: 12,
+    ...typography.meta,
+    marginBottom: spacing.sm,
   },
   optionsContainer: {
-    gap: 8,
+    gap: spacing.xs,
   },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 10,
-    padding: 14,
+    borderRadius: radius.input,
+    padding: spacing.md,
     borderWidth: 1,
-    borderColor: '#333',
-    gap: 12,
-  },
-  optionSelected: {
-    borderColor: '#d4202a',
-    backgroundColor: '#1a1a1a',
+    gap: spacing.sm,
   },
   optionText: {
     flex: 1,
   },
   optionLabel: {
-    fontSize: 15,
-    color: '#fff',
+    ...typography.body,
     marginBottom: 2,
-  },
-  optionLabelSelected: {
-    fontWeight: '600',
   },
   optionDescription: {
     fontSize: 12,
-    color: '#666',
-  },
-  helpSection: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#333',
-    marginTop: 8,
   },
   helpTitle: {
-    fontSize: 14,
+    ...typography.body,
     fontWeight: '600',
-    color: '#fff',
-    marginBottom: 12,
+    marginBottom: spacing.sm,
   },
   helpItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 10,
-    marginBottom: 10,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
   helpText: {
     flex: 1,
-    fontSize: 13,
-    color: '#999',
+    ...typography.meta,
     lineHeight: 18,
   },
   helpBold: {
     fontWeight: '600',
-    color: '#ccc',
   },
 });

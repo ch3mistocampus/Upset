@@ -1,25 +1,30 @@
 /**
  * Password reset screen
- * Sends password reset email to user
+ * Sends password reset email to user - theme-aware design
  */
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
+  Animated,
+  Easing,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { validateEmail, getAuthErrorMessage } from '../../lib/validation';
+import { useTheme } from '../../lib/theme';
+import { spacing, radius, typography } from '../../lib/tokens';
+import { SurfaceCard, PrimaryCTA, Button } from '../../components/ui';
 
 export default function ResetPassword() {
+  const { colors } = useTheme();
   const { resetPassword } = useAuth();
   const toast = useToast();
   const router = useRouter();
@@ -27,6 +32,27 @@ export default function ResetPassword() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+
+  // Entrance animation
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const translateAnim = useRef(new Animated.Value(6)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateAnim, {
+        toValue: 0,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, translateAnim]);
 
   const handleResetPassword = async () => {
     const emailError = validateEmail(email);
@@ -50,31 +76,42 @@ export default function ResetPassword() {
 
   if (sent) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.content}>
-          <Text style={styles.icon}>✉️</Text>
-          <Text style={styles.title}>Check Your Email</Text>
-          <Text style={styles.message}>
-            We've sent password reset instructions to:
-          </Text>
-          <Text style={styles.email}>{email}</Text>
-          <Text style={styles.hint}>
-            Click the link in the email to reset your password. The link will expire in 1 hour.
-          </Text>
-
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() => router.push('/(auth)/sign-in')}
+          <Animated.View
+            style={{
+              opacity: fadeAnim,
+              transform: [{ translateY: translateAnim }],
+            }}
           >
-            <Text style={styles.buttonText}>Back to Sign In</Text>
-          </TouchableOpacity>
+            <SurfaceCard heroGlow animatedBorder>
+              <View style={styles.iconContainer}>
+                <Ionicons name="mail-outline" size={48} color={colors.accent} />
+              </View>
+              <Text style={[styles.title, { color: colors.text }]}>
+                Check Your Email
+              </Text>
+              <Text style={[styles.message, { color: colors.textSecondary }]}>
+                We've sent password reset instructions to:
+              </Text>
+              <Text style={[styles.email, { color: colors.text }]}>{email}</Text>
+              <Text style={[styles.hint, { color: colors.textTertiary }]}>
+                Click the link in the email to reset your password. The link will expire in 1 hour.
+              </Text>
 
-          <TouchableOpacity
-            style={styles.linkButton}
-            onPress={() => setSent(false)}
-          >
-            <Text style={styles.linkText}>Didn't receive it? Try again</Text>
-          </TouchableOpacity>
+              <PrimaryCTA
+                title="Back to Sign In"
+                onPress={() => router.push('/(auth)/sign-in')}
+              />
+
+              <Button
+                title="Didn't receive it? Try again"
+                onPress={() => setSent(false)}
+                variant="ghost"
+                style={{ marginTop: spacing.sm }}
+              />
+            </SurfaceCard>
+          </Animated.View>
         </View>
       </View>
     );
@@ -82,46 +119,59 @@ export default function ResetPassword() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.content}>
-        <Text style={styles.title}>Reset Password</Text>
-        <Text style={styles.subtitle}>
-          Enter your email and we'll send you instructions to reset your password
-        </Text>
-
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor="#666"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          autoComplete="email"
-          editable={!loading}
-        />
-
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleResetPassword}
-          disabled={loading}
+        <Animated.View
+          style={{
+            opacity: fadeAnim,
+            transform: [{ translateY: translateAnim }],
+          }}
         >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Send Reset Link</Text>
-          )}
-        </TouchableOpacity>
+          <SurfaceCard>
+            <Text style={[styles.title, { color: colors.text }]}>
+              Reset Password
+            </Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              Enter your email and we'll send you instructions to reset your password
+            </Text>
 
-        <TouchableOpacity
-          style={styles.linkButton}
-          onPress={() => router.back()}
-          disabled={loading}
-        >
-          <Text style={styles.linkText}>Back to Sign In</Text>
-        </TouchableOpacity>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.surfaceAlt,
+                  borderColor: colors.border,
+                  color: colors.text,
+                },
+              ]}
+              placeholder="Email"
+              placeholderTextColor={colors.textTertiary}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              autoComplete="email"
+              editable={!loading}
+            />
+
+            <PrimaryCTA
+              title="Send Reset Link"
+              onPress={handleResetPassword}
+              loading={loading}
+              disabled={loading}
+            />
+
+            <Button
+              title="Back to Sign In"
+              onPress={() => router.back()}
+              variant="ghost"
+              disabled={loading}
+              style={{ marginTop: spacing.sm }}
+            />
+          </SurfaceCard>
+        </Animated.View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -130,85 +180,50 @@ export default function ResetPassword() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   content: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.md,
   },
-  icon: {
-    fontSize: 64,
-    textAlign: 'center',
-    marginBottom: 24,
+  iconContainer: {
+    alignItems: 'center',
+    marginBottom: spacing.lg,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
+    ...typography.h1,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#999',
+    ...typography.body,
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: spacing.xl,
     lineHeight: 22,
   },
   message: {
-    fontSize: 16,
-    color: '#999',
+    ...typography.body,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.xs,
   },
   email: {
-    fontSize: 16,
-    color: '#fff',
-    fontWeight: 'bold',
+    ...typography.body,
+    fontWeight: '700',
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   hint: {
-    fontSize: 14,
-    color: '#666',
+    ...typography.meta,
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: spacing.xl,
     lineHeight: 20,
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
   },
   input: {
-    backgroundColor: '#1a1a1a',
     borderWidth: 1,
-    borderColor: '#333',
-    borderRadius: 8,
-    padding: 16,
+    borderRadius: radius.input,
+    padding: spacing.md,
     fontSize: 16,
-    color: '#fff',
-    marginBottom: 16,
-  },
-  button: {
-    backgroundColor: '#d4202a',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  linkButton: {
-    marginTop: 16,
-    padding: 8,
-    alignItems: 'center',
-  },
-  linkText: {
-    color: '#d4202a',
-    fontSize: 14,
+    marginBottom: spacing.md,
   },
 });

@@ -1,5 +1,6 @@
 /**
  * Add Friend screen - search users by username
+ * Theme-aware design with SurfaceCard and animations
  */
 
 import {
@@ -12,17 +13,22 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Animated,
+  Easing,
 } from 'react-native';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useFriends } from '../../hooks/useFriends';
 import { useToast } from '../../hooks/useToast';
-import { EmptyState } from '../../components/EmptyState';
+import { useTheme } from '../../lib/theme';
+import { spacing, radius, typography } from '../../lib/tokens';
+import { EmptyState, SurfaceCard, Button } from '../../components/ui';
 import type { UserSearchResult } from '../../types/social';
 
 export default function AddFriend() {
+  const { colors, isDark } = useTheme();
   const router = useRouter();
   const toast = useToast();
   const { searchUsers, sendFriendRequest, sendFriendRequestLoading } = useFriends();
@@ -33,12 +39,44 @@ export default function AddFriend() {
   const [hasSearched, setHasSearched] = useState(false);
   const [pendingRequests, setPendingRequests] = useState<Set<string>>(new Set());
 
+  // Entrance animations
+  const headerOpacity = useRef(new Animated.Value(0)).current;
+  const contentOpacity = useRef(new Animated.Value(0)).current;
+  const contentTranslate = useRef(new Animated.Value(6)).current;
+
+  useEffect(() => {
+    Animated.timing(headerOpacity, {
+      toValue: 1,
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(contentOpacity, {
+          toValue: 1,
+          duration: 220,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(contentTranslate, {
+          toValue: 0,
+          duration: 220,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, 60);
+  }, [headerOpacity, contentOpacity, contentTranslate]);
+
   const handleSearch = useCallback(async () => {
     if (!searchTerm.trim()) {
       toast.showError('Please enter a username to search');
       return;
     }
 
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setIsSearching(true);
     setHasSearched(true);
 
@@ -80,112 +118,126 @@ export default function AddFriend() {
     }
   };
 
-  const getButtonState = (user: UserSearchResult) => {
+  const getButtonConfig = (user: UserSearchResult) => {
     if (user.friendship_status === 'accepted') {
-      return { label: 'Friends', disabled: true, style: styles.friendsButton };
+      return { label: 'Friends', disabled: true, bgColor: colors.success };
     }
     if (user.friendship_status === 'pending') {
-      return { label: 'Pending', disabled: true, style: styles.pendingButton };
+      return { label: 'Pending', disabled: true, bgColor: colors.textTertiary };
     }
-    return { label: 'Add', disabled: false, style: styles.addButton };
+    return { label: 'Add', disabled: false, bgColor: colors.accent };
   };
 
-  const renderUserItem = (user: UserSearchResult) => {
-    const buttonState = getButtonState(user);
+  const renderUserItem = (user: UserSearchResult, index: number) => {
+    const buttonConfig = getButtonConfig(user);
     const isLoading = pendingRequests.has(user.user_id);
 
     return (
-      <View key={user.user_id} style={styles.userCard}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {user.username.charAt(0).toUpperCase()}
-          </Text>
-        </View>
+      <Animated.View
+        key={user.user_id}
+        style={{
+          opacity: contentOpacity,
+          transform: [{ translateY: contentTranslate }],
+        }}
+      >
+        <SurfaceCard weakWash style={{ marginBottom: spacing.sm }}>
+          <View style={styles.userRow}>
+            <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
+              <Text style={styles.avatarText}>
+                {user.username.charAt(0).toUpperCase()}
+              </Text>
+            </View>
 
-        <View style={styles.userInfo}>
-          <Text style={styles.userName}>{user.username}</Text>
-          <Text style={styles.userStats}>
-            {user.accuracy.toFixed(1)}% accuracy • {user.total_picks} picks
-          </Text>
-        </View>
+            <View style={styles.userInfo}>
+              <Text style={[styles.userName, { color: colors.text }]}>{user.username}</Text>
+              <Text style={[styles.userStats, { color: colors.textSecondary }]}>
+                {user.accuracy.toFixed(1)}% accuracy • {user.total_picks} picks
+              </Text>
+            </View>
 
-        <TouchableOpacity
-          style={[styles.actionButton, buttonState.style]}
-          onPress={() => handleSendRequest(user)}
-          disabled={buttonState.disabled || isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.actionButtonText}>{buttonState.label}</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: buttonConfig.bgColor }]}
+              onPress={() => handleSendRequest(user)}
+              disabled={buttonConfig.disabled || isLoading}
+              activeOpacity={0.8}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.actionButtonText}>{buttonConfig.label}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </SurfaceCard>
+      </Animated.View>
     );
   };
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add Friend</Text>
-        <View style={styles.placeholder} />
-      </View>
-
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchInputWrapper}>
-          <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by username..."
-            placeholderTextColor="#666"
-            value={searchTerm}
-            onChangeText={setSearchTerm}
-            onSubmitEditing={handleSearch}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-          />
-          {searchTerm.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchTerm('')} style={styles.clearButton}>
-              <Ionicons name="close-circle" size={20} color="#666" />
-            </TouchableOpacity>
-          )}
+      <Animated.View style={{ opacity: headerOpacity }}>
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Add Friend</Text>
+          <View style={styles.placeholder} />
         </View>
 
-        <TouchableOpacity
-          style={styles.searchButton}
-          onPress={handleSearch}
-          disabled={isSearching}
-        >
-          {isSearching ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Text style={styles.searchButtonText}>Search</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+        {/* Search Bar */}
+        <View style={[styles.searchContainer, { backgroundColor: colors.surface }]}>
+          <View style={[styles.searchInputWrapper, { backgroundColor: colors.surfaceAlt }]}>
+            <Ionicons name="search" size={20} color={colors.textTertiary} style={styles.searchIcon} />
+            <TextInput
+              style={[styles.searchInput, { color: colors.text }]}
+              placeholder="Search by username..."
+              placeholderTextColor={colors.textTertiary}
+              value={searchTerm}
+              onChangeText={setSearchTerm}
+              onSubmitEditing={handleSearch}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+            />
+            {searchTerm.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchTerm('')} style={styles.clearButton}>
+                <Ionicons name="close-circle" size={20} color={colors.textTertiary} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <TouchableOpacity
+            style={[styles.searchButton, { backgroundColor: colors.accent }]}
+            onPress={handleSearch}
+            disabled={isSearching}
+            activeOpacity={0.8}
+          >
+            {isSearching ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.searchButtonText}>Search</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
 
       {/* Results */}
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         {isSearching ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#d4202a" />
-            <Text style={styles.loadingText}>Searching...</Text>
+            <ActivityIndicator size="large" color={colors.accent} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Searching...</Text>
           </View>
         ) : searchResults.length > 0 ? (
           <>
-            <Text style={styles.resultsLabel}>
+            <Text style={[styles.resultsLabel, { color: colors.textTertiary }]}>
               {searchResults.length} user{searchResults.length !== 1 ? 's' : ''} found
             </Text>
-            {searchResults.map(renderUserItem)}
+            {searchResults.map((user, index) => renderUserItem(user, index))}
           </>
         ) : hasSearched ? (
           <EmptyState
@@ -208,60 +260,52 @@ export default function AddFriend() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.md,
     paddingTop: 60,
-    paddingBottom: 16,
-    backgroundColor: '#1a1a1a',
+    paddingBottom: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   backButton: {
     padding: 4,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: '700',
   },
   placeholder: {
     width: 32,
   },
   searchContainer: {
     flexDirection: 'row',
-    padding: 16,
-    gap: 12,
-    backgroundColor: '#1a1a1a',
+    padding: spacing.md,
+    gap: spacing.sm,
   },
   searchInputWrapper: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#262626',
-    borderRadius: 10,
-    paddingHorizontal: 12,
+    borderRadius: radius.input,
+    paddingHorizontal: spacing.sm,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: spacing.xs,
   },
   searchInput: {
     flex: 1,
     height: 44,
-    color: '#fff',
     fontSize: 16,
   },
   clearButton: {
     padding: 4,
   },
   searchButton: {
-    backgroundColor: '#d4202a',
-    borderRadius: 10,
-    paddingHorizontal: 20,
+    borderRadius: radius.input,
+    paddingHorizontal: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -274,76 +318,54 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 16,
+    padding: spacing.md,
   },
   loadingContainer: {
     alignItems: 'center',
     paddingVertical: 40,
   },
   loadingText: {
-    marginTop: 12,
-    color: '#999',
-    fontSize: 14,
+    marginTop: spacing.sm,
+    ...typography.meta,
   },
   resultsLabel: {
-    fontSize: 13,
-    color: '#999',
-    marginBottom: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    ...typography.caption,
+    marginBottom: spacing.sm,
   },
-  userCard: {
+  userRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#333',
   },
   avatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#d4202a',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: spacing.sm,
   },
   avatarText: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#fff',
   },
   userInfo: {
     flex: 1,
   },
   userName: {
-    fontSize: 16,
+    ...typography.body,
     fontWeight: '600',
-    color: '#fff',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   userStats: {
-    fontSize: 13,
-    color: '#999',
+    ...typography.meta,
   },
   actionButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
     minWidth: 70,
     alignItems: 'center',
-  },
-  addButton: {
-    backgroundColor: '#d4202a',
-  },
-  pendingButton: {
-    backgroundColor: '#666',
-  },
-  friendsButton: {
-    backgroundColor: '#22c55e',
   },
   actionButtonText: {
     color: '#fff',

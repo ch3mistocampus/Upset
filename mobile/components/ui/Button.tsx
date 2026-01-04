@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
-  TouchableOpacity,
+  Pressable,
   Text,
   StyleSheet,
   ViewStyle,
   TextStyle,
   ActivityIndicator,
+  Animated,
+  TouchableOpacity,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../lib/theme';
@@ -33,10 +35,44 @@ export function Button({
   fullWidth = true,
 }: ButtonProps) {
   const { colors } = useTheme();
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const opacityAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: 0.985,
+        tension: 300,
+        friction: 10,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 0.9,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 300,
+        friction: 10,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
 
   const handlePress = () => {
     if (!disabled && !loading) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       onPress();
     }
   };
@@ -74,35 +110,42 @@ export function Button({
   };
 
   return (
-    <TouchableOpacity
+    <Animated.View
       style={[
-        styles.button,
-        {
-          backgroundColor: getBackgroundColor(),
-          borderColor: getBorderColor(),
-          borderWidth: variant === 'secondary' ? 1 : 0,
-        },
+        { transform: [{ scale: scaleAnim }], opacity: opacityAnim },
         fullWidth && styles.fullWidth,
-        style,
       ]}
-      onPress={handlePress}
-      disabled={disabled || loading}
-      activeOpacity={0.8}
     >
-      {loading ? (
-        <ActivityIndicator color={getTextColor()} size="small" />
-      ) : (
-        <Text
-          style={[
-            styles.text,
-            { color: getTextColor() },
-            textStyle,
-          ]}
-        >
-          {title}
-        </Text>
-      )}
-    </TouchableOpacity>
+      <Pressable
+        style={[
+          styles.button,
+          {
+            backgroundColor: getBackgroundColor(),
+            borderColor: getBorderColor(),
+            borderWidth: variant === 'secondary' ? 1 : 0,
+          },
+          style,
+        ]}
+        onPress={handlePress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={disabled || loading}
+      >
+        {loading ? (
+          <ActivityIndicator color={getTextColor()} size="small" />
+        ) : (
+          <Text
+            style={[
+              styles.text,
+              { color: getTextColor() },
+              textStyle,
+            ]}
+          >
+            {title}
+          </Text>
+        )}
+      </Pressable>
+    </Animated.View>
   );
 }
 

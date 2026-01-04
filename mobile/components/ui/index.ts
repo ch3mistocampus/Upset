@@ -7,3 +7,9 @@ export { FightPickCard } from './FightPickCard';
 export { StatRing } from './StatRing';
 export { ProgressBar } from './ProgressBar';
 export { EmptyState } from './EmptyState';
+
+// Premium components
+export { SurfaceCard } from './SurfaceCard';
+export { PrimaryCTA } from './PrimaryCTA';
+export { ProgressPill } from './ProgressPill';
+export { CountdownText } from './CountdownText';

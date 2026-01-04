@@ -7,97 +7,40 @@
  * Setup:
  * 1. Install: npx expo install @sentry/react-native
  * 2. Add EXPO_PUBLIC_SENTRY_DSN to your .env file
- * 3. Import and call initSentry() in _layout.tsx
+ * 3. Import and call initSentry() in _layout.tsx useEffect
  *
- * Note: Sentry is only active in production builds.
+ * Note: Sentry is temporarily disabled due to Hermes compatibility issues.
+ * TODO: Re-enable once @sentry/react-native Hermes support is fixed.
  */
-
-// Placeholder type - will be replaced when @sentry/react-native is installed
-type SentryType = {
-  init: (config: any) => void;
-  captureException: (error: Error | unknown, context?: any) => void;
-  captureMessage: (message: string, context?: any) => void;
-  addBreadcrumb: (breadcrumb: any) => void;
-  setUser: (user: any) => void;
-  setTag: (key: string, value: string) => void;
-  setExtra: (key: string, value: any) => void;
-  wrap: (component: any) => any;
-};
-
-// Sentry instance - will be set when installed
-let Sentry: SentryType | null = null;
 
 // Flag to track initialization
 let isInitialized = false;
 
 /**
  * Initialize Sentry error tracking
- * Should be called once at app startup
+ * Should be called once at app startup inside useEffect
  */
 export function initSentry(): void {
-  // Skip in development or if already initialized
-  if (__DEV__ || isInitialized) {
-    if (__DEV__) {
-      console.log('[Sentry] Skipping initialization in development mode');
-    }
-    return;
+  // Temporarily disabled - Sentry has Hermes compatibility issues
+  if (__DEV__) {
+    console.log('[Sentry] Skipping initialization in development mode');
   }
-
-  try {
-    // Dynamic import to handle when package isn't installed
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const SentryModule = require('@sentry/react-native');
-    Sentry = SentryModule;
-
-    const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
-
-    if (!dsn) {
-      console.warn('[Sentry] No DSN configured. Error tracking disabled.');
-      return;
-    }
-
-    SentryModule.init({
-      dsn,
-      // Enable automatic error tracking
-      enableAutoSessionTracking: true,
-      // Track 100% of transactions in production (adjust as needed)
-      tracesSampleRate: 1.0,
-      // Attach stack traces to breadcrumbs
-      attachStacktrace: true,
-      // Environment based on build
-      environment: 'production',
-      // Only send events in production
-      enabled: !__DEV__,
-      // Debugging options (set to true temporarily to debug issues)
-      debug: false,
-    });
-
-    isInitialized = true;
-    console.log('[Sentry] Initialized successfully');
-  } catch (error) {
-    // Sentry not installed - fail silently
-    console.log('[Sentry] @sentry/react-native not installed. Run: npx expo install @sentry/react-native');
-  }
+  return;
 }
 
 /**
  * Capture an exception and send to Sentry
+ * Currently a no-op due to Hermes compatibility issues
  */
 export function captureException(error: Error | unknown, context?: Record<string, any>): void {
   if (__DEV__) {
     console.error('[Sentry] captureException:', error, context);
-    return;
-  }
-
-  if (Sentry) {
-    Sentry.captureException(error, {
-      extra: context,
-    });
   }
 }
 
 /**
  * Capture a message and send to Sentry
+ * Currently a no-op due to Hermes compatibility issues
  */
 export function captureMessage(
   message: string,
@@ -106,101 +49,63 @@ export function captureMessage(
 ): void {
   if (__DEV__) {
     console.log(`[Sentry] captureMessage (${level}):`, message, context);
-    return;
-  }
-
-  if (Sentry) {
-    Sentry.captureMessage(message, {
-      level,
-      extra: context,
-    });
   }
 }
 
 /**
  * Add a breadcrumb for debugging context
+ * Currently a no-op due to Hermes compatibility issues
  */
 export function addBreadcrumb(
-  message: string,
-  category: string,
-  data?: Record<string, any>,
-  level: 'debug' | 'info' | 'warning' | 'error' = 'info'
+  _message: string,
+  _category: string,
+  _data?: Record<string, any>,
+  _level: 'debug' | 'info' | 'warning' | 'error' = 'info'
 ): void {
-  if (__DEV__) {
-    // Already logged by logger.ts
-    return;
-  }
-
-  if (Sentry) {
-    Sentry.addBreadcrumb({
-      message,
-      category,
-      data,
-      level,
-    });
-  }
+  // No-op
 }
 
 /**
  * Set user context for error tracking
- * Call after user signs in
+ * Currently a no-op due to Hermes compatibility issues
  */
 export function setUser(userId: string, username?: string, email?: string): void {
   if (__DEV__) {
     console.log('[Sentry] setUser:', { userId, username, email });
-    return;
-  }
-
-  if (Sentry) {
-    Sentry.setUser({
-      id: userId,
-      username,
-      email,
-    });
   }
 }
 
 /**
  * Clear user context
- * Call after user signs out
+ * Currently a no-op due to Hermes compatibility issues
  */
 export function clearUser(): void {
   if (__DEV__) {
     console.log('[Sentry] clearUser');
-    return;
-  }
-
-  if (Sentry) {
-    Sentry.setUser(null);
   }
 }
 
 /**
  * Set a custom tag for filtering in Sentry dashboard
+ * Currently a no-op due to Hermes compatibility issues
  */
-export function setTag(key: string, value: string): void {
-  if (Sentry) {
-    Sentry.setTag(key, value);
-  }
+export function setTag(_key: string, _value: string): void {
+  // No-op
 }
 
 /**
  * Set extra context data
+ * Currently a no-op due to Hermes compatibility issues
  */
-export function setExtra(key: string, value: any): void {
-  if (Sentry) {
-    Sentry.setExtra(key, value);
-  }
+export function setExtra(_key: string, _value: any): void {
+  // No-op
 }
 
 /**
  * Wrap a component with Sentry error boundary
- * Use for critical components that should report render errors
+ * Currently a no-op due to Hermes compatibility issues
  */
 export function wrapWithSentry<T>(Component: T): T {
-  if (Sentry) {
-    return Sentry.wrap(Component);
-  }
   return Component;
 }
 
@@ -208,5 +113,5 @@ export function wrapWithSentry<T>(Component: T): T {
  * Check if Sentry is initialized and ready
  */
 export function isSentryReady(): boolean {
-  return isInitialized && Sentry !== null;
+  return false;
 }

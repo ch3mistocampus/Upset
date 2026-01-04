@@ -100,6 +100,12 @@ export function useTheme(): ThemeContextValue {
   return context;
 }
 
+// Convenience hook for just the resolved theme
+export function useResolvedTheme(): ResolvedTheme {
+  const { resolvedTheme } = useTheme();
+  return resolvedTheme;
+}
+
 // Helper hook for creating themed styles
 export function useThemedStyles<T>(
   styleFactory: (theme: ThemeContextValue) => T

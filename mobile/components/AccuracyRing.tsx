@@ -1,11 +1,15 @@
 /**
  * AccuracyRing Component
- * Bold circular progress ring for accuracy visualization
- * UFC-inspired athletic aesthetic with aggressive animations
+ * Clean circular progress ring using SVG
+ * Animated fill sweeping from top + count-up number
  */
 
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
+import { useTheme } from '../lib/theme';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 interface AccuracyRingProps {
   percentage: number; // 0-100
@@ -18,188 +22,89 @@ export const AccuracyRing: React.FC<AccuracyRingProps> = ({
   size = 180,
   label = 'Accuracy',
 }) => {
+  const { colors, isDark } = useTheme();
   const animatedValue = useRef(new Animated.Value(0)).current;
-  const countValue = useRef(new Animated.Value(0)).current;
+  const [displayValue, setDisplayValue] = useState(0);
 
-  useEffect(() => {
-    // Aggressive slam animation for the ring
-    Animated.spring(animatedValue, {
-      toValue: percentage,
-      tension: 40,
-      friction: 7,
-      useNativeDriver: true,
-    }).start();
-
-    // Count-up animation for the percentage number
-    Animated.timing(countValue, {
-      toValue: percentage,
-      duration: 1200,
-      useNativeDriver: true,
-    }).start();
-  }, [percentage, animatedValue, countValue]);
-
-  const strokeWidth = 14;
+  // Scale based on size (180 is the base)
+  const scale = size / 180;
+  const strokeWidth = Math.max(8, 12 * scale);
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
 
-  // Rotation for the progress arc
-  const rotation = animatedValue.interpolate({
-    inputRange: [0, 100],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  // Animated percentage display
-  const [displayPercentage, setDisplayPercentage] = React.useState(0);
+  // Scaled font sizes
+  const valueFontSize = Math.round(48 * scale);
+  const percentFontSize = Math.round(28 * scale);
+  const labelFontSize = Math.round(11 * scale);
 
   useEffect(() => {
-    const listener = countValue.addListener(({ value }) => {
-      setDisplayPercentage(Math.round(value * 10) / 10);
+    // Reset and animate
+    animatedValue.setValue(0);
+
+    Animated.timing(animatedValue, {
+      toValue: percentage,
+      duration: 1200,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false, // strokeDashoffset doesn't support native driver
+    }).start();
+
+    // Update display value for count-up effect
+    const listener = animatedValue.addListener(({ value }) => {
+      setDisplayValue(Math.round(value * 10) / 10);
     });
 
-    return () => countValue.removeListener(listener);
-  }, [countValue]);
+    return () => animatedValue.removeListener(listener);
+  }, [percentage]);
 
-  // Color based on accuracy
-  const getAccuracyColor = (pct: number) => {
-    if (pct >= 70) return '#d4202a'; // UFC red for great accuracy
-    if (pct >= 50) return '#fbbf24'; // Yellow for decent
-    return '#ef4444'; // Red for poor
-  };
+  // Always use accent color (UFC red) - the number tells the story
+  const progressColor = colors.accent;
+  const trackColor = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
 
-  const progressColor = getAccuracyColor(percentage);
+  // Animate stroke dash offset
+  const strokeDashoffset = animatedValue.interpolate({
+    inputRange: [0, 100],
+    outputRange: [circumference, 0],
+    extrapolate: 'clamp',
+  });
 
   return (
     <View style={[styles.container, { width: size, height: size }]}>
-      {/* Background ring - full circle */}
-      <View
-        style={[
-          styles.backgroundRing,
-          {
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            borderWidth: strokeWidth,
-          },
-        ]}
-      />
-
-      {/* Progress ring - uses rotation masking technique */}
-      <View
-        style={[
-          styles.progressContainer,
-          {
-            width: size,
-            height: size,
-          },
-        ]}
-      >
-        {/* Left half */}
-        <View
-          style={[
-            styles.half,
-            {
-              width: size / 2,
-              height: size,
-              left: 0,
-            },
-          ]}
-        >
-          <Animated.View
-            style={[
-              styles.progressRing,
-              {
-                width: size,
-                height: size,
-                borderRadius: size / 2,
-                borderWidth: strokeWidth,
-                borderColor: progressColor,
-                transform: [
-                  { translateX: size / 2 },
-                  {
-                    rotate: animatedValue.interpolate({
-                      inputRange: [0, 50],
-                      outputRange: ['0deg', '180deg'],
-                      extrapolate: 'clamp',
-                    }),
-                  },
-                  { translateX: -size / 2 },
-                ],
-              },
-            ]}
-          />
-        </View>
-
-        {/* Right half */}
-        <View
-          style={[
-            styles.half,
-            {
-              width: size / 2,
-              height: size,
-              right: 0,
-            },
-          ]}
-        >
-          <Animated.View
-            style={[
-              styles.progressRing,
-              {
-                width: size,
-                height: size,
-                borderRadius: size / 2,
-                borderWidth: strokeWidth,
-                borderColor: progressColor,
-                transform: [
-                  { translateX: -size / 2 },
-                  {
-                    rotate: animatedValue.interpolate({
-                      inputRange: [50, 100],
-                      outputRange: ['0deg', '180deg'],
-                      extrapolate: 'clamp',
-                    }),
-                  },
-                  { translateX: size / 2 },
-                ],
-                opacity: animatedValue.interpolate({
-                  inputRange: [0, 50, 50.01, 100],
-                  outputRange: [0, 0, 1, 1],
-                }),
-              },
-            ]}
-          />
-        </View>
-      </View>
+      <Svg width={size} height={size} style={styles.svg}>
+        {/* Track (background circle) */}
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={trackColor}
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        {/* Progress circle */}
+        <AnimatedCircle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={progressColor}
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          rotation={-90}
+          origin={`${size / 2}, ${size / 2}`}
+        />
+      </Svg>
 
       {/* Center content */}
-      <View style={styles.centerContent}>
-        {/* Percentage number - BOLD and MASSIVE */}
-        <Animated.Text
-          style={[
-            styles.percentage,
-            {
-              color: progressColor,
-              transform: [
-                {
-                  scale: animatedValue.interpolate({
-                    inputRange: [0, 100],
-                    outputRange: [0.5, 1],
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          {displayPercentage.toFixed(1)}
-          <Text style={styles.percentSymbol}>%</Text>
-        </Animated.Text>
-
-        {/* Label */}
-        <Text style={styles.label}>{label.toUpperCase()}</Text>
+      <View style={styles.center}>
+        <Text style={[styles.value, { color: progressColor, fontSize: valueFontSize }]}>
+          {displayValue.toFixed(1)}
+          <Text style={[styles.percent, { fontSize: percentFontSize }]}>%</Text>
+        </Text>
+        <Text style={[styles.label, { color: colors.textSecondary, fontSize: labelFontSize }]}>
+          {label.toUpperCase()}
+        </Text>
       </View>
-
-      {/* Angular accent lines for UFC aesthetic */}
-      <View style={[styles.accentLine, styles.accentTop, { width: size * 0.3 }]} />
-      <View style={[styles.accentLine, styles.accentBottom, { width: size * 0.3 }]} />
     </View>
   );
 };
@@ -210,66 +115,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  backgroundRing: {
+  svg: {
     position: 'absolute',
-    borderColor: '#333',
-    backgroundColor: 'transparent',
   },
-  progressContainer: {
-    position: 'absolute',
-    overflow: 'hidden',
-  },
-  half: {
-    position: 'absolute',
-    top: 0,
-    overflow: 'hidden',
-  },
-  progressRing: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    backgroundColor: 'transparent',
-    borderLeftColor: 'transparent',
-    borderBottomColor: 'transparent',
-  },
-  centerContent: {
+  center: {
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 10,
   },
-  percentage: {
-    fontSize: 52,
-    fontWeight: '900',
-    letterSpacing: -2,
-    lineHeight: 52,
-    textShadowColor: 'rgba(212, 32, 42, 0.3)',
-    textShadowOffset: { width: 0, height: 4 },
-    textShadowRadius: 12,
+  value: {
+    fontSize: 48,
+    fontWeight: '800',
+    letterSpacing: -1,
   },
-  percentSymbol: {
-    fontSize: 32,
-    fontWeight: '700',
-    letterSpacing: 0,
+  percent: {
+    fontSize: 28,
+    fontWeight: '600',
   },
   label: {
     fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 2,
-    color: '#666',
-    marginTop: 4,
-  },
-  accentLine: {
-    position: 'absolute',
-    height: 2,
-    backgroundColor: '#d4202a',
-    opacity: 0.3,
-  },
-  accentTop: {
-    top: 8,
-    left: 8,
-  },
-  accentBottom: {
-    bottom: 8,
-    right: 8,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    marginTop: 2,
   },
 });

@@ -1,11 +1,12 @@
 /**
  * MiniChart Component
- * Compact bar chart for recent events accuracy
- * UFC-inspired with aggressive staggered animations
+ * Horizontal bar chart showing accuracy per event
+ * Clean, theme-aware design
  */
 
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
+import { useTheme } from '../lib/theme';
 
 interface ChartData {
   eventName: string;
@@ -17,89 +18,58 @@ interface MiniChartProps {
 }
 
 export const MiniChart: React.FC<MiniChartProps> = ({ data }) => {
+  const { colors } = useTheme();
   const maxBars = 5;
   const chartData = data.slice(0, maxBars);
-  const maxHeight = 120;
 
   // Get color based on accuracy
   const getBarColor = (accuracy: number): string => {
-    if (accuracy >= 70) return '#4ade80'; // Green - excellent
-    if (accuracy >= 50) return '#fbbf24'; // Yellow - good
-    return '#ef4444'; // Red - needs improvement
+    if (accuracy >= 70) return colors.success;
+    if (accuracy >= 50) return colors.warning;
+    return colors.danger;
   };
 
-  // Truncate event name to fit
-  const truncateName = (name: string, maxLength = 10): string => {
+  // Truncate event name
+  const truncateName = (name: string, maxLength = 18): string => {
     if (name.length <= maxLength) return name;
-    return name.substring(0, maxLength - 2) + '..';
+    return name.substring(0, maxLength - 1) + '…';
   };
 
   return (
     <View style={styles.container}>
-      {/* Horizontal reference lines */}
-      <View style={styles.gridLines}>
-        <View style={[styles.gridLine, { bottom: maxHeight }]} />
-        <View style={[styles.gridLine, { bottom: maxHeight * 0.75 }]} />
-        <View style={[styles.gridLine, { bottom: maxHeight * 0.5 }]} />
-        <View style={[styles.gridLine, { bottom: maxHeight * 0.25 }]} />
-        <View style={[styles.gridLine, styles.baseline, { bottom: 0 }]} />
-      </View>
-
-      {/* Bars container */}
-      <View style={styles.barsContainer}>
-        {chartData.map((item, index) => (
-          <Bar
-            key={index}
-            accuracy={item.accuracy}
-            eventName={item.eventName}
-            maxHeight={maxHeight}
-            delay={index * 80}
-            color={getBarColor(item.accuracy)}
-          />
-        ))}
-
-        {/* Fill empty slots with placeholders if less than 5 */}
-        {Array.from({ length: maxBars - chartData.length }).map((_, index) => (
-          <View key={`empty-${index}`} style={styles.barSlot}>
-            <View style={styles.emptyBar} />
-            <Text style={styles.emptyLabel}>—</Text>
-          </View>
-        ))}
-      </View>
-
-      {/* Y-axis labels */}
-      <View style={styles.yAxisLabels}>
-        <Text style={styles.yAxisLabel}>100</Text>
-        <Text style={styles.yAxisLabel}>75</Text>
-        <Text style={styles.yAxisLabel}>50</Text>
-        <Text style={styles.yAxisLabel}>25</Text>
-        <Text style={styles.yAxisLabel}>0</Text>
-      </View>
+      {chartData.map((item, index) => (
+        <ChartRow
+          key={index}
+          eventName={truncateName(item.eventName)}
+          accuracy={item.accuracy}
+          color={getBarColor(item.accuracy)}
+          delay={index * 60}
+          colors={colors}
+        />
+      ))}
     </View>
   );
 };
 
-interface BarProps {
-  accuracy: number;
+interface ChartRowProps {
   eventName: string;
-  maxHeight: number;
-  delay: number;
+  accuracy: number;
   color: string;
+  delay: number;
+  colors: any;
 }
 
-const Bar: React.FC<BarProps> = ({ accuracy, eventName, maxHeight, delay, color }) => {
-  const heightAnim = useRef(new Animated.Value(0)).current;
+const ChartRow: React.FC<ChartRowProps> = ({ eventName, accuracy, color, delay, colors }) => {
+  const widthAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Staggered slam-up animation
     Animated.parallel([
-      Animated.spring(heightAnim, {
+      Animated.timing(widthAnim, {
         toValue: accuracy,
         delay,
-        tension: 60,
-        friction: 8,
-        useNativeDriver: false,
+        duration: 400,
+        useNativeDriver: false, // width animation can't use native driver
       }),
       Animated.timing(opacityAnim, {
         toValue: 1,
@@ -108,164 +78,73 @@ const Bar: React.FC<BarProps> = ({ accuracy, eventName, maxHeight, delay, color 
         useNativeDriver: true,
       }),
     ]).start();
-  }, [accuracy, delay, heightAnim, opacityAnim]);
+  }, [accuracy, delay]);
 
-  const barHeight = heightAnim.interpolate({
+  const barWidth = widthAnim.interpolate({
     inputRange: [0, 100],
-    outputRange: [0, maxHeight],
+    outputRange: ['0%', '100%'],
   });
 
-  const truncateName = (name: string, maxLength = 10): string => {
-    if (name.length <= maxLength) return name;
-    return name.substring(0, maxLength - 2) + '..';
-  };
-
   return (
-    <Animated.View style={[styles.barSlot, { opacity: opacityAnim }]}>
-      {/* Accuracy percentage label above bar */}
-      <Animated.Text
-        style={[
-          styles.accuracyLabel,
-          {
-            color,
-            opacity: opacityAnim,
-            transform: [
-              {
-                translateY: heightAnim.interpolate({
-                  inputRange: [0, 100],
-                  outputRange: [0, -8],
-                }),
-              },
-            ],
-          },
-        ]}
-      >
-        {Math.round(accuracy)}%
-      </Animated.Text>
-
-      {/* The bar itself */}
-      <Animated.View
-        style={[
-          styles.bar,
-          {
-            height: barHeight,
-            backgroundColor: color,
-            shadowColor: color,
-          },
-        ]}
-      >
-        {/* Inner highlight for depth */}
-        <View style={styles.barHighlight} />
-      </Animated.View>
-
-      {/* Event name label */}
-      <Text style={styles.barLabel} numberOfLines={1}>
-        {truncateName(eventName, 9)}
+    <Animated.View style={[styles.row, { opacity: opacityAnim }]}>
+      <Text style={[styles.eventName, { color: colors.textSecondary }]} numberOfLines={1}>
+        {eventName}
       </Text>
+      <View style={styles.barContainer}>
+        <View style={[styles.barBackground, { backgroundColor: colors.surfaceAlt }]}>
+          <Animated.View
+            style={[
+              styles.barFill,
+              {
+                width: barWidth,
+                backgroundColor: color,
+              },
+            ]}
+          />
+        </View>
+        <Text style={[styles.percentage, { color }]}>
+          {Math.round(accuracy)}%
+        </Text>
+      </View>
     </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    height: 180,
-    position: 'relative',
-    paddingLeft: 28,
-    paddingRight: 8,
-    paddingTop: 8,
-    paddingBottom: 8,
+    paddingVertical: 4,
   },
-  gridLines: {
-    position: 'absolute',
-    left: 28,
-    right: 8,
-    top: 8,
-    bottom: 32,
-  },
-  gridLine: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: '#2a2a2a',
-  },
-  baseline: {
-    backgroundColor: '#333',
-    height: 2,
-  },
-  barsContainer: {
+  row: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'flex-end',
-    height: 120,
-    marginBottom: 8,
-  },
-  barSlot: {
-    flex: 1,
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginHorizontal: 3,
-    position: 'relative',
+    marginBottom: 10,
   },
-  bar: {
-    width: '100%',
-    maxWidth: 32,
-    minHeight: 2,
-    position: 'relative',
-    // Sharp, angular - no borderRadius
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  barHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: '60%',
-    height: '30%',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-  },
-  emptyBar: {
-    width: '100%',
-    maxWidth: 32,
-    height: 2,
-    backgroundColor: '#1a1a1a',
-  },
-  accuracyLabel: {
-    position: 'absolute',
-    top: -20,
+  eventName: {
+    width: 115,
     fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 0.5,
+    fontWeight: '500',
   },
-  barLabel: {
-    marginTop: 6,
-    fontSize: 9,
+  barContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  barBackground: {
+    flex: 1,
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  percentage: {
+    width: 40,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#666',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    textAlign: 'center',
-  },
-  emptyLabel: {
-    marginTop: 6,
-    fontSize: 9,
-    color: '#333',
-  },
-  yAxisLabels: {
-    position: 'absolute',
-    left: 0,
-    top: 8,
-    bottom: 32,
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    paddingRight: 6,
-  },
-  yAxisLabel: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#444',
-    letterSpacing: 0.5,
+    textAlign: 'right',
+    marginLeft: 8,
   },
 });

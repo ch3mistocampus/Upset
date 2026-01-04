@@ -1,11 +1,13 @@
 /**
  * SettingsRow Component
- * Reusable row for settings items
+ * Reusable row for settings items - theme-aware
  */
 
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../lib/theme';
+import { spacing, radius } from '../lib/tokens';
 
 type SettingsRowType = 'button' | 'toggle' | 'link' | 'danger';
 
@@ -28,6 +30,7 @@ export const SettingsRow: React.FC<SettingsRowProps> = ({
   onToggle,
   subtitle,
 }) => {
+  const { colors, isDark } = useTheme();
   const isDanger = type === 'danger';
   const isLink = type === 'link';
 
@@ -39,33 +42,57 @@ export const SettingsRow: React.FC<SettingsRowProps> = ({
 
   return (
     <TouchableOpacity
-      style={styles.row}
+      style={[
+        styles.row,
+        {
+          backgroundColor: colors.surface,
+          borderBottomColor: colors.border,
+        },
+      ]}
       onPress={handlePress}
       disabled={type === 'toggle'}
       activeOpacity={0.7}
     >
-      <View style={[styles.iconContainer, isDanger && styles.dangerIcon]}>
+      <View
+        style={[
+          styles.iconContainer,
+          {
+            backgroundColor: isDanger
+              ? colors.dangerSoft
+              : colors.surfaceAlt,
+          },
+        ]}
+      >
         <Ionicons
           name={icon}
           size={22}
-          color={isDanger ? '#ef4444' : '#fff'}
+          color={isDanger ? colors.danger : colors.text}
         />
       </View>
 
       <View style={styles.content}>
-        <Text style={[styles.label, isDanger && styles.dangerLabel]}>
+        <Text
+          style={[
+            styles.label,
+            { color: isDanger ? colors.danger : colors.text },
+          ]}
+        >
           {label}
         </Text>
-        {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+        {subtitle && (
+          <Text style={[styles.subtitle, { color: colors.textTertiary }]}>
+            {subtitle}
+          </Text>
+        )}
       </View>
 
       {type === 'toggle' && (
         <Switch
           value={value}
           onValueChange={onToggle}
-          trackColor={{ false: '#333', true: '#d4202a' }}
-          thumbColor={value ? '#fff' : '#999'}
-          ios_backgroundColor="#333"
+          trackColor={{ false: colors.border, true: colors.accent }}
+          thumbColor={value ? '#fff' : colors.textTertiary}
+          ios_backgroundColor={colors.border}
         />
       )}
 
@@ -73,7 +100,7 @@ export const SettingsRow: React.FC<SettingsRowProps> = ({
         <Ionicons
           name={isLink ? 'open-outline' : 'chevron-forward'}
           size={20}
-          color={isDanger ? '#ef4444' : '#666'}
+          color={isDanger ? colors.danger : colors.textTertiary}
         />
       )}
     </TouchableOpacity>
@@ -84,23 +111,17 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    backgroundColor: '#1a1a1a',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#2a2a2a',
   },
   iconContainer: {
     width: 36,
     height: 36,
-    borderRadius: 8,
-    backgroundColor: '#2a2a2a',
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
-  },
-  dangerIcon: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    marginRight: spacing.sm + 2,
   },
   content: {
     flex: 1,
@@ -108,14 +129,9 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
-  },
-  dangerLabel: {
-    color: '#ef4444',
   },
   subtitle: {
     fontSize: 13,
-    color: '#666',
     marginTop: 2,
   },
 });

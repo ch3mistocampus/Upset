@@ -1,28 +1,44 @@
+/**
+ * ProgressPill - Pill progress bar with animated fill
+ *
+ * Features:
+ * - Smooth animated width transitions
+ * - Fully rounded track and fill
+ * - Uses muted accent color
+ */
+
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
 import { useTheme } from '../../lib/theme';
+import { radius } from '../../lib/tokens';
 
-interface ProgressBarProps {
-  progress: number; // 0-100
+interface ProgressPillProps {
+  /** Progress value from 0 to 100 */
+  progress: number;
+  /** Height of the pill (default: 7) */
   height?: number;
 }
 
-export function ProgressBar({ progress, height = 6 }: ProgressBarProps) {
+export function ProgressPill({ progress, height = 7 }: ProgressPillProps) {
   const { colors } = useTheme();
   const animatedWidth = useRef(new Animated.Value(0)).current;
 
+  // Clamp progress to 0-100
+  const clampedProgress = Math.max(0, Math.min(100, progress));
+
   useEffect(() => {
     Animated.spring(animatedWidth, {
-      toValue: progress,
+      toValue: clampedProgress,
       tension: 50,
-      friction: 10,
+      friction: 12,
       useNativeDriver: false,
     }).start();
-  }, [progress, animatedWidth]);
+  }, [clampedProgress, animatedWidth]);
 
-  const width = animatedWidth.interpolate({
+  const fillWidth = animatedWidth.interpolate({
     inputRange: [0, 100],
     outputRange: ['0%', '100%'],
+    extrapolate: 'clamp',
   });
 
   return (
@@ -30,9 +46,9 @@ export function ProgressBar({ progress, height = 6 }: ProgressBarProps) {
       style={[
         styles.track,
         {
-          backgroundColor: colors.surfaceAlt,
           height,
           borderRadius: height / 2,
+          backgroundColor: 'rgba(0, 0, 0, 0.06)',
         },
       ]}
     >
@@ -40,10 +56,10 @@ export function ProgressBar({ progress, height = 6 }: ProgressBarProps) {
         style={[
           styles.fill,
           {
-            backgroundColor: colors.accent,
-            width,
+            width: fillWidth,
             height,
             borderRadius: height / 2,
+            backgroundColor: colors.accent,
           },
         ]}
       />

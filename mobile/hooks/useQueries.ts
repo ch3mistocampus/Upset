@@ -1,5 +1,6 @@
 /**
  * React Query hooks for data fetching
+ * Supports both authenticated and guest modes
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -12,9 +13,9 @@ import {
   BoutWithPick,
   PickInsert,
   Result,
-  Profile,
-  ProfileUpdate,
 } from '../types/database';
+import { useAuth } from './useAuth';
+import { useGuestPicks, GuestPick } from './useGuestPicks';
 
 // ============================================================================
 // EVENTS
@@ -67,20 +68,127 @@ export function useRecentEvents(limit = 5) {
   });
 }
 
+/**
+ * Get all upcoming events (for picks list)
+ */
+export function useUpcomingEvents() {
+  return useQuery({
+    queryKey: ['events', 'upcoming'],
+    queryFn: async (): Promise<Event[]> => {
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .in('status', ['upcoming', 'live'])
+        .order('event_date', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+}
+
+/**
+ * Get a specific event by ID
+ */
+export function useEvent(eventId: string | null) {
+  return useQuery({
+    queryKey: ['events', eventId],
+    queryFn: async (): Promise<Event | null> => {
+      if (!eventId) return null;
+
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('id', eventId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      return data;
+    },
+    enabled: !!eventId,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+/**
+ * Get bouts count for an event
+ */
+export function useBoutsCount(eventId: string | null) {
+  return useQuery({
+    queryKey: ['bouts', 'count', eventId],
+    queryFn: async (): Promise<number> => {
+      if (!eventId) return 0;
+
+      const { count, error } = await supabase
+        .from('bouts')
+        .select('*', { count: 'exact', head: true })
+        .eq('event_id', eventId);
+
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!eventId,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+/**
+ * Get user's picks count for an event
+ * Supports both authenticated and guest modes
+ */
+export function useUserPicksCount(eventId: string | null, userId: string | null) {
+  const { isGuest } = useAuth();
+  const { getGuestPicksForEvent, isLoaded } = useGuestPicks();
+
+  return useQuery({
+    queryKey: ['picks', 'count', eventId, isGuest ? 'guest' : userId],
+    queryFn: async (): Promise<number> => {
+      if (!eventId) return 0;
+
+      // Guest mode: count local picks
+      if (isGuest) {
+        const guestPicks = getGuestPicksForEvent(eventId);
+        return guestPicks.length;
+      }
+
+      // Authenticated mode: count from Supabase
+      if (!userId) return 0;
+
+      const { count, error } = await supabase
+        .from('picks')
+        .select('*', { count: 'exact', head: true })
+        .eq('event_id', eventId)
+        .eq('user_id', userId);
+
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!eventId && (isGuest ? isLoaded : !!userId),
+    staleTime: 1000 * 30, // 30 seconds
+  });
+}
+
 // ============================================================================
 // BOUTS
 // ============================================================================
 
 /**
  * Get bouts for a specific event with user's picks and results
+ * Supports both authenticated and guest modes
+ * @param eventId - The event ID
+ * @param userId - The user ID (null if not authenticated)
+ * @param isGuest - Whether user is in guest mode (passed explicitly to avoid stale closures)
  */
-export function useBoutsForEvent(eventId: string | null, userId: string | null) {
+export function useBoutsForEvent(eventId: string | null, userId: string | null, isGuest: boolean = false) {
+  const { getGuestPicksForEvent, isLoaded } = useGuestPicks();
+
   return useQuery({
-    queryKey: ['bouts', eventId, userId],
+    queryKey: ['bouts', eventId, isGuest ? 'guest' : userId],
     queryFn: async (): Promise<BoutWithPick[]> => {
       if (!eventId) return [];
 
-      // Get bouts
+      // Get bouts (always from Supabase - the fight data)
       const { data: bouts, error: boutsError } = await supabase
         .from('bouts')
         .select('*')
@@ -90,7 +198,7 @@ export function useBoutsForEvent(eventId: string | null, userId: string | null) 
       if (boutsError) throw boutsError;
       if (!bouts) return [];
 
-      // Get results for all bouts
+      // Get results for all bouts (always from Supabase)
       const boutIds = bouts.map((b) => b.id);
       const { data: results, error: resultsError } = await supabase
         .from('results')
@@ -99,9 +207,15 @@ export function useBoutsForEvent(eventId: string | null, userId: string | null) 
 
       if (resultsError) throw resultsError;
 
-      // Get user's picks if logged in
+      // Get picks based on mode
       let picks: Pick[] = [];
-      if (userId) {
+
+      if (isGuest) {
+        // Guest mode: get local picks and convert to Pick format
+        const guestPicks = getGuestPicksForEvent(eventId);
+        picks = guestPicks.map((gp) => guestPickToPick(gp));
+      } else if (userId) {
+        // Authenticated mode: get from Supabase
         const { data: picksData, error: picksError } = await supabase
           .from('picks')
           .select('*')
@@ -122,9 +236,29 @@ export function useBoutsForEvent(eventId: string | null, userId: string | null) 
         pick: picksMap.get(bout.id) || null,
       }));
     },
-    enabled: !!eventId,
+    enabled: !!eventId && (isGuest ? isLoaded : true),
     staleTime: 1000 * 60 * 2, // 2 minutes
   });
+}
+
+/**
+ * Convert a GuestPick to the Pick type for UI consistency
+ */
+function guestPickToPick(guestPick: GuestPick): Pick {
+  return {
+    id: guestPick.id,
+    user_id: 'guest',
+    event_id: guestPick.event_id,
+    bout_id: guestPick.bout_id,
+    picked_corner: guestPick.picked_corner,
+    picked_method: null,
+    picked_round: null,
+    status: 'active',
+    locked_at: null,
+    score: null,
+    created_at: guestPick.created_at,
+    updated_at: guestPick.updated_at,
+  };
 }
 
 // ============================================================================
@@ -156,13 +290,39 @@ export function useUserPicksForEvent(eventId: string | null, userId: string | nu
 }
 
 /**
+ * Input type for upsert pick mutation
+ * Includes isGuest flag to avoid stale closure issues
+ */
+interface UpsertPickInput {
+  pick: PickInsert;
+  isGuest: boolean;
+}
+
+/**
  * Upsert a pick (create or update)
+ * Supports both authenticated and guest modes
  */
 export function useUpsertPick() {
   const queryClient = useQueryClient();
+  const { saveGuestPick, generatePickId } = useGuestPicks();
 
   return useMutation({
-    mutationFn: async (pick: PickInsert) => {
+    mutationFn: async ({ pick, isGuest }: UpsertPickInput): Promise<Pick> => {
+      if (isGuest) {
+        // Guest mode: save to local storage
+        const guestPick: GuestPick = {
+          id: generatePickId(),
+          event_id: pick.event_id,
+          bout_id: pick.bout_id,
+          picked_corner: pick.picked_corner,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        await saveGuestPick(guestPick);
+        return guestPickToPick(guestPick);
+      }
+
+      // Authenticated mode: save to Supabase
       const { data, error } = await supabase
         .from('picks')
         .upsert(pick, {
@@ -176,24 +336,26 @@ export function useUpsertPick() {
       return data;
     },
     // Optimistic update - update UI immediately before server responds
-    onMutate: async (newPick: PickInsert) => {
+    onMutate: async ({ pick: newPick, isGuest }: UpsertPickInput) => {
+      const cacheKey = isGuest ? 'guest' : newPick.user_id;
+
       // Cancel outgoing refetches so they don't overwrite our optimistic update
-      await queryClient.cancelQueries({ queryKey: ['bouts', newPick.event_id, newPick.user_id] });
+      await queryClient.cancelQueries({ queryKey: ['bouts', newPick.event_id, cacheKey] });
 
       // Snapshot the previous value
-      const previousBouts = queryClient.getQueryData<BoutWithPick[]>(['bouts', newPick.event_id, newPick.user_id]);
+      const previousBouts = queryClient.getQueryData<BoutWithPick[]>(['bouts', newPick.event_id, cacheKey]);
 
       // Optimistically update the cache
       if (previousBouts) {
         queryClient.setQueryData<BoutWithPick[]>(
-          ['bouts', newPick.event_id, newPick.user_id],
+          ['bouts', newPick.event_id, cacheKey],
           previousBouts.map((bout) =>
             bout.id === newPick.bout_id
               ? {
                   ...bout,
                   pick: {
                     id: bout.pick?.id || 'temp-id',
-                    user_id: newPick.user_id,
+                    user_id: isGuest ? 'guest' : newPick.user_id,
                     event_id: newPick.event_id,
                     bout_id: newPick.bout_id,
                     picked_corner: newPick.picked_corner,
@@ -212,20 +374,32 @@ export function useUpsertPick() {
       }
 
       // Return context with snapshot
-      return { previousBouts };
+      return { previousBouts, cacheKey, isGuest };
     },
-    onError: (err, newPick, context) => {
+    onError: (err, { pick: newPick }, context) => {
       // Rollback to previous value on error
       if (context?.previousBouts) {
-        queryClient.setQueryData(['bouts', newPick.event_id, newPick.user_id], context.previousBouts);
+        queryClient.setQueryData(['bouts', newPick.event_id, context.cacheKey], context.previousBouts);
       }
     },
-    onSuccess: (data) => {
-      // Invalidate relevant queries to refetch fresh data
-      queryClient.invalidateQueries({ queryKey: ['picks', data.event_id, data.user_id] });
-      queryClient.invalidateQueries({ queryKey: ['bouts', data.event_id, data.user_id] });
+    onSuccess: (data, { isGuest }) => {
+      const cacheKey = isGuest ? 'guest' : data.user_id;
+      // Only invalidate picks count - optimistic update already handles bouts cache
+      // Don't invalidate bouts query as it can cause race conditions with guest state updates
+      queryClient.invalidateQueries({ queryKey: ['picks', 'count', data.event_id, cacheKey] });
     },
   });
+}
+
+/**
+ * Input type for delete pick mutation
+ * Includes isGuest flag to avoid stale closure issues
+ */
+interface DeletePickInput {
+  boutId: string;
+  eventId: string;
+  userId: string | null;
+  isGuest: boolean;
 }
 
 /**
@@ -233,65 +407,60 @@ export function useUpsertPick() {
  */
 export function useDeletePick() {
   const queryClient = useQueryClient();
+  const { deleteGuestPick } = useGuestPicks();
 
   return useMutation({
-    mutationFn: async (pickId: string) => {
-      const { error } = await supabase.from('picks').delete().eq('id', pickId);
+    mutationFn: async ({ boutId, eventId, userId, isGuest }: DeletePickInput) => {
+      if (isGuest) {
+        await deleteGuestPick(boutId);
+        return { eventId, boutId, userId, isGuest };
+      }
 
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      // Invalidate picks queries
-      queryClient.invalidateQueries({ queryKey: ['picks'] });
-      queryClient.invalidateQueries({ queryKey: ['bouts'] });
-    },
-  });
-}
+      if (!userId) throw new Error('User ID required for delete');
 
-/**
- * Delete multiple picks at once (bulk unselect)
- */
-export function useDeleteAllPicks() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ userId, eventId }: { userId: string; eventId: string }) => {
+      // Delete by user_id + bout_id
       const { error } = await supabase
         .from('picks')
         .delete()
         .eq('user_id', userId)
-        .eq('event_id', eventId)
-        .eq('status', 'active'); // Only delete active picks, not graded ones
+        .eq('bout_id', boutId);
 
       if (error) throw error;
+
+      return { eventId, boutId, userId, isGuest };
     },
-    // Optimistic update
-    onMutate: async ({ userId, eventId }) => {
-      await queryClient.cancelQueries({ queryKey: ['bouts', eventId, userId] });
+    onMutate: async ({ boutId, eventId, userId, isGuest }: DeletePickInput) => {
+      // Cache key must match useBoutsForEvent exactly: ['bouts', eventId, isGuest ? 'guest' : userId]
+      const cacheKey = isGuest ? 'guest' : userId;
 
-      const previousBouts = queryClient.getQueryData<BoutWithPick[]>(['bouts', eventId, userId]);
+      await queryClient.cancelQueries({ queryKey: ['bouts', eventId, cacheKey] });
 
-      // Clear all picks optimistically
+      const previousBouts = queryClient.getQueryData<BoutWithPick[]>(['bouts', eventId, cacheKey]);
+
       if (previousBouts) {
+        const updatedBouts = previousBouts.map((bout) =>
+          bout.id === boutId ? { ...bout, pick: null } : bout
+        );
         queryClient.setQueryData<BoutWithPick[]>(
-          ['bouts', eventId, userId],
-          previousBouts.map((bout) => ({
-            ...bout,
-            pick: bout.pick?.status === 'graded' ? bout.pick : null, // Keep graded picks
-          }))
+          ['bouts', eventId, cacheKey],
+          updatedBouts
         );
       }
 
-      return { previousBouts };
+      return { previousBouts, cacheKey, eventId };
     },
     onError: (err, variables, context) => {
+      // Rollback optimistic update on error
       if (context?.previousBouts) {
-        queryClient.setQueryData(['bouts', variables.eventId, variables.userId], context.previousBouts);
+        queryClient.setQueryData(['bouts', context.eventId, context.cacheKey], context.previousBouts);
       }
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['picks', variables.eventId, variables.userId] });
-      queryClient.invalidateQueries({ queryKey: ['bouts', variables.eventId, variables.userId] });
+    onSuccess: (data) => {
+      if (data) {
+        const cacheKey = data.isGuest ? 'guest' : data.userId;
+        // Only invalidate picks count - don't refetch bouts as optimistic update handles UI
+        queryClient.invalidateQueries({ queryKey: ['picks', 'count', data.eventId, cacheKey] });
+      }
     },
   });
 }
@@ -382,66 +551,6 @@ export function useRecentPicksSummary(userId: string | null, limit = 5) {
     },
     enabled: !!userId,
     staleTime: 1000 * 60 * 5,
-  });
-}
-
-// ============================================================================
-// PROFILE
-// ============================================================================
-
-/**
- * Get a user's profile by ID
- */
-export function useProfile(userId: string | null) {
-  return useQuery({
-    queryKey: ['profile', userId],
-    queryFn: async (): Promise<Profile | null> => {
-      if (!userId) return null;
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
-
-      return data;
-    },
-    enabled: !!userId,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
-}
-
-/**
- * Update the current user's profile (bio, avatar_url)
- */
-export function useUpdateProfile() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ userId, updates }: { userId: string; updates: ProfileUpdate }) => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('user_id', userId)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      return data as Profile;
-    },
-    onSuccess: (data) => {
-      // Update profile cache
-      queryClient.setQueryData(['profile', data.user_id], data);
-      // Invalidate related queries
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
-      queryClient.invalidateQueries({ queryKey: ['friends'] });
-      queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
-    },
   });
 }
 

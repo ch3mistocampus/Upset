@@ -1,408 +1,225 @@
 /**
- * Pick screen - make predictions for upcoming event
+ * Picks tab - shows list of upcoming events
+ * Tap an event to see bouts and make picks
+ * Theme-aware design with staggered entrance animations
  */
 
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Animated } from 'react-native';
-import { useState, useRef, useMemo } from 'react';
-import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Animated, Easing } from 'react-native';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { useNextEvent, useBoutsForEvent, useUpsertPick, useDeleteAllPicks, isEventLocked } from '../../hooks/useQueries';
-import { useEventCommunityPercentages } from '../../hooks/useLeaderboard';
-import { useToast } from '../../hooks/useToast';
+import { useUpcomingEvents, useBoutsCount, useUserPicksCount } from '../../hooks/useQueries';
 import { useTheme } from '../../lib/theme';
-import { spacing, radius, typography } from '../../lib/tokens';
-import { Card, EmptyState } from '../../components/ui';
+import { spacing, typography } from '../../lib/tokens';
+import { EmptyState, SurfaceCard } from '../../components/ui';
 import { ErrorState } from '../../components/ErrorState';
-import { SkeletonFightCard } from '../../components/SkeletonFightCard';
-import { BoutWithPick, PickInsert } from '../../types/database';
-import type { CommunityPickPercentages } from '../../types/social';
+import { EventCard } from '../../components/EventCard';
+import { Event } from '../../types/database';
 
-// Community Percentage Bar Component
-const CommunityPercentageBar: React.FC<{
-  percentages: CommunityPickPercentages | undefined;
-  redName: string;
-  blueName: string;
-}> = ({ percentages, redName, blueName }) => {
-  const { colors } = useTheme();
+// Wrapper component to fetch picks/bouts counts for each event
+interface EventCardWithCountsProps {
+  event: Event;
+  isFirstUpcoming?: boolean;
+  index: number;
+}
 
-  if (!percentages || percentages.total_picks === 0) {
-    return null;
-  }
+function EventCardWithCounts({ event, isFirstUpcoming, index }: EventCardWithCountsProps) {
+  const { user } = useAuth();
+  const { data: boutsCount = 0 } = useBoutsCount(event.id);
+  const { data: picksCount = 0 } = useUserPicksCount(event.id, user?.id || null);
 
-  const redPct = percentages.fighter_a_percentage || 0;
-  const bluePct = percentages.fighter_b_percentage || 0;
+  // Staggered entrance animation
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const translateAnim = useRef(new Animated.Value(8)).current;
 
-  return (
-    <View style={[communityStyles.container, { borderBottomColor: colors.divider }]}>
-      <View style={communityStyles.header}>
-        <Text style={[communityStyles.label, { color: colors.textSecondary }]}>
-          Community Picks
-        </Text>
-        <Text style={[communityStyles.totalPicks, { color: colors.textTertiary }]}>
-          {percentages.total_picks} picks
-        </Text>
-      </View>
-      <View style={[communityStyles.barContainer, { backgroundColor: colors.surfaceAlt }]}>
-        <View style={[communityStyles.barRed, { flex: redPct || 1 }]}>
-          <Text style={communityStyles.percentage}>{redPct.toFixed(0)}%</Text>
-        </View>
-        <View style={[communityStyles.barBlue, { flex: bluePct || 1 }]}>
-          <Text style={communityStyles.percentage}>{bluePct.toFixed(0)}%</Text>
-        </View>
-      </View>
-    </View>
-  );
-};
-
-const communityStyles = StyleSheet.create({
-  container: {
-    marginBottom: spacing.md,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  label: {
-    ...typography.caption,
-  },
-  totalPicks: {
-    ...typography.meta,
-  },
-  barContainer: {
-    flexDirection: 'row',
-    height: 28,
-    borderRadius: radius.sm,
-    overflow: 'hidden',
-  },
-  barRed: {
-    backgroundColor: '#dc2626',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 44,
-  },
-  barBlue: {
-    backgroundColor: '#2563eb',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 44,
-  },
-  percentage: {
-    ...typography.meta,
-    fontWeight: '700',
-    color: '#fff',
-  },
-});
-
-// Animated Fighter Button Component
-const FighterButton: React.FC<{
-  bout: BoutWithPick;
-  corner: 'red' | 'blue';
-  locked: boolean;
-  onPress: () => void;
-}> = ({ bout, corner, locked, onPress }) => {
-  const { colors } = useTheme();
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const pulseAnim = useRef(new Animated.Value(0)).current;
-  const borderAnim = useRef(new Animated.Value(0)).current;
-
-  const isSelected = bout.pick?.picked_corner === corner;
-  const fighterName = corner === 'red' ? bout.red_name : bout.blue_name;
-  const cornerColor = corner === 'red' ? '#dc2626' : '#2563eb';
-
-  // Animate border and pulse when selection changes
-  const prevSelectedRef = useRef(isSelected);
-  if (prevSelectedRef.current !== isSelected) {
-    prevSelectedRef.current = isSelected;
-    if (isSelected) {
-      // Selection animation: pulse + border grow
+  useEffect(() => {
+    const delay = 60 + index * 60; // 60ms base + 60ms stagger
+    const timer = setTimeout(() => {
       Animated.parallel([
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 150,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 0,
-            duration: 150,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.spring(borderAnim, {
+        Animated.timing(fadeAnim, {
           toValue: 1,
-          tension: 200,
-          friction: 10,
-          useNativeDriver: false,
+          duration: 220,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateAnim, {
+          toValue: 0,
+          duration: 220,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
         }),
       ]).start();
-    } else {
-      // Deselection
-      Animated.spring(borderAnim, {
-        toValue: 0,
-        tension: 200,
-        friction: 10,
-        useNativeDriver: false,
-      }).start();
-    }
-  }
-
-  const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.97,
-      useNativeDriver: true,
-      tension: 150,
-      friction: 5,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      tension: 150,
-      friction: 5,
-    }).start();
-  };
-
-  // Interpolate animated values
-  const animatedBorderWidth = borderAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1.5, 3],
-  });
-
-  const animatedScale = Animated.add(
-    scaleAnim,
-    pulseAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, 0.03],
-    })
-  );
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [fadeAnim, translateAnim, index]);
 
   return (
-    <Animated.View style={{ transform: [{ scale: animatedScale }] }}>
-      <Animated.View
-        style={[
-          fighterStyles.button,
-          {
-            backgroundColor: isSelected ? cornerColor + '20' : colors.surfaceAlt,
-            borderColor: isSelected ? cornerColor : colors.border,
-            borderWidth: animatedBorderWidth,
-          },
-          locked && fighterStyles.disabled,
-        ]}
-      >
-        <TouchableOpacity
-          style={fighterStyles.touchable}
-          onPress={onPress}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          disabled={locked || bout.status !== 'scheduled'}
-          activeOpacity={0.9}
-        >
-          <View style={[fighterStyles.cornerIndicator, { backgroundColor: cornerColor }]} />
-          <Text
-            style={[
-              fighterStyles.name,
-              { color: isSelected ? cornerColor : colors.textPrimary },
-              isSelected && fighterStyles.nameSelected,
-            ]}
-            numberOfLines={2}
-          >
-            {fighterName}
-          </Text>
-          {isSelected && (
-            <View style={[fighterStyles.checkmark, { backgroundColor: cornerColor }]}>
-              <Ionicons name="checkmark" size={14} color="#fff" />
-            </View>
-          )}
-        </TouchableOpacity>
-      </Animated.View>
+    <Animated.View
+      style={{
+        opacity: fadeAnim,
+        transform: [{ translateY: translateAnim }],
+      }}
+    >
+      <EventCard
+        event={event}
+        picksCount={picksCount}
+        totalBouts={boutsCount}
+        isFirstUpcoming={isFirstUpcoming}
+      />
     </Animated.View>
   );
-};
+}
 
-const fighterStyles = StyleSheet.create({
-  button: {
-    borderRadius: radius.input,
-    borderWidth: 1.5,
-    overflow: 'hidden',
+// Skeleton loader for events list with staggered animation
+function SkeletonEventCard({ index }: { index: number }) {
+  const { colors } = useTheme();
+  const shimmerAnim = useRef(new Animated.Value(0.3)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Entrance fade
+    const timer = setTimeout(() => {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }).start();
+    }, index * 60);
+
+    // Shimmer effect
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmerAnim, {
+          toValue: 0.6,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shimmerAnim, {
+          toValue: 0.3,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    return () => clearTimeout(timer);
+  }, [shimmerAnim, fadeAnim, index]);
+
+  return (
+    <Animated.View style={{ opacity: fadeAnim }}>
+      <SurfaceCard weakWash>
+        <Animated.View style={[skeletonStyles.titleLine, { backgroundColor: colors.surfaceAlt, opacity: shimmerAnim }]} />
+        <Animated.View style={[skeletonStyles.metaLine, { backgroundColor: colors.surfaceAlt, opacity: shimmerAnim }]} />
+        <View style={[skeletonStyles.divider, { backgroundColor: colors.border }]} />
+        <Animated.View style={[skeletonStyles.footerLine, { backgroundColor: colors.surfaceAlt, opacity: shimmerAnim }]} />
+      </SurfaceCard>
+    </Animated.View>
+  );
+}
+
+const skeletonStyles = StyleSheet.create({
+  titleLine: {
+    height: 20,
+    borderRadius: 4,
+    width: '70%',
+    marginBottom: spacing.md,
   },
-  touchable: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
+  metaLine: {
+    height: 16,
+    borderRadius: 4,
+    width: '50%',
+    marginBottom: spacing.md,
   },
-  disabled: {
-    opacity: 0.5,
+  divider: {
+    height: 1,
+    width: '100%',
+    marginBottom: spacing.md,
   },
-  cornerIndicator: {
-    width: 4,
-    height: '100%',
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    borderTopLeftRadius: radius.input - 2,
-    borderBottomLeftRadius: radius.input - 2,
-  },
-  name: {
-    flex: 1,
-    ...typography.body,
-    fontWeight: '600',
-    marginLeft: spacing.md,
-  },
-  nameSelected: {
-    fontWeight: '700',
-  },
-  checkmark: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
+  footerLine: {
+    height: 16,
+    borderRadius: 4,
+    width: '40%',
   },
 });
 
 export default function Pick() {
   const { colors } = useTheme();
-  const { user } = useAuth();
-  const toast = useToast();
-  const { data: nextEvent, isLoading: eventLoading, isError: eventError, refetch: refetchEvent } = useNextEvent();
-  const { data: bouts, isLoading: boutsLoading, isError: boutsError, refetch: refetchBouts } = useBoutsForEvent(
-    nextEvent?.id || null,
-    user?.id || null
-  );
-  const upsertPick = useUpsertPick();
-  const deleteAllPicks = useDeleteAllPicks();
-
-  const boutIds = useMemo(() => bouts?.map((b) => b.id) || [], [bouts]);
-
-  // Count active picks that can be unselected
-  const activePickCount = useMemo(() => {
-    return bouts?.filter((b) => b.pick && b.pick.status === 'active').length || 0;
-  }, [bouts]);
-  const { data: communityPercentages, refetch: refetchPercentages } = useEventCommunityPercentages(boutIds);
-
+  const { data: events, isLoading, isError, refetch } = useUpcomingEvents();
   const [refreshing, setRefreshing] = useState(false);
+
+  // Header entrance animation
+  const headerFadeAnim = useRef(new Animated.Value(0)).current;
+  const headerTranslateAnim = useRef(new Animated.Value(6)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(headerFadeAnim, {
+        toValue: 1,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(headerTranslateAnim, {
+        toValue: 0,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [headerFadeAnim, headerTranslateAnim]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([refetchEvent(), refetchBouts(), refetchPercentages()]);
+    await refetch();
     setRefreshing(false);
   };
 
-  const locked = isEventLocked(nextEvent || null);
-
-  const handlePickFighter = async (bout: BoutWithPick, corner: 'red' | 'blue') => {
-    if (!user || !nextEvent) return;
-
-    if (locked) {
-      toast.showError('Event has already started. Picks cannot be changed.');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      return;
-    }
-
-    if (bout.status === 'canceled' || bout.status === 'replaced') {
-      toast.showError('This fight has been canceled or replaced.');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      return;
-    }
-
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-      const pick: PickInsert = {
-        user_id: user.id,
-        event_id: nextEvent.id,
-        bout_id: bout.id,
-        picked_corner: corner,
-      };
-
-      await upsertPick.mutateAsync(pick);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error: any) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-
-      if (error.message.includes('locked')) {
-        toast.showError('Picks are locked. Event has started.');
-      } else {
-        toast.showError('Failed to save pick. Please try again.');
-      }
-    }
+  // Find first upcoming (not locked) event
+  const getFirstUpcomingEventId = () => {
+    if (!events) return null;
+    const now = new Date();
+    const upcomingEvent = events.find(
+      (e) => e.status !== 'completed' && e.status !== 'in_progress' && new Date(e.event_date) > now
+    );
+    return upcomingEvent?.id || null;
   };
 
-  const handleUnselectAll = async () => {
-    if (!user || !nextEvent) return;
-
-    if (locked) {
-      toast.showError('Event has already started. Picks cannot be changed.');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      return;
-    }
-
-    if (activePickCount === 0) {
-      toast.showError('No picks to unselect.');
-      return;
-    }
-
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-      await deleteAllPicks.mutateAsync({
-        userId: user.id,
-        eventId: nextEvent.id,
-      });
-
-      toast.showSuccess(`Cleared ${activePickCount} pick${activePickCount > 1 ? 's' : ''}`);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error: any) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.showError('Failed to clear picks. Please try again.');
-    }
-  };
-
-  if (eventLoading || boutsLoading) {
+  if (isLoading) {
     return (
       <ScrollView
         style={[styles.container, { backgroundColor: colors.background }]}
         contentContainerStyle={styles.content}
       >
-        <SkeletonFightCard />
-        <SkeletonFightCard />
-        <SkeletonFightCard />
-        <SkeletonFightCard />
+        <Animated.View
+          style={{
+            opacity: headerFadeAnim,
+            transform: [{ translateY: headerTranslateAnim }],
+          }}
+        >
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Upcoming Events
+          </Text>
+        </Animated.View>
+        <View style={styles.eventsList}>
+          <SkeletonEventCard index={0} />
+          <SkeletonEventCard index={1} />
+          <SkeletonEventCard index={2} />
+        </View>
       </ScrollView>
     );
   }
 
-  if (eventError) {
+  if (isError) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <ErrorState
-          message="Failed to load upcoming events. Check your connection and try again."
-          onRetry={() => refetchEvent()}
+          message="Failed to load events. Check your connection and try again."
+          onRetry={refetch}
         />
       </View>
     );
   }
 
-  if (boutsError) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <ErrorState
-          message="Failed to load fights. Check your connection and try again."
-          onRetry={() => refetchBouts()}
-        />
-      </View>
-    );
-  }
-
-  if (!nextEvent) {
+  if (!events || events.length === 0) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <EmptyState
@@ -416,19 +233,7 @@ export default function Pick() {
     );
   }
 
-  if (!bouts || bouts.length === 0) {
-    return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <EmptyState
-          icon="radio-outline"
-          title="No Fights Available"
-          message="The fight card hasn't been released yet. Check back closer to the event date."
-          actionLabel="Refresh"
-          onAction={onRefresh}
-        />
-      </View>
-    );
-  }
+  const firstUpcomingId = getFirstUpcomingEventId();
 
   return (
     <ScrollView
@@ -443,123 +248,30 @@ export default function Pick() {
         />
       }
     >
-      {/* Event Header */}
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <Text style={[styles.eventName, { color: colors.textPrimary }]}>
-            {nextEvent.name}
-          </Text>
-          {/* Unselect All Button - only show when there are active picks and not locked */}
-          {!locked && activePickCount > 0 && (
-            <TouchableOpacity
-              style={[styles.unselectAllButton, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}
-              onPress={handleUnselectAll}
-              disabled={deleteAllPicks.isPending}
-            >
-              <Ionicons name="close-circle-outline" size={16} color={colors.textSecondary} />
-              <Text style={[styles.unselectAllText, { color: colors.textSecondary }]}>
-                Clear All
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        {locked && (
-          <View style={[styles.lockedBanner, { backgroundColor: colors.surfaceAlt }]}>
-            <Text style={[styles.lockedText, { color: colors.textSecondary }]}>
-              🔒 Picks Locked
-            </Text>
-          </View>
-        )}
-        {/* Pick count indicator */}
-        {!locked && bouts && bouts.length > 0 && (
-          <Text style={[styles.pickCount, { color: colors.textTertiary }]}>
-            {activePickCount} of {bouts.length} fights picked
-          </Text>
-        )}
-      </View>
+      <Animated.View
+        style={{
+          opacity: headerFadeAnim,
+          transform: [{ translateY: headerTranslateAnim }],
+        }}
+      >
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>
+          Upcoming Events
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          Tap an event to make your picks
+        </Text>
+      </Animated.View>
 
-      {/* Fights List */}
-      {bouts.map((bout, index) => (
-        <Card key={bout.id} style={styles.fightCard}>
-          {/* Order Index / Weight Class */}
-          <View style={styles.fightHeader}>
-            <Text style={[styles.fightOrder, { color: colors.accent }]}>
-              {index === 0 ? 'Main Event' : `Fight ${bouts.length - index}`}
-            </Text>
-            {bout.weight_class && (
-              <Text style={[styles.weightClass, { color: colors.textTertiary }]}>
-                {bout.weight_class}
-              </Text>
-            )}
-          </View>
-
-          {/* Voided/Canceled Banner */}
-          {(bout.status === 'canceled' || bout.status === 'replaced' || bout.pick?.status === 'voided') && (
-            <View style={[styles.canceledBanner, { backgroundColor: colors.dangerSoft }]}>
-              <Text style={[styles.canceledText, { color: colors.danger }]}>
-                ⚠️ Fight Canceled - Pick Voided
-              </Text>
-            </View>
-          )}
-
-          {/* Community Pick Percentages */}
-          <CommunityPercentageBar
-            percentages={communityPercentages?.get(bout.id)}
-            redName={bout.red_name}
-            blueName={bout.blue_name}
+      <View style={styles.eventsList}>
+        {events.map((event, index) => (
+          <EventCardWithCounts
+            key={event.id}
+            event={event}
+            isFirstUpcoming={event.id === firstUpcomingId}
+            index={index}
           />
-
-          {/* Fighters */}
-          <View style={styles.fighters}>
-            <FighterButton
-              bout={bout}
-              corner="red"
-              locked={locked}
-              onPress={() => handlePickFighter(bout, 'red')}
-            />
-
-            <Text style={[styles.vs, { color: colors.textTertiary }]}>VS</Text>
-
-            <FighterButton
-              bout={bout}
-              corner="blue"
-              locked={locked}
-              onPress={() => handlePickFighter(bout, 'blue')}
-            />
-          </View>
-
-          {/* Result (if available) */}
-          {bout.result?.winner_corner && (
-            <View style={[styles.resultContainer, { borderTopColor: colors.divider }]}>
-              <Text style={[styles.resultText, { color: colors.textPrimary }]}>
-                {bout.result.winner_corner === 'draw' || bout.result.winner_corner === 'nc'
-                  ? bout.result.winner_corner.toUpperCase()
-                  : `${bout.result.winner_corner === 'red' ? bout.red_name : bout.blue_name} wins`}
-              </Text>
-              {bout.result.method && (
-                <Text style={[styles.resultMethod, { color: colors.textSecondary }]}>
-                  via {bout.result.method}
-                  {bout.result.round && ` - R${bout.result.round}`}
-                </Text>
-              )}
-
-              {/* Pick Grade */}
-              {bout.pick?.status === 'graded' && (
-                <View
-                  style={[
-                    styles.gradeBadge,
-                    { backgroundColor: bout.pick.score === 1 ? colors.success : colors.danger },
-                  ]}
-                >
-                  <Text style={styles.gradeText}>
-                    {bout.pick.score === 1 ? 'Correct' : 'Missed'}
-                  </Text>
-                </View>
-              )}
-            </View>
-          )}
-        </Card>
-      ))}
+        ))}
+      </View>
     </ScrollView>
   );
 }
@@ -570,103 +282,17 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: spacing.lg,
-    gap: spacing.md,
+    paddingBottom: 100, // Account for floating tab bar
   },
-  header: {
-    marginBottom: spacing.sm,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-  },
-  eventName: {
+  sectionTitle: {
     ...typography.h2,
-    flex: 1,
-    marginBottom: spacing.sm,
-  },
-  unselectAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-  },
-  unselectAllText: {
-    ...typography.meta,
-    fontWeight: '600',
-  },
-  pickCount: {
-    ...typography.meta,
-    marginBottom: spacing.sm,
-  },
-  lockedBanner: {
-    borderRadius: radius.sm,
-    padding: spacing.md,
-    alignItems: 'center',
-  },
-  lockedText: {
-    ...typography.body,
-    fontWeight: '600',
-  },
-  fightCard: {
-    marginBottom: 0,
-  },
-  fightHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  fightOrder: {
-    ...typography.caption,
-  },
-  weightClass: {
-    ...typography.meta,
-  },
-  canceledBanner: {
-    borderRadius: radius.sm,
-    padding: spacing.sm,
-    marginBottom: spacing.md,
-    alignItems: 'center',
-  },
-  canceledText: {
-    ...typography.meta,
-    fontWeight: '600',
-  },
-  fighters: {
-    gap: spacing.sm,
-  },
-  vs: {
-    ...typography.caption,
-    textAlign: 'center',
-  },
-  resultContainer: {
-    marginTop: spacing.md,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-  },
-  resultText: {
-    ...typography.body,
-    fontWeight: '600',
     marginBottom: spacing.xs,
   },
-  resultMethod: {
-    ...typography.meta,
-    marginBottom: spacing.sm,
+  subtitle: {
+    ...typography.body,
+    marginBottom: spacing.lg,
   },
-  gradeBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.sm,
-  },
-  gradeText: {
-    ...typography.meta,
-    fontWeight: '700',
-    color: '#fff',
+  eventsList: {
+    gap: spacing.md,
   },
 });

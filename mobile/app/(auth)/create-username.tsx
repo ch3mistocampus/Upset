@@ -1,27 +1,52 @@
 /**
- * Create username screen
+ * Create username screen - theme-aware design
  */
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   Alert,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
+  Animated,
+  Easing,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../lib/theme';
+import { spacing, radius, typography } from '../../lib/tokens';
+import { SurfaceCard, PrimaryCTA } from '../../components/ui';
 
 export default function CreateUsername() {
+  const { colors } = useTheme();
   const { createProfile } = useAuth();
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Entrance animation
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const translateAnim = useRef(new Animated.Value(6)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateAnim, {
+        toValue: 0,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, translateAnim]);
 
   const handleCreateProfile = async () => {
     if (!username) {
@@ -57,37 +82,50 @@ export default function CreateUsername() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.content}>
-        <Text style={styles.title}>Choose a Username</Text>
-        <Text style={styles.subtitle}>
-          This will be your display name. 3-30 characters.
-        </Text>
-
-        <TextInput
-          style={styles.input}
-          placeholder="Username"
-          placeholderTextColor="#666"
-          value={username}
-          onChangeText={setUsername}
-          autoCapitalize="none"
-          maxLength={30}
-          editable={!loading}
-        />
-
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleCreateProfile}
-          disabled={loading}
+        <Animated.View
+          style={{
+            opacity: fadeAnim,
+            transform: [{ translateY: translateAnim }],
+          }}
         >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Continue</Text>
-          )}
-        </TouchableOpacity>
+          <SurfaceCard heroGlow>
+            <Text style={[styles.title, { color: colors.text }]}>
+              Choose a Username
+            </Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              This will be your display name. 3-30 characters.
+            </Text>
+
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.surfaceAlt,
+                  borderColor: colors.border,
+                  color: colors.text,
+                },
+              ]}
+              placeholder="Username"
+              placeholderTextColor={colors.textTertiary}
+              value={username}
+              onChangeText={setUsername}
+              autoCapitalize="none"
+              maxLength={30}
+              editable={!loading}
+            />
+
+            <PrimaryCTA
+              title="Continue"
+              onPress={handleCreateProfile}
+              loading={loading}
+              disabled={loading}
+            />
+          </SurfaceCard>
+        </Animated.View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -96,49 +134,27 @@ export default function CreateUsername() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   content: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.md,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
+    ...typography.h1,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#999',
+    ...typography.body,
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: spacing.xl,
   },
   input: {
-    backgroundColor: '#1a1a1a',
     borderWidth: 1,
-    borderColor: '#333',
-    borderRadius: 8,
-    padding: 16,
+    borderRadius: radius.input,
+    padding: spacing.md,
     fontSize: 16,
-    color: '#fff',
-    marginBottom: 16,
-  },
-  button: {
-    backgroundColor: '#d4202a',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    marginBottom: spacing.md,
   },
 });

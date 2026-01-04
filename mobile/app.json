@@ -7,12 +7,13 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "ufcpicks",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#F6F7F9"
     },
+    "jsEngine": "jsc",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ufcpicks.tracker",
@@ -35,7 +36,6 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "@sentry/react-native/expo",
       "expo-router"
     ],
     "extra": {

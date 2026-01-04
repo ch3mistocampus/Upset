@@ -1,5 +1,7 @@
 /**
  * Friends screen - friends list, friend requests, add friends
+ * Requires authentication - shows gate for guests
+ * Theme-aware design with SurfaceCard and entrance animations
  */
 
 import {
@@ -10,29 +12,109 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Animated,
+  Easing,
 } from 'react-native';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useFriends } from '../../hooks/useFriends';
 import { useToast } from '../../hooks/useToast';
 import { useTheme } from '../../lib/theme';
-import { spacing, radius } from '../../lib/tokens';
+import { useAuthGate } from '../../hooks/useAuthGate';
+import { spacing, radius, typography } from '../../lib/tokens';
 import { ErrorState } from '../../components/ErrorState';
-import { EmptyState } from '../../components/ui';
+import { EmptyState, SurfaceCard } from '../../components/ui';
 import { SkeletonCard } from '../../components/SkeletonCard';
+import { AuthPromptModal } from '../../components/AuthPromptModal';
 import type { Friend, FriendRequest } from '../../types/social';
 
 type TabType = 'friends' | 'requests';
+
+// Animated friend card wrapper
+function AnimatedFriendCard({ children, index }: { children: React.ReactNode; index: number }) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const translateAnim = useRef(new Animated.Value(8)).current;
+
+  useEffect(() => {
+    const delay = 60 + index * 60;
+    const timer = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 220,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateAnim, {
+          toValue: 0,
+          duration: 220,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [fadeAnim, translateAnim, index]);
+
+  return (
+    <Animated.View
+      style={{
+        opacity: fadeAnim,
+        transform: [{ translateY: translateAnim }],
+      }}
+    >
+      {children}
+    </Animated.View>
+  );
+}
 
 export default function Friends() {
   const router = useRouter();
   const toast = useToast();
   const { colors } = useTheme();
+  const { showGate, closeGate, openGate, isGuest, gateContext } = useAuthGate();
   const [activeTab, setActiveTab] = useState<TabType>('friends');
   const [refreshing, setRefreshing] = useState(false);
+  const [gateDismissed, setGateDismissed] = useState(false);
 
+  // Entrance animations
+  const headerFadeAnim = useRef(new Animated.Value(0)).current;
+  const tabIndicatorPosition = useRef(new Animated.Value(0)).current;
+  const fabScaleAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Header entrance
+    Animated.timing(headerFadeAnim, {
+      toValue: 1,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+
+    // FAB entrance with spring
+    setTimeout(() => {
+      Animated.spring(fabScaleAnim, {
+        toValue: 1,
+        tension: 300,
+        friction: 15,
+        useNativeDriver: true,
+      }).start();
+    }, 300);
+  }, [headerFadeAnim, fabScaleAnim]);
+
+  // Animate tab indicator
+  useEffect(() => {
+    Animated.spring(tabIndicatorPosition, {
+      toValue: activeTab === 'friends' ? 0 : 1,
+      tension: 300,
+      friction: 20,
+      useNativeDriver: true,
+    }).start();
+  }, [activeTab, tabIndicatorPosition]);
+
+  // All hooks must be called before any conditional returns
   const {
     friends,
     friendRequests,
@@ -47,6 +129,37 @@ export default function Friends() {
     declineFriendRequest,
     declineFriendRequestLoading,
   } = useFriends();
+
+  // Show gate immediately for guests
+  useEffect(() => {
+    if (isGuest && !gateDismissed) {
+      openGate('friends');
+    }
+  }, [isGuest, gateDismissed, openGate]);
+
+  const handleCloseGate = () => {
+    closeGate();
+    setGateDismissed(true);
+  };
+
+  const handleSignIn = () => {
+    router.push('/(auth)/sign-in');
+  };
+
+  // If guest and gate dismissed, show placeholder
+  if (isGuest && gateDismissed && !showGate) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <EmptyState
+          icon="people-outline"
+          title="Friends require an account"
+          message="Sign in to add friends and compare your picks."
+          actionLabel="Sign In"
+          onAction={handleSignIn}
+        />
+      </View>
+    );
+  }
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -79,7 +192,7 @@ export default function Friends() {
 
   const handleViewFriend = (friendUserId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push(`/friends/${friendUserId}`);
+    router.push(`/user/${friendUserId}`);
   };
 
   const handleAddFriend = () => {
@@ -99,100 +212,133 @@ export default function Friends() {
     );
   }
 
-  const renderFriendItem = (friend: Friend) => (
-    <TouchableOpacity
-      key={friend.friend_user_id}
-      style={[styles.friendCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-      onPress={() => handleViewFriend(friend.friend_user_id)}
-      activeOpacity={0.7}
-    >
-      <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
-        <Text style={styles.avatarText}>
-          {friend.username.charAt(0).toUpperCase()}
-        </Text>
-      </View>
+  const renderFriendItem = (friend: Friend, index: number) => (
+    <AnimatedFriendCard key={friend.friend_user_id} index={index}>
+      <TouchableOpacity
+        onPress={() => handleViewFriend(friend.friend_user_id)}
+        activeOpacity={0.9}
+      >
+        <SurfaceCard weakWash>
+          <View style={styles.friendCardRow}>
+            <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
+              <Text style={styles.avatarText}>
+                {friend.username.charAt(0).toUpperCase()}
+              </Text>
+            </View>
 
-      <View style={styles.friendInfo}>
-        <Text style={[styles.friendName, { color: colors.text }]}>{friend.username}</Text>
-        <Text style={[styles.friendStats, { color: colors.textSecondary }]}>
-          {friend.accuracy.toFixed(1)}% accuracy • {friend.total_picks} picks
-        </Text>
-      </View>
+            <View style={styles.friendInfo}>
+              <Text style={[styles.friendName, { color: colors.text }]}>{friend.username}</Text>
+              <Text style={[styles.friendStats, { color: colors.textSecondary }]}>
+                {friend.accuracy.toFixed(1)}% accuracy • {friend.total_picks} picks
+              </Text>
+            </View>
 
-      <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-    </TouchableOpacity>
+            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+          </View>
+        </SurfaceCard>
+      </TouchableOpacity>
+    </AnimatedFriendCard>
   );
 
-  const renderRequestItem = (request: FriendRequest) => (
-    <View key={request.request_id} style={[styles.requestCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
-        <Text style={styles.avatarText}>
-          {request.username.charAt(0).toUpperCase()}
-        </Text>
-      </View>
+  const renderRequestItem = (request: FriendRequest, index: number) => (
+    <AnimatedFriendCard key={request.request_id} index={index}>
+      <SurfaceCard weakWash>
+        <View style={styles.requestCardRow}>
+          <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
+            <Text style={styles.avatarText}>
+              {request.username.charAt(0).toUpperCase()}
+            </Text>
+          </View>
 
-      <View style={styles.requestInfo}>
-        <Text style={[styles.friendName, { color: colors.text }]}>{request.username}</Text>
-        <Text style={[styles.friendStats, { color: colors.textSecondary }]}>
-          {request.accuracy.toFixed(1)}% accuracy • {request.total_picks} picks
-        </Text>
-      </View>
+          <View style={styles.requestInfo}>
+            <Text style={[styles.friendName, { color: colors.text }]}>{request.username}</Text>
+            <Text style={[styles.friendStats, { color: colors.textSecondary }]}>
+              {request.accuracy.toFixed(1)}% accuracy • {request.total_picks} picks
+            </Text>
+          </View>
 
-      <View style={styles.requestActions}>
-        <TouchableOpacity
-          style={styles.acceptButton}
-          onPress={() => handleAcceptRequest(request.request_id)}
-          disabled={acceptFriendRequestLoading}
-        >
-          {acceptFriendRequestLoading ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Ionicons name="checkmark" size={20} color="#fff" />
-          )}
-        </TouchableOpacity>
+          <View style={styles.requestActions}>
+            <TouchableOpacity
+              style={[styles.acceptButton, { backgroundColor: colors.success }]}
+              onPress={() => handleAcceptRequest(request.request_id)}
+              disabled={acceptFriendRequestLoading}
+            >
+              {acceptFriendRequestLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="checkmark" size={20} color="#fff" />
+              )}
+            </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.declineButton, { backgroundColor: colors.textMuted }]}
-          onPress={() => handleDeclineRequest(request.request_id)}
-          disabled={declineFriendRequestLoading}
-        >
-          {declineFriendRequestLoading ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Ionicons name="close" size={20} color="#fff" />
-          )}
-        </TouchableOpacity>
-      </View>
-    </View>
+            <TouchableOpacity
+              style={[styles.declineButton, { backgroundColor: colors.surfaceAlt }]}
+              onPress={() => handleDeclineRequest(request.request_id)}
+              disabled={declineFriendRequestLoading}
+            >
+              {declineFriendRequestLoading ? (
+                <ActivityIndicator size="small" color={colors.textTertiary} />
+              ) : (
+                <Ionicons name="close" size={20} color={colors.textTertiary} />
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </SurfaceCard>
+    </AnimatedFriendCard>
   );
+
+  const handleTabPress = (tab: TabType) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setActiveTab(tab);
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Tabs */}
-      <View style={[styles.tabContainer, { backgroundColor: colors.surface, borderBottomColor: colors.divider }]}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'friends' && { borderBottomColor: colors.accent }]}
-          onPress={() => setActiveTab('friends')}
-        >
-          <Text style={[styles.tabText, { color: colors.textMuted }, activeTab === 'friends' && { color: colors.text }]}>
-            Friends ({friends.length})
-          </Text>
-        </TouchableOpacity>
+      <Animated.View style={[styles.tabContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border, opacity: headerFadeAnim }]}>
+        <View style={styles.tabsRow}>
+          <TouchableOpacity
+            style={styles.tab}
+            onPress={() => handleTabPress('friends')}
+          >
+            <Text style={[styles.tabText, { color: activeTab === 'friends' ? colors.text : colors.textTertiary }]}>
+              Friends ({friends.length})
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'requests' && { borderBottomColor: colors.accent }]}
-          onPress={() => setActiveTab('requests')}
-        >
-          <Text style={[styles.tabText, { color: colors.textMuted }, activeTab === 'requests' && { color: colors.text }]}>
-            Requests ({friendRequests.length})
-          </Text>
-          {friendRequests.length > 0 && (
-            <View style={[styles.badge, { backgroundColor: colors.accent }]}>
-              <Text style={styles.badgeText}>{friendRequests.length}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={styles.tab}
+            onPress={() => handleTabPress('requests')}
+          >
+            <Text style={[styles.tabText, { color: activeTab === 'requests' ? colors.text : colors.textTertiary }]}>
+              Requests
+            </Text>
+            {friendRequests.length > 0 && (
+              <View style={[styles.badge, { backgroundColor: colors.accent }]}>
+                <Text style={styles.badgeText}>{friendRequests.length}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Animated tab indicator */}
+        <Animated.View
+          style={[
+            styles.tabIndicator,
+            { backgroundColor: colors.accent },
+            {
+              transform: [
+                {
+                  translateX: tabIndicatorPosition.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, 180], // Approximate half-width
+                  }),
+                },
+              ],
+            },
+          ]}
+        />
+      </Animated.View>
 
       {/* Content */}
       <ScrollView
@@ -223,7 +369,7 @@ export default function Friends() {
               onAction={handleAddFriend}
             />
           ) : (
-            friends.map(renderFriendItem)
+            friends.map((friend, index) => renderFriendItem(friend, index))
           )
         ) : friendRequests.length === 0 ? (
           <EmptyState
@@ -232,18 +378,34 @@ export default function Friends() {
             message="When someone sends you a friend request, it will appear here."
           />
         ) : (
-          friendRequests.map(renderRequestItem)
+          friendRequests.map((request, index) => renderRequestItem(request, index))
         )}
       </ScrollView>
 
-      {/* FAB */}
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: colors.accent }]}
-        onPress={handleAddFriend}
-        activeOpacity={0.8}
+      {/* FAB with entrance animation */}
+      <Animated.View
+        style={[
+          styles.fab,
+          { backgroundColor: colors.accent },
+          { transform: [{ scale: fabScaleAnim }] },
+        ]}
       >
-        <Ionicons name="person-add" size={24} color="#fff" />
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.fabTouchable}
+          onPress={handleAddFriend}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="person-add" size={24} color="#fff" />
+        </TouchableOpacity>
+      </Animated.View>
+
+      {/* Auth Gate Modal */}
+      <AuthPromptModal
+        visible={showGate}
+        onClose={handleCloseGate}
+        onSignIn={handleSignIn}
+        context={gateContext || 'friends'}
+      />
     </View>
   );
 }
@@ -253,8 +415,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tabContainer: {
-    flexDirection: 'row',
     borderBottomWidth: 1,
+  },
+  tabsRow: {
+    flexDirection: 'row',
   },
   tab: {
     flex: 1,
@@ -262,18 +426,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.md,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    gap: spacing.xs,
   },
   tabText: {
-    fontSize: 15,
+    ...typography.body,
     fontWeight: '600',
   },
+  tabIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: '50%',
+    height: 2,
+    borderRadius: 1,
+  },
   badge: {
-    marginLeft: spacing.xs,
     borderRadius: 10,
     paddingHorizontal: spacing.xs,
     paddingVertical: 2,
+    minWidth: 20,
+    alignItems: 'center',
   },
   badgeText: {
     fontSize: 11,
@@ -286,22 +458,15 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.md,
     paddingBottom: 100,
+    gap: spacing.sm,
   },
-  friendCard: {
+  friendCardRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radius.card,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
   },
-  requestCard: {
+  requestCardRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radius.card,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
   },
   avatar: {
     width: 48,
@@ -313,7 +478,7 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#fff',
   },
   friendInfo: {
@@ -323,22 +488,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   friendName: {
-    fontSize: 16,
+    ...typography.body,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   friendStats: {
-    fontSize: 13,
+    ...typography.meta,
   },
   requestActions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.xs,
   },
   acceptButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#22c55e',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -352,7 +516,7 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 20,
-    bottom: 20,
+    bottom: 120,
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -360,8 +524,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+  },
+  fabTouchable: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

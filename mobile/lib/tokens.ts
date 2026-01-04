@@ -1,87 +1,111 @@
 // Design Tokens for UFC Picks Tracker
-// Light mode is the default brand experience
+// Premium "Muted Red Accent" design system
 
 export const colors = {
   light: {
-    // Backgrounds & Surfaces
-    background: '#F6F7F9',
+    // Canvas & Surfaces - neutral, no warmth
+    background: '#F5F6F8',
+    canvasBg: '#F5F6F8',
     surface: '#FFFFFF',
-    surfaceAlt: '#EEF0F3',
-    border: '#E2E5EA',
-    divider: '#E7EAF0',
+    surfaceAlt: '#F3F4F6',
+    border: '#E8EAED',
+    divider: 'rgba(18, 19, 24, 0.08)',
 
-    // Text
-    text: '#111318',
-    textPrimary: '#111318',
-    textSecondary: '#5E6470',
-    textTertiary: '#8A90A0',
-    textMuted: '#8A90A0',
+    // Text hierarchy - refined contrast
+    text: '#121318',
+    textPrimary: '#111215',
+    textSecondary: 'rgba(18, 19, 24, 0.58)',
+    textTertiary: 'rgba(18, 19, 24, 0.36)',
+    textMuted: 'rgba(18, 19, 24, 0.36)',
 
-    // UFC Red Accent
-    accent: '#B01E28',
-    accentHover: '#9A1A23',
+    // Premium Red Accent (muted, sophisticated)
+    accent: '#B0443F',
+    accentMuted: '#B0443F',
+    accentHover: '#9A3A36',
     accentSoft: '#F4D7DA',
     accentSoft2: '#FBEAEC',
     onAccent: '#FFFFFF',
+
+    // CTA gradient - rich maroon with clarity
+    ctaGradientTop: '#B54248',
+    ctaGradientBottom: '#943538',
+
+    // Card gradients
+    cardBaseTop: '#FFFFFF',
+    cardBaseBottom: '#F2F3F5',
+    cardWashA: 'rgba(176, 68, 63, 0.12)',
+    cardWashB: 'rgba(176, 68, 63, 0.00)',
 
     // Semantic
     success: '#1F7A3D',
     successSoft: '#E8F5ED',
     warning: '#C97B12',
     warningSoft: '#FEF3E2',
-    danger: '#B01E28',
+    danger: '#B0443F',
     dangerSoft: '#FBEAEC',
 
     // Tab Bar
     tabInactive: '#8A90A0',
-    tabActive: '#B01E28',
+    tabActive: '#B0443F',
 
     // Skeleton
-    skeleton: '#E2E5EA',
+    skeleton: '#E8EAED',
 
     // Shadow
     shadowColor: 'rgba(0, 0, 0, 0.08)',
   },
 
   dark: {
-    // Backgrounds & Surfaces
+    // Canvas & Surfaces
     background: '#0C0E12',
+    canvasBg: '#0C0E12',
     surface: '#12151B',
     surfaceAlt: '#1A1F27',
     border: '#242A35',
-    divider: '#1F2530',
+    divider: 'rgba(255, 255, 255, 0.08)',
 
-    // Text
+    // Text hierarchy
     text: '#F3F5F8',
     textPrimary: '#F3F5F8',
-    textSecondary: '#B6BCC8',
-    textTertiary: '#7F8796',
-    textMuted: '#7F8796',
+    textSecondary: 'rgba(243, 245, 248, 0.72)',
+    textTertiary: 'rgba(243, 245, 248, 0.48)',
+    textMuted: 'rgba(243, 245, 248, 0.48)',
 
-    // UFC Red Accent (slightly brighter for dark mode)
-    accent: '#E03A43',
-    accentHover: '#C8333B',
+    // Premium Red Accent (brighter for dark mode)
+    accent: '#E05A55',
+    accentMuted: '#E05A55',
+    accentHover: '#C8504B',
     accentSoft: '#3A1A1D',
     accentSoft2: '#251316',
     onAccent: '#FFFFFF',
+
+    // CTA gradient - rich maroon for dark mode
+    ctaGradientTop: '#C54A50',
+    ctaGradientBottom: '#A53D42',
+
+    // Card gradients
+    cardBaseTop: '#1A1F27',
+    cardBaseBottom: '#12151B',
+    cardWashA: 'rgba(224, 90, 85, 0.15)',
+    cardWashB: 'rgba(224, 90, 85, 0.00)',
 
     // Semantic
     success: '#34D399',
     successSoft: '#1A2F25',
     warning: '#FBBF24',
     warningSoft: '#2F2A1A',
-    danger: '#E03A43',
+    danger: '#E05A55',
     dangerSoft: '#3A1A1D',
 
     // Tab Bar
     tabInactive: '#7F8796',
-    tabActive: '#E03A43',
+    tabActive: '#E05A55',
 
     // Skeleton
     skeleton: '#242A35',
 
     // Shadow
-    shadowColor: 'rgba(0, 0, 0, 0.35)',
+    shadowColor: 'rgba(0, 0, 0, 0.45)',
   },
 } as const;
 
@@ -130,8 +154,8 @@ export const spacing = {
 } as const;
 
 export const radius = {
-  card: 18,
-  button: 14,
+  card: 22,
+  button: 18,
   pill: 999,
   input: 12,
   sm: 8,
@@ -140,33 +164,73 @@ export const radius = {
 export const shadows = {
   light: {
     card: {
+      // Pronounced shadow for floating card depth
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.08,
-      shadowRadius: 24,
-      elevation: 8,
+      shadowOffset: { width: 0, height: 16 },
+      shadowOpacity: 0.15,
+      shadowRadius: 32,
+      elevation: 12,
+    },
+    button: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.12,
+      shadowRadius: 14,
+      elevation: 5,
     },
   },
   dark: {
     card: {
+      // Deeper shadow for dark mode depth
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: 0.35,
-      shadowRadius: 26,
+      shadowOffset: { width: 0, height: 14 },
+      shadowOpacity: 0.40,
+      shadowRadius: 28,
       elevation: 10,
+    },
+    button: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.30,
+      shadowRadius: 16,
+      elevation: 6,
     },
   },
 } as const;
 
-// Fighter corner colors (for pick screens)
+// Fighter corner colors (for pick screens) - maroon red, navy blue
 export const fighterColors = {
   red: {
-    light: { bg: '#FBEAEC', border: '#E8B4B9', text: '#9A1A23' },
-    dark: { bg: '#3A1A1D', border: '#5A2A2D', text: '#F4D7DA' },
+    solid: { light: '#943538', dark: '#C54A50' },
+    light: { bg: '#FBEAEC', border: '#D4A5A8', text: '#943538' },
+    dark: { bg: '#3A1A1D', border: '#5A2A2D', text: '#E8C5C7' },
   },
   blue: {
-    light: { bg: '#E8F0FE', border: '#B4C9E8', text: '#1A4A9A' },
-    dark: { bg: '#1A1D3A', border: '#2A3D5A', text: '#B4C9E8' },
+    solid: { light: '#1E3A5F', dark: '#4A6FA5' },
+    light: { bg: '#E8EEF5', border: '#A8BDD4', text: '#1E3A5F' },
+    dark: { bg: '#1A1D2A', border: '#2A3D5A', text: '#B4C9E8' },
+  },
+} as const;
+
+// Gradient configuration for enhanced cards
+export const gradients = {
+  cardWash: {
+    light: { alpha: 0.18 }, // Increased from 0.10
+    dark: { alpha: 0.15 },
+  },
+  heroGlow: {
+    light: { outer: 0.08, inner: 0.22 },
+    dark: { outer: 0.06, inner: 0.18 },
+  },
+  glass: {
+    light: {
+      background: 'rgba(255, 255, 255, 0.7)',
+      border: 'rgba(255, 255, 255, 0.4)',
+    },
+    dark: {
+      background: 'rgba(30, 30, 30, 0.65)',
+      border: 'rgba(255, 255, 255, 0.08)',
+    },
   },
 } as const;
 

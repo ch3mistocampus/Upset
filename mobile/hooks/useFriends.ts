@@ -211,7 +211,7 @@ export function useFriends() {
     // Get user stats for each profile
     const { data: stats, error: statsError } = await supabase
       .from('user_stats')
-      .select('user_id, total_picks, correct_picks')
+      .select('user_id, total_picks, correct_winner')
       .in(
         'user_id',
         profiles.map((p) => p.user_id)
@@ -244,7 +244,7 @@ export function useFriends() {
       );
 
       const totalPicks = userStats?.total_picks || 0;
-      const correctPicks = userStats?.correct_picks || 0;
+      const correctPicks = userStats?.correct_winner || 0;
       const accuracy = totalPicks > 0 ? Math.round((correctPicks / totalPicks) * 100 * 10) / 10 : 0;
 
       return {

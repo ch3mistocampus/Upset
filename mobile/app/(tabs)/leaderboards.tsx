@@ -1,5 +1,7 @@
 /**
  * Leaderboards screen - global and friends rankings
+ * Requires authentication - shows gate for guests
+ * Theme-aware design with SurfaceCard and entrance animations
  */
 
 import {
@@ -9,26 +11,119 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  Animated,
+  Easing,
 } from 'react-native';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../hooks/useAuth';
+import { useAuthGate } from '../../hooks/useAuthGate';
 import { useLeaderboard } from '../../hooks/useLeaderboard';
 import { useTheme } from '../../lib/theme';
-import { spacing, radius } from '../../lib/tokens';
+import { spacing, radius, typography } from '../../lib/tokens';
 import { ErrorState } from '../../components/ErrorState';
-import { EmptyState } from '../../components/ui';
+import { EmptyState, SurfaceCard } from '../../components/ui';
 import { SkeletonCard } from '../../components/SkeletonCard';
+import { AuthPromptModal } from '../../components/AuthPromptModal';
 import type { LeaderboardEntry } from '../../types/social';
 
 type TabType = 'global' | 'friends';
 
+const MIN_GRADED_PICKS = 10;
+
+// Animated leaderboard entry wrapper
+function AnimatedLeaderboardItem({ children, index }: { children: React.ReactNode; index: number }) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const translateAnim = useRef(new Animated.Value(8)).current;
+
+  useEffect(() => {
+    const delay = 60 + index * 40; // Faster stagger for leaderboard
+    const timer = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 220,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateAnim, {
+          toValue: 0,
+          duration: 220,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [fadeAnim, translateAnim, index]);
+
+  return (
+    <Animated.View
+      style={{
+        opacity: fadeAnim,
+        transform: [{ translateY: translateAnim }],
+      }}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
 export default function Leaderboards() {
+  const router = useRouter();
   const { user } = useAuth();
   const { colors } = useTheme();
+  const { showGate, closeGate, openGate, isGuest, gateContext } = useAuthGate();
   const [activeTab, setActiveTab] = useState<TabType>('global');
   const [refreshing, setRefreshing] = useState(false);
+  const [gateDismissed, setGateDismissed] = useState(false);
 
+  // Entrance animations
+  const headerFadeAnim = useRef(new Animated.Value(0)).current;
+  const tabIndicatorPosition = useRef(new Animated.Value(0)).current;
+  const bannerFadeAnim = useRef(new Animated.Value(0)).current;
+  const bannerTranslateAnim = useRef(new Animated.Value(6)).current;
+
+  useEffect(() => {
+    // Header entrance
+    Animated.timing(headerFadeAnim, {
+      toValue: 1,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+
+    // Banner entrance
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(bannerFadeAnim, {
+          toValue: 1,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+        Animated.timing(bannerTranslateAnim, {
+          toValue: 0,
+          duration: 220,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, 100);
+  }, [headerFadeAnim, bannerFadeAnim, bannerTranslateAnim]);
+
+  // Animate tab indicator
+  useEffect(() => {
+    Animated.spring(tabIndicatorPosition, {
+      toValue: activeTab === 'global' ? 0 : 1,
+      tension: 300,
+      friction: 20,
+      useNativeDriver: true,
+    }).start();
+  }, [activeTab, tabIndicatorPosition]);
+
+  // All hooks must be called before any conditional returns
   const {
     globalLeaderboard,
     friendsLeaderboard,
@@ -39,6 +134,37 @@ export default function Leaderboards() {
     refetchGlobal,
     refetchFriends,
   } = useLeaderboard();
+
+  // Show gate immediately for guests
+  useEffect(() => {
+    if (isGuest && !gateDismissed) {
+      openGate('leaderboard');
+    }
+  }, [isGuest, gateDismissed, openGate]);
+
+  const handleCloseGate = () => {
+    closeGate();
+    setGateDismissed(true);
+  };
+
+  const handleSignIn = () => {
+    router.push('/(auth)/sign-in');
+  };
+
+  // If guest and gate dismissed, show placeholder
+  if (isGuest && gateDismissed && !showGate) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <EmptyState
+          icon="trophy-outline"
+          title="Leaderboards require an account"
+          message="Sign in to appear on the leaderboard and track your rankings."
+          actionLabel="Sign In"
+          onAction={handleSignIn}
+        />
+      </View>
+    );
+  }
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -112,31 +238,33 @@ export default function Leaderboards() {
     }
   };
 
+  const handleTabPress = (tab: TabType) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setActiveTab(tab);
+  };
+
+  const handleUserPress = (userId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push(`/user/${userId}`);
+  };
+
   const renderLeaderboardItem = (entry: LeaderboardEntry, index: number) => {
     const isMe = entry.user_id === user?.id;
     const rankIcon = getRankIcon(entry.rank);
-    const rankBorderColor = getRankBorderColor(entry.rank);
+    const isTopThree = entry.rank <= 3;
 
-    return (
-      <View
-        key={entry.user_id}
-        style={[
-          styles.leaderboardItem,
-          { backgroundColor: colors.surface, borderColor: colors.border },
-          isMe && { borderColor: colors.accent, borderWidth: 2 },
-          rankBorderColor && { borderColor: rankBorderColor, borderWidth: 2 },
-        ]}
-      >
+    const content = (
+      <View style={styles.leaderboardItemRow}>
         <View style={styles.rankContainer}>
           {rankIcon ? (
             <Text style={styles.rankIcon}>{rankIcon}</Text>
           ) : (
-            <Text style={[styles.rankNumber, { color: colors.textMuted }]}>{entry.rank}</Text>
+            <Text style={[styles.rankNumber, { color: colors.textTertiary }]}>{entry.rank}</Text>
           )}
         </View>
 
-        <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
-          <Text style={styles.avatarText}>
+        <View style={[styles.avatar, { backgroundColor: isMe ? colors.accent : colors.surfaceAlt }]}>
+          <Text style={[styles.avatarText, { color: isMe ? '#fff' : colors.text }]}>
             {entry.username.charAt(0).toUpperCase()}
           </Text>
         </View>
@@ -156,56 +284,114 @@ export default function Leaderboards() {
         </View>
 
         <View style={styles.accuracyContainer}>
-          <Text style={styles.accuracy}>{entry.accuracy.toFixed(1)}%</Text>
+          <Text style={[styles.accuracy, { color: colors.success }]}>{entry.accuracy.toFixed(1)}%</Text>
+          {!isMe && (
+            <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} style={styles.chevron} />
+          )}
         </View>
       </View>
+    );
+
+    return (
+      <AnimatedLeaderboardItem key={entry.user_id} index={index}>
+        <SurfaceCard
+          weakWash
+          animatedBorder={isMe}
+          style={isTopThree ? { borderWidth: 2, borderColor: getRankBorderColor(entry.rank) || colors.border, borderRadius: radius.card } : undefined}
+        >
+          {isMe ? (
+            content
+          ) : (
+            <TouchableOpacity onPress={() => handleUserPress(entry.user_id)} activeOpacity={0.7}>
+              {content}
+            </TouchableOpacity>
+          )}
+        </SurfaceCard>
+      </AnimatedLeaderboardItem>
     );
   };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Tabs */}
-      <View style={[styles.tabContainer, { backgroundColor: colors.surface, borderBottomColor: colors.divider }]}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'global' && { borderBottomColor: colors.accent }]}
-          onPress={() => setActiveTab('global')}
-        >
-          <Ionicons
-            name="globe-outline"
-            size={18}
-            color={activeTab === 'global' ? colors.text : colors.textMuted}
-            style={styles.tabIcon}
-          />
-          <Text style={[styles.tabText, { color: colors.textMuted }, activeTab === 'global' && { color: colors.text }]}>
-            Global
-          </Text>
-        </TouchableOpacity>
+      <Animated.View style={[styles.tabContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border, opacity: headerFadeAnim }]}>
+        <View style={styles.tabsRow}>
+          <TouchableOpacity
+            style={styles.tab}
+            onPress={() => handleTabPress('global')}
+          >
+            <Ionicons
+              name="globe-outline"
+              size={18}
+              color={activeTab === 'global' ? colors.text : colors.textTertiary}
+            />
+            <Text style={[styles.tabText, { color: activeTab === 'global' ? colors.text : colors.textTertiary }]}>
+              Global
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'friends' && { borderBottomColor: colors.accent }]}
-          onPress={() => setActiveTab('friends')}
-        >
-          <Ionicons
-            name="people-outline"
-            size={18}
-            color={activeTab === 'friends' ? colors.text : colors.textMuted}
-            style={styles.tabIcon}
-          />
-          <Text style={[styles.tabText, { color: colors.textMuted }, activeTab === 'friends' && { color: colors.text }]}>
-            Friends
-          </Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={styles.tab}
+            onPress={() => handleTabPress('friends')}
+          >
+            <Ionicons
+              name="people-outline"
+              size={18}
+              color={activeTab === 'friends' ? colors.text : colors.textTertiary}
+            />
+            <Text style={[styles.tabText, { color: activeTab === 'friends' ? colors.text : colors.textTertiary }]}>
+              Friends
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Animated tab indicator */}
+        <Animated.View
+          style={[
+            styles.tabIndicator,
+            { backgroundColor: colors.accent },
+            {
+              transform: [
+                {
+                  translateX: tabIndicatorPosition.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, 180],
+                  }),
+                },
+              ],
+            },
+          ]}
+        />
+      </Animated.View>
 
       {/* My Rank Banner */}
       {myRank && !isLoading && (
-        <View style={[styles.myRankBanner, { backgroundColor: colors.surface, borderBottomColor: colors.divider }]}>
-          <Ionicons name="trophy-outline" size={20} color={colors.accent} />
-          <Text style={[styles.myRankText, { color: colors.text }]}>
-            Your Rank: <Text style={[styles.myRankNumber, { color: colors.accent }]}>#{myRank.rank}</Text>
-          </Text>
-          <Text style={[styles.myRankAccuracy, { color: colors.textSecondary }]}>{myRank.accuracy.toFixed(1)}%</Text>
-        </View>
+        <Animated.View
+          style={{
+            opacity: bannerFadeAnim,
+            transform: [{ translateY: bannerTranslateAnim }],
+            paddingHorizontal: spacing.md,
+            paddingTop: spacing.md,
+          }}
+        >
+          <SurfaceCard heroGlow animatedBorder>
+            <View style={styles.myRankBannerRow}>
+              <View style={styles.myRankLeft}>
+                <View style={[styles.trophyBadge, { backgroundColor: colors.accent }]}>
+                  <Ionicons name="trophy" size={18} color="#fff" />
+                </View>
+                <View>
+                  <Text style={[styles.myRankLabel, { color: colors.textSecondary }]}>Your Rank</Text>
+                  <Text style={[styles.myRankNumber, { color: colors.text }]}>#{myRank.rank}</Text>
+                </View>
+              </View>
+              <View style={styles.myRankRight}>
+                <Text style={[styles.myRankAccuracyLabel, { color: colors.textSecondary }]}>Accuracy</Text>
+                <Text style={[styles.myRankAccuracy, { color: colors.success }]}>{myRank.accuracy.toFixed(1)}%</Text>
+              </View>
+            </View>
+          </SurfaceCard>
+        </Animated.View>
       )}
 
       {/* Content */}
@@ -240,9 +426,47 @@ export default function Leaderboards() {
             }
           />
         ) : (
-          leaderboard.map(renderLeaderboardItem)
+          <>
+            {leaderboard.map((entry, index) => renderLeaderboardItem(entry, index))}
+
+            {/* Threshold Notice */}
+            <AnimatedLeaderboardItem index={leaderboard.length}>
+              <SurfaceCard weakWash>
+                <View style={styles.thresholdNoticeRow}>
+                  <Ionicons name="information-circle-outline" size={16} color={colors.textTertiary} />
+                  <Text style={[styles.thresholdText, { color: colors.textTertiary }]}>
+                    Rankings require {MIN_GRADED_PICKS} graded picks
+                  </Text>
+                </View>
+              </SurfaceCard>
+            </AnimatedLeaderboardItem>
+
+            {/* User-specific threshold message */}
+            {myRank && myRank.total_picks < MIN_GRADED_PICKS && (
+              <AnimatedLeaderboardItem index={leaderboard.length + 1}>
+                <SurfaceCard weakWash animatedBorder>
+                  <View style={styles.userThresholdNoticeRow}>
+                    <Ionicons name="trending-up-outline" size={18} color={colors.accent} />
+                    <Text style={[styles.userThresholdText, { color: colors.textSecondary }]}>
+                      Need <Text style={{ color: colors.accent, fontWeight: '600' }}>
+                        {MIN_GRADED_PICKS - myRank.total_picks} more
+                      </Text> graded picks to rank
+                    </Text>
+                  </View>
+                </SurfaceCard>
+              </AnimatedLeaderboardItem>
+            )}
+          </>
         )}
       </ScrollView>
+
+      {/* Auth Gate Modal */}
+      <AuthPromptModal
+        visible={showGate}
+        onClose={handleCloseGate}
+        onSignIn={handleSignIn}
+        context={gateContext || 'leaderboard'}
+      />
     </View>
   );
 }
@@ -252,8 +476,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tabContainer: {
-    flexDirection: 'row',
     borderBottomWidth: 1,
+  },
+  tabsRow: {
+    flexDirection: 'row',
   },
   tab: {
     flex: 1,
@@ -261,48 +487,65 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.md,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    gap: spacing.xs,
   },
-  tabIcon: {
-    marginRight: spacing.xs,
+  tabIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: '50%',
+    height: 2,
+    borderRadius: 1,
   },
   tabText: {
-    fontSize: 15,
+    ...typography.body,
     fontWeight: '600',
   },
-  myRankBanner: {
+  myRankBannerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderBottomWidth: 1,
-    gap: 8,
+    justifyContent: 'space-between',
   },
-  myRankText: {
-    fontSize: 15,
+  myRankLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  trophyBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  myRankLabel: {
+    ...typography.meta,
   },
   myRankNumber: {
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  myRankRight: {
+    alignItems: 'flex-end',
+  },
+  myRankAccuracyLabel: {
+    ...typography.meta,
   },
   myRankAccuracy: {
-    fontSize: 14,
-    marginLeft: 'auto',
+    fontSize: 20,
+    fontWeight: '700',
   },
   scrollView: {
     flex: 1,
   },
   content: {
     padding: spacing.md,
+    paddingBottom: 100,
+    gap: spacing.sm,
   },
-  leaderboardItem: {
+  leaderboardItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radius.card,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
   },
   rankContainer: {
     width: 36,
@@ -313,7 +556,7 @@ const styles = StyleSheet.create({
   },
   rankNumber: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   avatar: {
     width: 40,
@@ -325,8 +568,7 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: '700',
   },
   userInfo: {
     flex: 1,
@@ -334,10 +576,10 @@ const styles = StyleSheet.create({
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.xs,
   },
   username: {
-    fontSize: 15,
+    ...typography.body,
     fontWeight: '600',
   },
   youBadge: {
@@ -347,19 +589,40 @@ const styles = StyleSheet.create({
   },
   youBadgeText: {
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#fff',
   },
   picks: {
-    fontSize: 13,
+    ...typography.meta,
     marginTop: 2,
   },
   accuracyContainer: {
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   accuracy: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#22c55e',
+    fontWeight: '700',
+  },
+  chevron: {
+    marginLeft: spacing.xs,
+  },
+  thresholdNoticeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  thresholdText: {
+    ...typography.meta,
+  },
+  userThresholdNoticeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  userThresholdText: {
+    ...typography.body,
   },
 });
