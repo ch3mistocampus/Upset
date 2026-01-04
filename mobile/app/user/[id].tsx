@@ -33,6 +33,7 @@ import type { FriendshipStatus } from '../../types/social';
 
 interface UserProfile {
   username: string;
+  bio: string | null;
   total_picks: number;
   correct_picks: number;
   accuracy: number;
@@ -119,7 +120,7 @@ export default function UserProfile() {
       // Fetch user's profile and stats
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('username')
+        .select('username, bio')
         .eq('user_id', id)
         .single();
 
@@ -137,6 +138,7 @@ export default function UserProfile() {
 
       setProfile({
         username: profileData.username,
+        bio: profileData.bio,
         total_picks: totalPicks,
         correct_picks: correctPicks,
         accuracy,
@@ -455,6 +457,10 @@ export default function UserProfile() {
           </View>
           <Text style={[styles.username, { color: colors.text }]}>@{profile.username}</Text>
 
+          {profile.bio && (
+            <Text style={[styles.bio, { color: colors.textSecondary }]}>{profile.bio}</Text>
+          )}
+
           {/* Professional Stats Row */}
           <View style={styles.profileStatsRow}>
             <View style={styles.profileStatItem}>
@@ -707,7 +713,14 @@ const styles = StyleSheet.create({
   username: {
     fontSize: 17,
     fontWeight: '700',
+    marginBottom: spacing.xs,
+  },
+  bio: {
+    fontSize: 14,
+    textAlign: 'center',
+    paddingHorizontal: spacing.lg,
     marginBottom: spacing.sm,
+    lineHeight: 20,
   },
   // Professional stats row
   profileStatsRow: {
