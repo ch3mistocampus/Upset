@@ -511,19 +511,37 @@ export default function EventDetail() {
           />
         }
       >
-        {/* Submitted Banner */}
+        {/* Submitted Banner - Red glow style */}
         {isSubmitted && !locked && (
-          <View style={[styles.submittedBanner, { backgroundColor: colors.successSoft, borderColor: colors.success }]}>
-            <Ionicons name="checkmark-circle" size={18} color={colors.success} />
-            <Text style={[styles.submittedBannerText, { color: colors.success }]}>
-              Card Submitted
-            </Text>
-            <Text style={[styles.submittedBannerSubtext, { color: colors.textSecondary }]}>
-              {picksCount} picks
-            </Text>
-            <TouchableOpacity onPress={handleEditPicks} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={[styles.editLinkText, { color: colors.accent }]}>Edit</Text>
-            </TouchableOpacity>
+          <View style={styles.submittedBannerOuter}>
+            <View style={[styles.submittedBanner, { backgroundColor: colors.accent }]}>
+              {/* Left side - Checkmark and text */}
+              <View style={styles.submittedLeft}>
+                <View style={styles.submittedCheckCircle}>
+                  <Ionicons name="checkmark" size={18} color={colors.accent} />
+                </View>
+                <View style={styles.submittedTextContainer}>
+                  <Text style={styles.submittedTitle}>Submitted</Text>
+                  <Text style={styles.submittedSubtitle}>Picks Submitted!</Text>
+                </View>
+              </View>
+
+              {/* Right side - Picks count and Edit */}
+              <View style={styles.submittedRight}>
+                <View style={styles.submittedPicksBadge}>
+                  <Ionicons name="trophy" size={16} color="#FFD700" />
+                  <Text style={styles.submittedPicksText}>{picksCount} picks</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.submittedEditButton}
+                  onPress={handleEditPicks}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="pencil" size={14} color="#fff" />
+                  <Text style={styles.submittedEditText}>Edit</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         )}
 
@@ -962,27 +980,84 @@ const styles = StyleSheet.create({
   dateText: {
     ...typography.body,
   },
+  // Submitted Banner - Red glow style
+  submittedBannerOuter: {
+    marginBottom: spacing.md,
+    // Red glow effect
+    shadowColor: '#C54A50',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 10,
+  },
   submittedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    borderRadius: radius.sm,
+    justifyContent: 'space-between',
+    borderRadius: radius.card,
     padding: spacing.md,
-    marginBottom: spacing.sm,
     borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
   },
-  submittedBannerText: {
-    fontSize: 14,
+  submittedLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  submittedCheckCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submittedTextContainer: {
+    gap: 1,
+  },
+  submittedTitle: {
+    fontSize: 16,
     fontWeight: '700',
+    color: '#fff',
   },
-  submittedBannerSubtext: {
+  submittedSubtitle: {
     fontSize: 12,
-    marginLeft: 'auto',
+    color: 'rgba(255,255,255,0.8)',
   },
-  editLinkText: {
-    fontSize: 13,
+  submittedRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  submittedPicksBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255,200,100,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.15)',
+  },
+  submittedPicksText: {
+    fontSize: 14,
     fontWeight: '600',
-    marginLeft: spacing.sm,
+    color: '#FFD700',
+  },
+  submittedEditButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  submittedEditText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
   lockedBanner: {
     flexDirection: 'row',

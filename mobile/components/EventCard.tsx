@@ -114,13 +114,13 @@ export function EventCard({ event, picksCount, totalBouts, isFirstUpcoming, isSu
     return null;
   };
 
-  // Static glow style for submitted cards
+  // Red glow style for submitted cards - more pronounced
   const submittedGlowStyle = showGlow ? {
-    shadowColor: colors.success,
+    shadowColor: '#C54A50',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 14,
-    elevation: 8,
+    shadowOpacity: 0.7,
+    shadowRadius: 18,
+    elevation: 12,
   } : {};
 
   return (
@@ -189,9 +189,9 @@ export function EventCard({ event, picksCount, totalBouts, isFirstUpcoming, isSu
             </View>
 
             {isSubmitted && !isLocked ? (
-              <View style={[styles.submittedBadge, { backgroundColor: colors.successSoft }]}>
-                <Ionicons name="checkmark-circle" size={14} color={colors.success} />
-                <Text style={[styles.submittedText, { color: colors.success }]}>Submitted</Text>
+              <View style={[styles.submittedBadge, { backgroundColor: colors.accent + '20' }]}>
+                <Ionicons name="checkmark-circle" size={14} color={colors.accent} />
+                <Text style={[styles.submittedText, { color: colors.accent }]}>Submitted</Text>
               </View>
             ) : totalBouts > 0 && picksCount === totalBouts && !isLocked ? (
               <View style={[styles.completeBadge, { backgroundColor: colors.successSoft }]}>

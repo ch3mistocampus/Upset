@@ -515,7 +515,7 @@ export default function Profile() {
     // Badge logic for upcoming events
     const getBadgeContent = () => {
       if (isSubmitted) {
-        return { text: 'Submitted', color: colors.success, bgColor: colors.successSoft };
+        return { text: 'Submitted', color: colors.accent, bgColor: colors.accent + '20' };
       }
       if (picksCount === totalBouts && totalBouts > 0) {
         return { text: 'Complete', color: colors.success, bgColor: colors.successSoft };
@@ -526,13 +526,13 @@ export default function Profile() {
       return null;
     };
 
-    // Glow style for submitted cards
+    // Red glow style for submitted cards - more pronounced
     const submittedGlow = isSubmitted ? {
-      shadowColor: colors.success,
+      shadowColor: '#C54A50',
       shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.3,
-      shadowRadius: 12,
-      elevation: 6,
+      shadowOpacity: 0.6,
+      shadowRadius: 16,
+      elevation: 10,
     } : {};
 
     return (
