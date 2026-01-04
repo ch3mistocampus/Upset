@@ -466,67 +466,82 @@ export default function UserProfile() {
           <View style={styles.placeholder} />
         </View>
 
-        {/* Profile Summary - Redesigned */}
+        {/* Profile Summary - Centered card style */}
         <View style={[styles.profileSummary, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-          {/* Top row: Avatar + Info + Action */}
-          <View style={styles.profileTopRow}>
-            <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
-              <Text style={styles.avatarText}>
-                {profile.username.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-
-            <View style={styles.profileInfo}>
-              <Text style={[styles.username, { color: colors.text }]}>@{profile.username}</Text>
-              {profile.bio && (
-                <Text style={[styles.bio, { color: colors.textSecondary }]} numberOfLines={2}>
-                  {profile.bio}
-                </Text>
-              )}
-            </View>
-
-            <View style={styles.actionContainer}>
-              {renderFollowAction()}
-            </View>
+          {/* Large centered avatar */}
+          <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
+            <Text style={styles.avatarText}>
+              {profile.username.charAt(0).toUpperCase()}
+            </Text>
           </View>
 
-          {/* Stats Row - Compact horizontal layout */}
-          <View style={styles.profileStatsRow}>
-            <TouchableOpacity style={styles.profileStatItem} activeOpacity={0.7}>
-              <Text style={[styles.profileStatValue, { color: colors.accent }]}>
-                {profile.accuracy.toFixed(0)}%
-              </Text>
-              <Text style={[styles.profileStatLabel, { color: colors.textTertiary }]}>
-                Accuracy
-              </Text>
-            </TouchableOpacity>
+          {/* Username */}
+          <Text style={[styles.username, { color: colors.text }]}>@{profile.username}</Text>
 
-            <TouchableOpacity style={styles.profileStatItem} activeOpacity={0.7}>
-              <Text style={[styles.profileStatValue, { color: colors.text }]}>
-                {profile.total_picks}
-              </Text>
-              <Text style={[styles.profileStatLabel, { color: colors.textTertiary }]}>
-                Picks
-              </Text>
-            </TouchableOpacity>
+          {/* Bio */}
+          {profile.bio && (
+            <Text style={[styles.bio, { color: colors.textSecondary }]}>
+              {profile.bio}
+            </Text>
+          )}
 
-            <TouchableOpacity style={styles.profileStatItem} activeOpacity={0.7}>
-              <Text style={[styles.profileStatValue, { color: colors.text }]}>
-                {profile.following_count}
-              </Text>
-              <Text style={[styles.profileStatLabel, { color: colors.textTertiary }]}>
-                Following
-              </Text>
-            </TouchableOpacity>
+          {/* Decorative divider */}
+          <View style={[styles.dividerLine, { backgroundColor: colors.text }]} />
 
-            <TouchableOpacity style={styles.profileStatItem} activeOpacity={0.7}>
-              <Text style={[styles.profileStatValue, { color: colors.text }]}>
-                {profile.followers_count}
+          {/* Follower stats - two columns */}
+          <View style={styles.socialStatsRow}>
+            <TouchableOpacity style={styles.socialStatItem} activeOpacity={0.7}>
+              <Text style={[styles.socialStatValue, { color: colors.text }]}>
+                {profile.followers_count.toLocaleString()}
               </Text>
-              <Text style={[styles.profileStatLabel, { color: colors.textTertiary }]}>
+              <Text style={[styles.socialStatLabel, { color: colors.textSecondary }]}>
                 Followers
               </Text>
             </TouchableOpacity>
+
+            <TouchableOpacity style={styles.socialStatItem} activeOpacity={0.7}>
+              <Text style={[styles.socialStatValue, { color: colors.text }]}>
+                {profile.following_count.toLocaleString()}
+              </Text>
+              <Text style={[styles.socialStatLabel, { color: colors.textSecondary }]}>
+                Following
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Performance stats row */}
+          <View style={styles.perfStatsRow}>
+            <View style={styles.perfStatItem}>
+              <Text style={[styles.perfStatValue, { color: colors.accent }]}>
+                {profile.accuracy.toFixed(1)}%
+              </Text>
+              <Text style={[styles.perfStatLabel, { color: colors.textTertiary }]}>
+                Accuracy
+              </Text>
+            </View>
+            <View style={[styles.perfStatDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.perfStatItem}>
+              <Text style={[styles.perfStatValue, { color: colors.text }]}>
+                {profile.total_picks}
+              </Text>
+              <Text style={[styles.perfStatLabel, { color: colors.textTertiary }]}>
+                Picks
+              </Text>
+            </View>
+            <View style={[styles.perfStatDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.perfStatItem}>
+              <Text style={[styles.perfStatValue, { color: colors.success }]}>
+                {profile.correct_picks}
+              </Text>
+              <Text style={[styles.perfStatLabel, { color: colors.textTertiary }]}>
+                Correct
+              </Text>
+            </View>
+          </View>
+
+          {/* Follow action */}
+          <View style={styles.actionContainer}>
+            {renderFollowAction()}
           </View>
         </View>
 
@@ -727,68 +742,93 @@ const styles = StyleSheet.create({
     width: 32,
   },
   profileSummary: {
-    paddingVertical: spacing.md,
+    alignItems: 'center',
+    paddingVertical: spacing.lg,
     paddingHorizontal: spacing.md,
     borderBottomWidth: 1,
   },
-  profileTopRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: spacing.md,
-  },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 80,
+    height: 80,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: spacing.md,
   },
   avatarText: {
-    fontSize: 20,
+    fontSize: 32,
     fontWeight: '700',
     color: '#fff',
   },
-  profileInfo: {
-    flex: 1,
-    marginLeft: spacing.sm,
-    marginRight: spacing.sm,
-    justifyContent: 'center',
-  },
   username: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '700',
+    marginBottom: spacing.xs,
   },
   bio: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 2,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
   },
-  actionContainer: {
-    justifyContent: 'center',
+  dividerLine: {
+    width: 40,
+    height: 3,
+    borderRadius: 2,
+    marginVertical: spacing.md,
+    opacity: 0.15,
   },
-  // Stats row - 4 items evenly spaced
-  profileStatsRow: {
+  // Social stats - followers/following
+  socialStatsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(128, 128, 128, 0.1)',
+    justifyContent: 'center',
+    gap: spacing.xxl,
+    marginBottom: spacing.md,
   },
-  profileStatItem: {
+  socialStatItem: {
     alignItems: 'center',
-    flex: 1,
+    minWidth: 80,
   },
-  profileStatValue: {
-    fontSize: 16,
+  socialStatValue: {
+    fontSize: 24,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
-  profileStatLabel: {
+  socialStatLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  // Performance stats - smaller row
+  perfStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  perfStatItem: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  perfStatValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  perfStatLabel: {
     fontSize: 10,
     fontWeight: '500',
     textTransform: 'uppercase',
     letterSpacing: 0.3,
     marginTop: 2,
+  },
+  perfStatDivider: {
+    width: 1,
+    height: 24,
+  },
+  actionContainer: {
+    marginTop: spacing.xs,
   },
   pendingBadge: {
     flexDirection: 'row',
