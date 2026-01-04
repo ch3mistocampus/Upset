@@ -488,28 +488,7 @@ export default function UserProfile() {
           {/* Decorative divider */}
           <View style={[styles.dividerLine, { backgroundColor: colors.text }]} />
 
-          {/* Follower stats - two columns */}
-          <View style={styles.socialStatsRow}>
-            <TouchableOpacity style={styles.socialStatItem} activeOpacity={0.7}>
-              <Text style={[styles.socialStatValue, { color: colors.text }]}>
-                {profile.followers_count.toLocaleString()}
-              </Text>
-              <Text style={[styles.socialStatLabel, { color: colors.textSecondary }]}>
-                Followers
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.socialStatItem} activeOpacity={0.7}>
-              <Text style={[styles.socialStatValue, { color: colors.text }]}>
-                {profile.following_count.toLocaleString()}
-              </Text>
-              <Text style={[styles.socialStatLabel, { color: colors.textSecondary }]}>
-                Following
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Performance stats row */}
+          {/* Performance stats - emphasized */}
           <View style={styles.perfStatsRow}>
             <View style={styles.perfStatItem}>
               <Text style={[styles.perfStatValue, { color: colors.accent }]}>
@@ -537,6 +516,27 @@ export default function UserProfile() {
                 Correct
               </Text>
             </View>
+          </View>
+
+          {/* Follower stats - secondary */}
+          <View style={styles.socialStatsRow}>
+            <TouchableOpacity style={styles.socialStatItem} activeOpacity={0.7}>
+              <Text style={[styles.socialStatValue, { color: colors.textSecondary }]}>
+                {profile.followers_count.toLocaleString()}
+              </Text>
+              <Text style={[styles.socialStatLabel, { color: colors.textTertiary }]}>
+                Followers
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.socialStatItem} activeOpacity={0.7}>
+              <Text style={[styles.socialStatValue, { color: colors.textSecondary }]}>
+                {profile.following_count.toLocaleString()}
+              </Text>
+              <Text style={[styles.socialStatLabel, { color: colors.textTertiary }]}>
+                Following
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Follow action */}
@@ -778,28 +778,27 @@ const styles = StyleSheet.create({
     marginVertical: spacing.sm,
     opacity: 0.12,
   },
-  // Social stats - followers/following
+  // Social stats - followers/following (smaller, secondary)
   socialStatsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: spacing.xxl,
+    gap: spacing.lg,
     marginBottom: spacing.sm,
   },
   socialStatItem: {
     alignItems: 'center',
-    minWidth: 70,
   },
   socialStatValue: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   socialStatLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '500',
     marginTop: 1,
   },
-  // Performance stats - smaller row
+  // Performance stats - emphasized
   perfStatsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -808,23 +807,23 @@ const styles = StyleSheet.create({
   },
   perfStatItem: {
     alignItems: 'center',
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
   perfStatValue: {
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
   perfStatLabel: {
-    fontSize: 9,
-    fontWeight: '500',
+    fontSize: 10,
+    fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.3,
-    marginTop: 1,
+    marginTop: 2,
   },
   perfStatDivider: {
     width: 1,
-    height: 20,
+    height: 26,
   },
   actionContainer: {
     marginTop: 2,
