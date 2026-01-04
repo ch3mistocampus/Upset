@@ -97,6 +97,7 @@ export interface Profile {
   username: string;
   bio: string | null;
   avatar_url: string | null;
+  banner_url: string | null;
   created_at: string;
 }
 
@@ -105,6 +106,7 @@ export interface ProfileInsert {
   username: string;
   bio?: string | null;
   avatar_url?: string | null;
+  banner_url?: string | null;
   created_at?: string;
 }
 
@@ -112,6 +114,7 @@ export interface ProfileUpdate {
   username?: string;
   bio?: string | null;
   avatar_url?: string | null;
+  banner_url?: string | null;
 }
 
 // Event

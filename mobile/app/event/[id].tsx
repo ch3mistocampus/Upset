@@ -254,6 +254,34 @@ export default function EventDetail() {
     }
   };
 
+  // Clear all picks for this event
+  const handleClearAllPicks = async () => {
+    if (!event || locked || !bouts) return;
+
+    const boutsWithPicks = bouts.filter((b) => b.pick);
+    if (boutsWithPicks.length === 0) return;
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      // Delete all picks in parallel
+      await Promise.all(
+        boutsWithPicks.map((bout) =>
+          deletePick.mutateAsync({
+            boutId: bout.id,
+            eventId: event.id,
+            userId: user?.id || null,
+            isGuest,
+          })
+        )
+      );
+      toast.showNeutral('All picks cleared');
+    } catch (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      toast.showError('Failed to clear picks');
+    }
+  };
+
   // Custom header with back button and sticky progress
   const Header = () => (
     <View style={[styles.headerContainer, { backgroundColor: colors.surface }]}>
@@ -295,6 +323,17 @@ export default function EventDetail() {
             </Text>
             {picksCount === totalBouts && totalBouts > 0 && (
               <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+            )}
+            {picksCount > 0 && (
+              <TouchableOpacity
+                style={styles.clearAllButton}
+                onPress={handleClearAllPicks}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={[styles.clearAllText, { color: colors.textTertiary }]}>
+                  Clear All
+                </Text>
+              </TouchableOpacity>
             )}
           </>
         )}
@@ -407,6 +446,28 @@ export default function EventDetail() {
               })}
             </Text>
           </View>
+          {/* Progress row with clear button */}
+          {!locked && (
+            <View style={styles.picksProgressRow}>
+              <Text style={[styles.picksProgressText, { color: colors.textSecondary }]}>
+                {picksCount} of {totalBouts} picks
+              </Text>
+              {picksCount === totalBouts && totalBouts > 0 && (
+                <Ionicons name="checkmark-circle" size={14} color={colors.success} style={{ marginLeft: 4 }} />
+              )}
+              {picksCount > 0 && (
+                <TouchableOpacity
+                  onPress={handleClearAllPicks}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={styles.clearButton}
+                >
+                  <Text style={[styles.clearButtonText, { color: colors.textTertiary }]}>
+                    Clear
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
           {locked && (
             <View style={[styles.lockedBanner, { backgroundColor: colors.warningSoft }]}>
               <Ionicons name="lock-closed" size={20} color={colors.warning} />
@@ -626,7 +687,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
+    paddingBottom: spacing.sm,
   },
   progressHeader: {
     flexDirection: 'row',
@@ -638,6 +699,15 @@ const styles = StyleSheet.create({
   },
   progressText: {
     ...typography.meta,
+    fontWeight: '500',
+  },
+  clearAllButton: {
+    marginLeft: spacing.md,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  clearAllText: {
+    fontSize: 12,
     fontWeight: '500',
   },
   backButton: {
@@ -653,12 +723,29 @@ const styles = StyleSheet.create({
     width: 40,
   },
   content: {
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
     gap: spacing.sm,
   },
   eventInfo: {
-    gap: spacing.sm,
+    gap: spacing.xs,
     marginBottom: spacing.sm,
+  },
+  picksProgressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.xs,
+  },
+  picksProgressText: {
+    fontSize: 13,
+  },
+  clearButton: {
+    marginLeft: 'auto',
+  },
+  clearButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   locationRow: {
     flexDirection: 'row',

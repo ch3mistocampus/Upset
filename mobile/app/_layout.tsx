@@ -48,6 +48,7 @@ function RootNavigator() {
         <Stack.Screen name="event/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="friends/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="friends/add" options={{ headerShown: false }} />
+        <Stack.Screen name="user/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ title: 'Settings' }} />
       </Stack>
     </>

@@ -13,27 +13,35 @@ import {
   Animated,
   Easing,
   ActivityIndicator,
+  Image,
+  Dimensions,
+  Modal,
 } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../hooks/useAuth';
-import { useFriends } from '../../hooks/useFriends';
-import { useToast } from '../../hooks/useToast';
-import { useTheme } from '../../lib/theme';
-import { spacing, radius, typography } from '../../lib/tokens';
-import { ErrorState } from '../../components/ErrorState';
-import { SkeletonCard } from '../../components/SkeletonCard';
-import { EmptyState, SurfaceCard } from '../../components/ui';
-import { AccuracyRing } from '../../components/AccuracyRing';
-import { MiniChart } from '../../components/MiniChart';
-import type { FriendshipStatus } from '../../types/social';
+import { supabase } from '../../../lib/supabase';
+import { useAuth } from '../../../hooks/useAuth';
+import { useFriends } from '../../../hooks/useFriends';
+import { useToast } from '../../../hooks/useToast';
+import { useTheme } from '../../../lib/theme';
+import { spacing, radius, typography } from '../../../lib/tokens';
+import { ErrorState } from '../../../components/ErrorState';
+import { SkeletonCard } from '../../../components/SkeletonCard';
+import { EmptyState, SurfaceCard } from '../../../components/ui';
+import { AccuracyRing } from '../../../components/AccuracyRing';
+import { MiniChart } from '../../../components/MiniChart';
+import type { FriendshipStatus } from '../../../types/social';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface UserProfile {
   username: string;
   bio: string | null;
+  avatar_url: string | null;
+  banner_url: string | null;
   total_picks: number;
   correct_picks: number;
   accuracy: number;
@@ -63,7 +71,7 @@ type TabType = 'picks' | 'stats';
 type RelationshipStatus = 'none' | 'following';
 
 export default function UserProfile() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const toast = useToast();
@@ -78,6 +86,7 @@ export default function UserProfile() {
   const [refreshing, setRefreshing] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [showUnfollowConfirm, setShowUnfollowConfirm] = useState(false);
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
 
   // Check if viewing own profile
   const isOwnProfile = user?.id === id;
@@ -86,6 +95,8 @@ export default function UserProfile() {
   const headerOpacity = useRef(new Animated.Value(0)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
   const contentTranslate = useRef(new Animated.Value(6)).current;
+  const modalScale = useRef(new Animated.Value(0.8)).current;
+  const modalOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(headerOpacity, {
@@ -113,6 +124,28 @@ export default function UserProfile() {
     }, 60);
   }, [headerOpacity, contentOpacity, contentTranslate]);
 
+  // Animate avatar modal
+  useEffect(() => {
+    if (showAvatarModal) {
+      Animated.parallel([
+        Animated.spring(modalScale, {
+          toValue: 1,
+          tension: 100,
+          friction: 10,
+          useNativeDriver: true,
+        }),
+        Animated.timing(modalOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      modalScale.setValue(0.8);
+      modalOpacity.setValue(0);
+    }
+  }, [showAvatarModal, modalScale, modalOpacity]);
+
   const fetchUserData = async () => {
     if (!id || !user) return;
 
@@ -122,7 +155,7 @@ export default function UserProfile() {
       // Fetch user's profile and stats
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('username, bio')
+        .select('username, bio, avatar_url')
         .eq('user_id', id)
         .single();
 
@@ -155,6 +188,8 @@ export default function UserProfile() {
       setProfile({
         username: profileData.username,
         bio: profileData.bio,
+        avatar_url: profileData.avatar_url || null,
+        banner_url: null, // Not stored in DB yet, use gradient fallback
         total_picks: totalPicks,
         correct_picks: correctPicks,
         accuracy,
@@ -458,22 +493,53 @@ export default function UserProfile() {
       <Stack.Screen options={{ headerShown: false }} />
       {/* Header */}
       <Animated.View style={{ opacity: headerOpacity }}>
-        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <View style={[styles.header, { backgroundColor: colors.background }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>@{profile.username}</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Profile</Text>
           <View style={styles.placeholder} />
         </View>
 
-        {/* Profile Summary - Centered card style */}
-        <View style={[styles.profileSummary, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-          {/* Large centered avatar */}
-          <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
-            <Text style={styles.avatarText}>
-              {profile.username.charAt(0).toUpperCase()}
-            </Text>
+        {/* Hero Section with Banner */}
+        <View style={styles.heroSection}>
+          {/* Banner */}
+          <View style={styles.bannerContainer}>
+            {profile.banner_url ? (
+              <Image
+                source={{ uri: profile.banner_url }}
+                style={styles.bannerImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <LinearGradient
+                colors={isDark ? ['#2A1A1A', '#1A1A2A'] : ['#FEE2E2', '#E0E7FF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.bannerGradient}
+              />
+            )}
           </View>
+
+          {/* Avatar - Rounded square, clickable to enlarge */}
+          <TouchableOpacity
+            style={styles.avatarContainer}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              setShowAvatarModal(true);
+            }}
+            activeOpacity={0.8}
+          >
+            {profile.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} style={[styles.avatarSquare, { backgroundColor: colors.accent }]} />
+            ) : (
+              <View style={[styles.avatarSquare, { backgroundColor: colors.accent }]}>
+                <Text style={styles.avatarText}>
+                  {profile.username.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
 
           {/* Username */}
           <Text style={[styles.username, { color: colors.text }]}>@{profile.username}</Text>
@@ -485,71 +551,58 @@ export default function UserProfile() {
             </Text>
           )}
 
-          {/* Decorative divider */}
-          <View style={[styles.dividerLine, { backgroundColor: colors.text }]} />
-
-          {/* Performance stats - emphasized */}
-          <View style={styles.perfStatsRow}>
-            <View style={styles.perfStatItem}>
-              <Text style={[styles.perfStatValue, { color: colors.accent }]}>
+          {/* Main Stats Row - balanced spacing */}
+          <View style={styles.mainStatsRow}>
+            <View style={styles.mainStatItem}>
+              <Text style={[styles.mainStatValue, { color: colors.accent }]}>
                 {profile.accuracy.toFixed(1)}%
               </Text>
-              <Text style={[styles.perfStatLabel, { color: colors.textTertiary }]}>
-                Accuracy
-              </Text>
+              <Text style={[styles.mainStatLabel, { color: colors.textSecondary }]}>ACCURACY</Text>
             </View>
-            <View style={[styles.perfStatDivider, { backgroundColor: colors.border }]} />
-            <View style={styles.perfStatItem}>
-              <Text style={[styles.perfStatValue, { color: colors.text }]}>
+            <View style={[styles.mainStatDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.mainStatItem}>
+              <Text style={[styles.mainStatValue, { color: colors.text }]}>
                 {profile.total_picks}
               </Text>
-              <Text style={[styles.perfStatLabel, { color: colors.textTertiary }]}>
-                Picks
-              </Text>
+              <Text style={[styles.mainStatLabel, { color: colors.textSecondary }]}>PICKS</Text>
             </View>
-            <View style={[styles.perfStatDivider, { backgroundColor: colors.border }]} />
-            <View style={styles.perfStatItem}>
-              <Text style={[styles.perfStatValue, { color: colors.success }]}>
+            <View style={[styles.mainStatDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.mainStatItem}>
+              <Text style={[styles.mainStatValue, { color: colors.success }]}>
                 {profile.correct_picks}
               </Text>
-              <Text style={[styles.perfStatLabel, { color: colors.textTertiary }]}>
-                Correct
-              </Text>
+              <Text style={[styles.mainStatLabel, { color: colors.textSecondary }]}>CORRECT</Text>
             </View>
           </View>
 
-          {/* Follower stats - secondary, clickable */}
-          <View style={styles.socialStatsRow}>
+          {/* Followers/Following - Inline */}
+          <View style={styles.socialRow}>
             <TouchableOpacity
-              style={styles.socialStatItem}
-              activeOpacity={0.7}
+              style={styles.socialItem}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push(`/user/${id}/follows?tab=followers`);
               }}
+              activeOpacity={0.7}
             >
-              <Text style={[styles.socialStatValue, { color: colors.textSecondary }]}>
+              <Text style={[styles.socialNumber, { color: colors.text }]}>
                 {profile.followers_count.toLocaleString()}
               </Text>
-              <Text style={[styles.socialStatLabel, { color: colors.textTertiary }]}>
-                Followers
-              </Text>
+              <Text style={[styles.socialLabel, { color: colors.textSecondary }]}>followers</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.socialStatItem}
-              activeOpacity={0.7}
+              style={styles.socialItem}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push(`/user/${id}/follows?tab=following`);
               }}
+              activeOpacity={0.7}
             >
-              <Text style={[styles.socialStatValue, { color: colors.textSecondary }]}>
+              <Text style={[styles.socialNumber, { color: colors.text }]}>
                 {profile.following_count.toLocaleString()}
               </Text>
-              <Text style={[styles.socialStatLabel, { color: colors.textTertiary }]}>
-                Following
-              </Text>
+              <Text style={[styles.socialLabel, { color: colors.textSecondary }]}>following</Text>
             </TouchableOpacity>
           </View>
 
@@ -557,10 +610,13 @@ export default function UserProfile() {
           <View style={styles.actionContainer}>
             {renderFollowAction()}
           </View>
+
+          {/* Red Divider */}
+          <View style={[styles.sectionDivider, { backgroundColor: colors.danger }]} />
         </View>
 
         {/* Tabs */}
-        <View style={[styles.tabContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <View style={[styles.tabContainer, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'picks' && { borderBottomColor: colors.accent }]}
             onPress={() => {
@@ -728,6 +784,53 @@ export default function UserProfile() {
           </Animated.View>
         )}
       </ScrollView>
+
+      {/* Avatar Preview Modal */}
+      <Modal
+        visible={showAvatarModal}
+        transparent
+        animationType="none"
+        onRequestClose={() => setShowAvatarModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.avatarModalBackdrop}
+          activeOpacity={1}
+          onPress={() => setShowAvatarModal(false)}
+        >
+          <Animated.View
+            style={[
+              styles.avatarModalContent,
+              {
+                transform: [{ scale: modalScale }],
+                opacity: modalOpacity,
+              },
+            ]}
+          >
+            {/* Large avatar preview */}
+            <View style={[styles.avatarPreview, { backgroundColor: colors.surface }]}>
+              {profile?.avatar_url ? (
+                <Image source={{ uri: profile.avatar_url }} style={styles.avatarPreviewImage} />
+              ) : (
+                <View style={[styles.avatarPreviewPlaceholder, { backgroundColor: colors.accent }]}>
+                  <Text style={styles.avatarPreviewText}>
+                    {profile?.username?.charAt(0).toUpperCase() || '?'}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {/* Username */}
+            <Text style={[styles.avatarModalUsername, { color: '#fff' }]}>
+              @{profile?.username}
+            </Text>
+
+            {/* Close hint */}
+            <Text style={styles.avatarModalHint}>
+              Tap anywhere to close
+            </Text>
+          </Animated.View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -742,8 +845,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
     paddingTop: 60,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
+    paddingBottom: spacing.sm,
   },
   backButton: {
     padding: 4,
@@ -755,92 +857,153 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 32,
   },
-  profileSummary: {
+  // Hero Section
+  heroSection: {
     alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    borderBottomWidth: 1,
   },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+  bannerContainer: {
+    width: '100%',
+    height: 100,
+    position: 'relative',
+  },
+  bannerGradient: {
+    width: '100%',
+    height: '100%',
+  },
+  bannerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarContainer: {
+    marginTop: -40,
     marginBottom: spacing.sm,
   },
+  avatarSquare: {
+    width: 80,
+    height: 80,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   avatarText: {
-    fontSize: 26,
-    fontWeight: '700',
+    fontSize: 32,
+    fontWeight: '600',
     color: '#fff',
   },
   username: {
     fontSize: 18,
     fontWeight: '700',
+    marginBottom: 2,
   },
   bio: {
     fontSize: 13,
-    lineHeight: 18,
     textAlign: 'center',
-    paddingHorizontal: spacing.xl,
-    marginTop: 4,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    lineHeight: 18,
   },
-  dividerLine: {
-    width: 32,
-    height: 2,
-    borderRadius: 1,
-    marginVertical: spacing.sm,
-    opacity: 0.12,
-  },
-  // Social stats - followers/following (smaller, secondary)
-  socialStatsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  socialStatItem: {
-    alignItems: 'center',
-  },
-  socialStatValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    fontVariant: ['tabular-nums'],
-  },
-  socialStatLabel: {
-    fontSize: 10,
-    fontWeight: '500',
-    marginTop: 1,
-  },
-  // Performance stats - emphasized
-  perfStatsRow: {
+  // Main Stats Row - balanced spacing
+  mainStatsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.sm,
+    paddingVertical: 4,
+    marginBottom: 4,
   },
-  perfStatItem: {
+  mainStatItem: {
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: 12,
   },
-  perfStatValue: {
-    fontSize: 18,
+  mainStatValue: {
+    fontSize: 17,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
+    lineHeight: 20,
   },
-  perfStatLabel: {
-    fontSize: 10,
+  mainStatLabel: {
+    fontSize: 9,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.3,
-    marginTop: 2,
+    marginTop: 1,
   },
-  perfStatDivider: {
+  mainStatDivider: {
     width: 1,
-    height: 26,
+    height: 24,
+    marginHorizontal: 0,
+  },
+  // Social row - balanced
+  socialRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
+    marginTop: 6,
+    marginBottom: 8,
+  },
+  socialItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  socialNumber: {
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  socialLabel: {
+    fontSize: 11,
   },
   actionContainer: {
     marginTop: 2,
+    marginBottom: spacing.md,
+  },
+  // Section Divider
+  sectionDivider: {
+    height: 1,
+    marginHorizontal: spacing.md,
+    width: SCREEN_WIDTH - spacing.md * 2,
+  },
+  // Avatar Modal
+  avatarModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarModalContent: {
+    alignItems: 'center',
+  },
+  avatarPreview: {
+    width: 180,
+    height: 180,
+    borderRadius: 36,
+    overflow: 'hidden',
+    marginBottom: spacing.md,
+  },
+  avatarPreviewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarPreviewPlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarPreviewText: {
+    fontSize: 72,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  avatarModalUsername: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: spacing.sm,
+  },
+  avatarModalHint: {
+    marginTop: spacing.lg,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.5)',
   },
   pendingBadge: {
     flexDirection: 'row',

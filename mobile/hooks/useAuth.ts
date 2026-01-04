@@ -232,7 +232,7 @@ export function useAuth() {
     return data;
   };
 
-  const updateProfile = async (updates: { bio?: string | null }) => {
+  const updateProfile = async (updates: { bio?: string | null; avatar_url?: string | null; banner_url?: string | null }) => {
     if (!user) throw new Error('No user logged in');
 
     logger.breadcrumb('Updating profile', 'profile', { updates });

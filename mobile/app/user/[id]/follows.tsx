@@ -11,8 +11,10 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Animated,
+  Easing,
 } from 'react-native';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -20,50 +22,236 @@ import { useFriends } from '../../../hooks/useFriends';
 import { useAuth } from '../../../hooks/useAuth';
 import { useToast } from '../../../hooks/useToast';
 import { useTheme } from '../../../lib/theme';
-import { spacing, radius } from '../../../lib/tokens';
+import { spacing } from '../../../lib/tokens';
 import { SurfaceCard, EmptyState } from '../../../components/ui';
 import type { UserSearchResult } from '../../../types/social';
 
 type TabType = 'followers' | 'following';
 
+// Infinity loop loader with glow effect
+function InfinityLoader({ color }: { color: string }) {
+  const progress = useRef(new Animated.Value(0)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.timing(progress, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+
+    // Subtle pulsing glow on the track
+    const glowAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, {
+          toValue: 1,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(glowAnim, {
+          toValue: 0,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    animation.start();
+    glowAnimation.start();
+    return () => {
+      animation.stop();
+      glowAnimation.stop();
+    };
+  }, [progress, glowAnim]);
+
+  // Figure-8 path parameters
+  const a = 24; // horizontal extent
+  const b = 10; // vertical extent
+
+  // Figure-8 path with smooth crossing
+  const translateX = progress.interpolate({
+    inputRange: [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1],
+    outputRange: [a, a * 0.707, 0, -a * 0.707, -a, -a * 0.707, 0, a * 0.707, a],
+  });
+
+  const translateY = progress.interpolate({
+    inputRange: [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1],
+    outputRange: [0, b * 0.5, b, b * 0.5, 0, -b * 0.5, -b, -b * 0.5, 0],
+  });
+
+  const dotScale = progress.interpolate({
+    inputRange: [0, 0.25, 0.5, 0.75, 1],
+    outputRange: [1.1, 1, 1.1, 1, 1.1],
+  });
+
+  const trackGlowOpacity = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.15, 0.3],
+  });
+
+  return (
+    <View style={infinityStyles.container}>
+      {/* Infinity track - two overlapping circles */}
+      <View style={infinityStyles.trackContainer}>
+        {/* Left loop */}
+        <Animated.View
+          style={[
+            infinityStyles.loop,
+            infinityStyles.leftLoop,
+            {
+              borderColor: color,
+              opacity: trackGlowOpacity,
+              shadowColor: color,
+              shadowOpacity: 0.5,
+              shadowRadius: 6,
+              shadowOffset: { width: 0, height: 0 },
+            },
+          ]}
+        />
+        {/* Right loop */}
+        <Animated.View
+          style={[
+            infinityStyles.loop,
+            infinityStyles.rightLoop,
+            {
+              borderColor: color,
+              opacity: trackGlowOpacity,
+              shadowColor: color,
+              shadowOpacity: 0.5,
+              shadowRadius: 6,
+              shadowOffset: { width: 0, height: 0 },
+            },
+          ]}
+        />
+      </View>
+
+      {/* Animated dot with glow */}
+      <Animated.View
+        style={[
+          infinityStyles.dot,
+          {
+            backgroundColor: color,
+            transform: [{ translateX }, { translateY }, { scale: dotScale }],
+            shadowColor: color,
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.8,
+            shadowRadius: 8,
+          },
+        ]}
+      />
+    </View>
+  );
+}
+
+const infinityStyles = StyleSheet.create({
+  container: {
+    width: 80,
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trackContainer: {
+    position: 'absolute',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loop: {
+    width: 28,
+    height: 22,
+    borderWidth: 2.5,
+    borderRadius: 11,
+  },
+  leftLoop: {
+    marginRight: -6,
+  },
+  rightLoop: {
+    marginLeft: -6,
+  },
+  dot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+});
+
 export default function FollowsScreen() {
   const { colors } = useTheme();
-  const { id, tab } = useLocalSearchParams<{ id: string; tab?: string }>();
+  const params = useLocalSearchParams<{ id: string; tab?: string }>();
+  const id = params.id;
+  const initialTab = (params.tab as TabType) || 'followers';
   const router = useRouter();
   const toast = useToast();
   const { user } = useAuth();
-  const { getFollowers, getFollowing, follow, unfollow, followLoading, unfollowLoading } = useFriends();
+  const { getFollowers, getFollowing, follow, unfollow } = useFriends();
 
-  const [activeTab, setActiveTab] = useState<TabType>((tab as TabType) || 'followers');
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   const [users, setUsers] = useState<UserSearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [pendingActions, setPendingActions] = useState<Set<string>>(new Set());
+  const isMounted = useRef(true);
 
-  const fetchData = useCallback(async () => {
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!id) {
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const data = activeTab === 'followers'
+          ? await getFollowers(id)
+          : await getFollowing(id);
+        if (isMounted.current) {
+          setUsers(data);
+        }
+      } catch (error: any) {
+        if (isMounted.current) {
+          toast.showError(error.message || 'Failed to load users');
+        }
+      } finally {
+        if (isMounted.current) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchData();
+  }, [id, activeTab]);
+
+  const onRefresh = async () => {
     if (!id) return;
-
+    setRefreshing(true);
     try {
       const data = activeTab === 'followers'
         ? await getFollowers(id)
         : await getFollowing(id);
-      setUsers(data);
+      if (isMounted.current) {
+        setUsers(data);
+      }
     } catch (error: any) {
-      toast.showError(error.message || 'Failed to load users');
+      if (isMounted.current) {
+        toast.showError(error.message || 'Failed to refresh');
+      }
     } finally {
-      setIsLoading(false);
+      if (isMounted.current) {
+        setRefreshing(false);
+      }
     }
-  }, [id, activeTab, getFollowers, getFollowing, toast]);
-
-  useEffect(() => {
-    setIsLoading(true);
-    fetchData();
-  }, [fetchData]);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchData();
-    setRefreshing(false);
   };
 
   const handleTabChange = (newTab: TabType) => {
@@ -247,7 +435,7 @@ export default function FollowsScreen() {
       >
         {isLoading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.accent} />
+            <InfinityLoader color={colors.accent} />
           </View>
         ) : users.length === 0 ? (
           <EmptyState
