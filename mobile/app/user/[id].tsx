@@ -37,6 +37,8 @@ interface UserProfile {
   total_picks: number;
   correct_picks: number;
   accuracy: number;
+  following_count: number;
+  followers_count: number;
 }
 
 interface UserPick {
@@ -136,12 +138,28 @@ export default function UserProfile() {
       const correctPicks = statsData?.correct_winner || 0;
       const accuracy = totalPicks > 0 ? (correctPicks / totalPicks) * 100 : 0;
 
+      // Get following count (users this person follows)
+      const { count: followingCount } = await supabase
+        .from('friendships')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', id)
+        .eq('status', 'accepted');
+
+      // Get followers count (users following this person)
+      const { count: followersCount } = await supabase
+        .from('friendships')
+        .select('*', { count: 'exact', head: true })
+        .eq('friend_id', id)
+        .eq('status', 'accepted');
+
       setProfile({
         username: profileData.username,
         bio: profileData.bio,
         total_picks: totalPicks,
         correct_picks: correctPicks,
         accuracy,
+        following_count: followingCount || 0,
+        followers_count: followersCount || 0,
       });
 
       // Check if current user is following this user
@@ -448,51 +466,67 @@ export default function UserProfile() {
           <View style={styles.placeholder} />
         </View>
 
-        {/* Profile Summary */}
+        {/* Profile Summary - Redesigned */}
         <View style={[styles.profileSummary, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-          <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
-            <Text style={styles.avatarText}>
-              {profile.username.charAt(0).toUpperCase()}
-            </Text>
+          {/* Top row: Avatar + Info + Action */}
+          <View style={styles.profileTopRow}>
+            <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
+              <Text style={styles.avatarText}>
+                {profile.username.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+
+            <View style={styles.profileInfo}>
+              <Text style={[styles.username, { color: colors.text }]}>@{profile.username}</Text>
+              {profile.bio && (
+                <Text style={[styles.bio, { color: colors.textSecondary }]} numberOfLines={2}>
+                  {profile.bio}
+                </Text>
+              )}
+            </View>
+
+            <View style={styles.actionContainer}>
+              {renderFollowAction()}
+            </View>
           </View>
-          <Text style={[styles.username, { color: colors.text }]}>@{profile.username}</Text>
 
-          {profile.bio && (
-            <Text style={[styles.bio, { color: colors.textSecondary }]}>{profile.bio}</Text>
-          )}
-
-          {/* Professional Stats Row */}
+          {/* Stats Row - Compact horizontal layout */}
           <View style={styles.profileStatsRow}>
-            <View style={styles.profileStatItem}>
+            <TouchableOpacity style={styles.profileStatItem} activeOpacity={0.7}>
               <Text style={[styles.profileStatValue, { color: colors.accent }]}>
-                {profile.accuracy.toFixed(1)}%
+                {profile.accuracy.toFixed(0)}%
               </Text>
               <Text style={[styles.profileStatLabel, { color: colors.textTertiary }]}>
                 Accuracy
               </Text>
-            </View>
-            <View style={[styles.profileStatDivider, { backgroundColor: colors.border }]} />
-            <View style={styles.profileStatItem}>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.profileStatItem} activeOpacity={0.7}>
               <Text style={[styles.profileStatValue, { color: colors.text }]}>
                 {profile.total_picks}
               </Text>
               <Text style={[styles.profileStatLabel, { color: colors.textTertiary }]}>
                 Picks
               </Text>
-            </View>
-            <View style={[styles.profileStatDivider, { backgroundColor: colors.border }]} />
-            <View style={styles.profileStatItem}>
-              <Text style={[styles.profileStatValue, { color: colors.success }]}>
-                {profile.correct_picks}
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.profileStatItem} activeOpacity={0.7}>
+              <Text style={[styles.profileStatValue, { color: colors.text }]}>
+                {profile.following_count}
               </Text>
               <Text style={[styles.profileStatLabel, { color: colors.textTertiary }]}>
-                Correct
+                Following
               </Text>
-            </View>
-          </View>
+            </TouchableOpacity>
 
-          <View style={styles.actionContainer}>
-            {renderFollowAction()}
+            <TouchableOpacity style={styles.profileStatItem} activeOpacity={0.7}>
+              <Text style={[styles.profileStatValue, { color: colors.text }]}>
+                {profile.followers_count}
+              </Text>
+              <Text style={[styles.profileStatLabel, { color: colors.textTertiary }]}>
+                Followers
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -693,62 +727,67 @@ const styles = StyleSheet.create({
     width: 32,
   },
   profileSummary: {
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
     borderBottomWidth: 1,
   },
+  profileTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
+  },
   avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.xs,
   },
   avatarText: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: '#fff',
   },
+  profileInfo: {
+    flex: 1,
+    marginLeft: spacing.sm,
+    marginRight: spacing.sm,
+    justifyContent: 'center',
+  },
   username: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
-    marginBottom: spacing.xs,
   },
   bio: {
-    fontSize: 14,
-    textAlign: 'center',
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 2,
   },
-  // Professional stats row
+  actionContainer: {
+    justifyContent: 'center',
+  },
+  // Stats row - 4 items evenly spaced
   profileStatsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
+    justifyContent: 'space-around',
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(128, 128, 128, 0.1)',
   },
   profileStatItem: {
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
+    flex: 1,
   },
   profileStatValue: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
   profileStatLabel: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '500',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginTop: 1,
-  },
-  profileStatDivider: {
-    width: 1,
-    height: 22,
-  },
-  actionContainer: {
+    letterSpacing: 0.3,
     marginTop: 2,
   },
   pendingBadge: {
@@ -767,14 +806,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 8,
-    borderRadius: 16,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: 14,
     gap: 4,
-    minWidth: 100,
+    minWidth: 88,
   },
   followBadgeText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   tabContainer: {
