@@ -250,7 +250,7 @@ export default function Profile() {
 
             <View style={styles.profileInfo}>
               <Text style={[styles.username, { color: colors.text }]}>
-                {profile?.username || 'Unknown'}
+                @{profile?.username || 'Unknown'}
               </Text>
               <Text style={[styles.email, { color: colors.textSecondary }]}>
                 {user?.email || ''}

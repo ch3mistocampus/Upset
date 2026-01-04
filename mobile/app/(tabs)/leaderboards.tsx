@@ -272,7 +272,7 @@ export default function Leaderboards() {
         <View style={styles.userInfo}>
           <View style={styles.nameRow}>
             <Text style={[styles.username, { color: colors.text }, isMe && { color: colors.accent }]}>
-              {entry.username}
+              @{entry.username}
             </Text>
             {isMe && (
               <View style={[styles.youBadge, { backgroundColor: colors.accent }]}>

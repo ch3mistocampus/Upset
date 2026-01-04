@@ -57,7 +57,7 @@ interface EventGroup {
 }
 
 type TabType = 'picks' | 'stats';
-type RelationshipStatus = 'none' | 'pending_sent' | 'pending_received' | 'friends';
+type RelationshipStatus = 'none' | 'following';
 
 export default function UserProfile() {
   const { colors } = useTheme();
@@ -65,7 +65,7 @@ export default function UserProfile() {
   const router = useRouter();
   const toast = useToast();
   const { user } = useAuth();
-  const { sendRequest, acceptRequest, removeFriend, sendRequestLoading, acceptRequestLoading, removeFriendLoading } = useFriends();
+  const { follow, unfollow, followLoading, unfollowLoading } = useFriends();
 
   const [activeTab, setActiveTab] = useState<TabType>('picks');
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -73,8 +73,7 @@ export default function UserProfile() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [relationship, setRelationship] = useState<RelationshipStatus>('none');
-  const [friendshipId, setFriendshipId] = useState<string | null>(null);
+  const [isFollowing, setIsFollowing] = useState(false);
 
   // Entrance animations
   const headerOpacity = useRef(new Animated.Value(0)).current;
@@ -139,28 +138,16 @@ export default function UserProfile() {
         accuracy,
       });
 
-      // Check friendship status
-      const { data: friendshipData } = await supabase
+      // Check if current user is following this user
+      const { data: followData } = await supabase
         .from('friendships')
-        .select('id, user_id, friend_id, status')
-        .or(`and(user_id.eq.${user.id},friend_id.eq.${id}),and(user_id.eq.${id},friend_id.eq.${user.id})`)
-        .single();
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('friend_id', id)
+        .eq('status', 'accepted')
+        .maybeSingle();
 
-      if (friendshipData) {
-        setFriendshipId(friendshipData.id);
-        if (friendshipData.status === 'accepted') {
-          setRelationship('friends');
-        } else if (friendshipData.status === 'pending') {
-          if (friendshipData.user_id === user.id) {
-            setRelationship('pending_sent');
-          } else {
-            setRelationship('pending_received');
-          }
-        }
-      } else {
-        setRelationship('none');
-        setFriendshipId(null);
-      }
+      setIsFollowing(!!followData);
 
       // Fetch user's picks with event info
       const { data: picksData, error: picksError } = await supabase
@@ -250,40 +237,26 @@ export default function UserProfile() {
     setRefreshing(false);
   };
 
-  const handleAddFriend = async () => {
+  const handleFollow = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await sendRequest(id!);
-      setRelationship('pending_sent');
-      toast.showSuccess('Friend request sent');
+      await follow(id!);
+      setIsFollowing(true);
+      toast.showSuccess('Now following @' + profile?.username);
     } catch (error: any) {
-      toast.showError(error.message || 'Failed to send request');
+      toast.showError(error.message || 'Failed to follow');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   };
 
-  const handleAcceptRequest = async () => {
-    if (!friendshipId) return;
+  const handleUnfollow = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await acceptRequest(friendshipId);
-      setRelationship('friends');
-      toast.showSuccess('Friend request accepted');
+      await unfollow(id!);
+      setIsFollowing(false);
+      toast.showSuccess('Unfollowed @' + profile?.username);
     } catch (error: any) {
-      toast.showError(error.message || 'Failed to accept request');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    }
-  };
-
-  const handleRemoveFriend = async () => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await removeFriend(id!);
-      setRelationship('none');
-      setFriendshipId(null);
-      toast.showSuccess('Friend removed');
-    } catch (error: any) {
-      toast.showError(error.message || 'Failed to remove friend');
+      toast.showError(error.message || 'Failed to unfollow');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   };
@@ -293,60 +266,39 @@ export default function UserProfile() {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  const renderFriendshipAction = () => {
-    const isActionLoading = sendRequestLoading || acceptRequestLoading || removeFriendLoading;
+  const renderFollowAction = () => {
+    const isActionLoading = followLoading || unfollowLoading;
 
-    switch (relationship) {
-      case 'none':
-        return (
-          <Button
-            title="Add Friend"
-            onPress={handleAddFriend}
-            variant="primary"
-            loading={sendRequestLoading}
-            disabled={isActionLoading}
-            style={styles.actionButton}
-          />
-        );
-      case 'pending_sent':
-        return (
-          <View style={[styles.pendingBadge, { backgroundColor: colors.surfaceAlt }]}>
-            <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
-            <Text style={[styles.pendingText, { color: colors.textSecondary }]}>Request Sent</Text>
-          </View>
-        );
-      case 'pending_received':
-        return (
-          <Button
-            title="Accept Request"
-            onPress={handleAcceptRequest}
-            variant="primary"
-            loading={acceptRequestLoading}
-            disabled={isActionLoading}
-            style={styles.actionButton}
-          />
-        );
-      case 'friends':
-        return (
-          <TouchableOpacity
-            onPress={handleRemoveFriend}
-            disabled={isActionLoading}
-            activeOpacity={0.8}
+    if (isFollowing) {
+      return (
+        <TouchableOpacity
+          onPress={handleUnfollow}
+          disabled={isActionLoading}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={['#22c55e', '#16a34a']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.followingBadge}
           >
-            <LinearGradient
-              colors={['#22c55e', '#16a34a']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.friendsBadge}
-            >
-              <Ionicons name="checkmark-circle" size={14} color="#fff" />
-              <Text style={styles.friendsText}>Friends</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        );
-      default:
-        return null;
+            <Ionicons name="checkmark-circle" size={14} color="#fff" />
+            <Text style={styles.followingText}>Following</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      );
     }
+
+    return (
+      <Button
+        title="Follow"
+        onPress={handleFollow}
+        variant="primary"
+        loading={followLoading}
+        disabled={isActionLoading}
+        style={styles.actionButton}
+      />
+    );
   };
 
   if (isLoading) {
@@ -451,7 +403,7 @@ export default function UserProfile() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>{profile.username}</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>@{profile.username}</Text>
           <View style={styles.placeholder} />
         </View>
 
@@ -462,7 +414,7 @@ export default function UserProfile() {
               {profile.username.charAt(0).toUpperCase()}
             </Text>
           </View>
-          <Text style={[styles.username, { color: colors.text }]}>{profile.username}</Text>
+          <Text style={[styles.username, { color: colors.text }]}>@{profile.username}</Text>
 
           {/* Professional Stats Row */}
           <View style={styles.profileStatsRow}>
@@ -495,7 +447,7 @@ export default function UserProfile() {
           </View>
 
           <View style={styles.actionContainer}>
-            {renderFriendshipAction()}
+            {renderFollowAction()}
           </View>
         </View>
 
@@ -553,7 +505,7 @@ export default function UserProfile() {
             <EmptyState
               icon="clipboard-outline"
               title="No Picks Yet"
-              message={`${profile.username} hasn't made any picks yet.`}
+              message={`@${profile.username} hasn't made any picks yet.`}
             />
           ) : (
             <View style={styles.eventsList}>
@@ -762,7 +714,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  friendsBadge: {
+  followingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.md,
@@ -775,7 +727,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  friendsText: {
+  followingText: {
     fontSize: 13,
     fontWeight: '600',
     color: '#fff',

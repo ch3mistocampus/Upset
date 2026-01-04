@@ -1,5 +1,5 @@
 /**
- * Friend Profile screen - view friend's picks and stats
+ * User Profile screen - view user's picks and stats
  */
 
 import {
@@ -53,7 +53,7 @@ export default function FriendProfile() {
   const router = useRouter();
   const toast = useToast();
   const { colors } = useTheme();
-  const { removeFriend, removeFriendLoading } = useFriends();
+  const { unfollow, unfollowLoading } = useFriends();
 
   const [activeTab, setActiveTab] = useState<TabType>('picks');
   const [profile, setProfile] = useState<FriendProfile | null>(null);
@@ -132,8 +132,8 @@ export default function FriendProfile() {
 
       setPicks(formattedPicks);
     } catch (err: any) {
-      console.error('Error fetching friend data:', err);
-      setError(err.message || 'Failed to load friend profile');
+      console.error('Error fetching user data:', err);
+      setError(err.message || 'Failed to load user profile');
     } finally {
       setIsLoading(false);
     }
@@ -149,23 +149,23 @@ export default function FriendProfile() {
     setRefreshing(false);
   };
 
-  const handleUnfriend = () => {
+  const handleUnfollow = () => {
     Alert.alert(
-      'Remove Friend',
-      `Are you sure you want to remove ${profile?.username} as a friend?`,
+      'Unfollow',
+      `Are you sure you want to unfollow @${profile?.username}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Remove',
+          text: 'Unfollow',
           style: 'destructive',
           onPress: async () => {
             try {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              await removeFriend(id!);
-              toast.showSuccess('Friend removed');
+              await unfollow(id!);
+              toast.showSuccess(`Unfollowed @${profile?.username}`);
               router.back();
             } catch (error: any) {
-              toast.showError(error.message || 'Failed to remove friend');
+              toast.showError(error.message || 'Failed to unfollow');
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             }
           },
@@ -204,7 +204,7 @@ export default function FriendProfile() {
           <View style={styles.placeholder} />
         </View>
         <ErrorState
-          message={error || 'Failed to load friend profile'}
+          message={error || 'Failed to load user profile'}
           onRetry={fetchFriendData}
         />
       </View>
@@ -254,8 +254,8 @@ export default function FriendProfile() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{profile.username}</Text>
-        <TouchableOpacity onPress={handleUnfriend} style={styles.unfriendButton}>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>@{profile.username}</Text>
+        <TouchableOpacity onPress={handleUnfollow} style={styles.unfriendButton}>
           <Ionicons name="person-remove-outline" size={22} color={colors.danger} />
         </TouchableOpacity>
       </View>
@@ -268,7 +268,7 @@ export default function FriendProfile() {
           size="large"
           expandable
         />
-        <Text style={[styles.username, { color: colors.textPrimary }]}>{profile.username}</Text>
+        <Text style={[styles.username, { color: colors.textPrimary }]}>@{profile.username}</Text>
 
         {/* Bio */}
         {profile.bio && (
@@ -321,7 +321,7 @@ export default function FriendProfile() {
             <EmptyState
               icon="clipboard-outline"
               title="No Picks Yet"
-              message={`${profile.username} hasn't made any picks yet.`}
+              message={`@${profile.username} hasn't made any picks yet.`}
             />
           ) : (
             picks.map(renderPickItem)

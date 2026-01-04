@@ -227,7 +227,7 @@ export default function Friends() {
             </View>
 
             <View style={styles.friendInfo}>
-              <Text style={[styles.friendName, { color: colors.text }]}>{friend.username}</Text>
+              <Text style={[styles.friendName, { color: colors.text }]}>@{friend.username}</Text>
               <Text style={[styles.friendStats, { color: colors.textSecondary }]}>
                 {friend.accuracy.toFixed(1)}% accuracy • {friend.total_picks} picks
               </Text>
@@ -251,7 +251,7 @@ export default function Friends() {
           </View>
 
           <View style={styles.requestInfo}>
-            <Text style={[styles.friendName, { color: colors.text }]}>{request.username}</Text>
+            <Text style={[styles.friendName, { color: colors.text }]}>@{request.username}</Text>
             <Text style={[styles.friendStats, { color: colors.textSecondary }]}>
               {request.accuracy.toFixed(1)}% accuracy • {request.total_picks} picks
             </Text>
@@ -302,7 +302,7 @@ export default function Friends() {
             onPress={() => handleTabPress('friends')}
           >
             <Text style={[styles.tabText, { color: activeTab === 'friends' ? colors.text : colors.textTertiary }]}>
-              Friends ({friends.length})
+              Following ({friends.length})
             </Text>
           </TouchableOpacity>
 
@@ -363,9 +363,9 @@ export default function Friends() {
           friends.length === 0 ? (
             <EmptyState
               icon="people-outline"
-              title="No Friends Yet"
-              message="Add friends to see their picks and compete on the leaderboard!"
-              actionLabel="Add Friends"
+              title="Not Following Anyone"
+              message="Follow users to see their picks and compete on the leaderboard!"
+              actionLabel="Find Users"
               onAction={handleAddFriend}
             />
           ) : (
@@ -375,7 +375,7 @@ export default function Friends() {
           <EmptyState
             icon="mail-outline"
             title="No Pending Requests"
-            message="When someone sends you a friend request, it will appear here."
+            message="When someone follows you, it will appear here."
           />
         ) : (
           friendRequests.map((request, index) => renderRequestItem(request, index))

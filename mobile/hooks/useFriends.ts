@@ -1,14 +1,13 @@
 /**
- * Friends Management Hook
- * Sprint 2: Social Features
+ * Social Follow Hook
  *
  * Handles:
- * - Fetching friends list
- * - Fetching friend requests
- * - Sending friend requests
- * - Accepting/declining friend requests
- * - Removing friends
+ * - Fetching following list (people you follow)
+ * - Following/unfollowing users
  * - Searching for users
+ *
+ * Note: Uses 'friendships' table with 'accepted' status for follows
+ * (one-way relationship - you follow someone, they don't auto-follow back)
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -19,7 +18,7 @@ import type { Friend, FriendRequest, UserSearchResult } from '../types/social';
 export function useFriends() {
   const queryClient = useQueryClient();
 
-  // Fetch friends list
+  // Fetch people you're following
   const {
     data: friends,
     isLoading: friendsLoading,
@@ -28,21 +27,21 @@ export function useFriends() {
   } = useQuery({
     queryKey: ['friends'],
     queryFn: async (): Promise<Friend[]> => {
-      logger.breadcrumb('Fetching friends', 'friends');
+      logger.breadcrumb('Fetching following list', 'friends');
 
       const { data, error } = await supabase.rpc('get_friends');
 
       if (error) {
-        logger.error('Failed to fetch friends', error);
+        logger.error('Failed to fetch following', error);
         throw error;
       }
 
-      logger.debug('Friends fetched', { count: data?.length || 0 });
+      logger.debug('Following fetched', { count: data?.length || 0 });
       return (data as Friend[]) || [];
     },
   });
 
-  // Fetch friend requests
+  // Fetch follow requests (pending)
   const {
     data: friendRequests,
     isLoading: requestsLoading,
@@ -51,24 +50,24 @@ export function useFriends() {
   } = useQuery({
     queryKey: ['friendRequests'],
     queryFn: async (): Promise<FriendRequest[]> => {
-      logger.breadcrumb('Fetching friend requests', 'friends');
+      logger.breadcrumb('Fetching follow requests', 'friends');
 
       const { data, error } = await supabase.rpc('get_friend_requests');
 
       if (error) {
-        logger.error('Failed to fetch friend requests', error);
+        logger.error('Failed to fetch follow requests', error);
         throw error;
       }
 
-      logger.debug('Friend requests fetched', { count: data?.length || 0 });
+      logger.debug('Follow requests fetched', { count: data?.length || 0 });
       return (data as FriendRequest[]) || [];
     },
   });
 
-  // Send friend request
-  const sendFriendRequest = useMutation({
-    mutationFn: async (friendUserId: string) => {
-      logger.breadcrumb('Sending friend request', 'friends', { friendUserId });
+  // Follow a user (creates accepted friendship directly for follow model)
+  const followUser = useMutation({
+    mutationFn: async (targetUserId: string) => {
+      logger.breadcrumb('Following user', 'friends', { targetUserId });
 
       const {
         data: { user },
@@ -78,18 +77,19 @@ export function useFriends() {
         throw new Error('Not authenticated');
       }
 
+      // For follow model, we create an accepted friendship directly
       const { error } = await supabase.from('friendships').insert({
         user_id: user.id,
-        friend_id: friendUserId,
-        status: 'pending',
+        friend_id: targetUserId,
+        status: 'accepted', // Direct follow, no pending state
       });
 
       if (error) {
-        logger.error('Failed to send friend request', error, { friendUserId });
+        logger.error('Failed to follow user', error, { targetUserId });
         throw error;
       }
 
-      logger.info('Friend request sent', { friendUserId });
+      logger.info('User followed', { targetUserId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['friends'] });
@@ -98,55 +98,10 @@ export function useFriends() {
     },
   });
 
-  // Accept friend request
-  const acceptFriendRequest = useMutation({
-    mutationFn: async (requestId: string) => {
-      logger.breadcrumb('Accepting friend request', 'friends', { requestId });
-
-      const { error } = await supabase
-        .from('friendships')
-        .update({ status: 'accepted' })
-        .eq('id', requestId);
-
-      if (error) {
-        logger.error('Failed to accept friend request', error, { requestId });
-        throw error;
-      }
-
-      logger.info('Friend request accepted', { requestId });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['friends'] });
-      queryClient.invalidateQueries({ queryKey: ['friendRequests'] });
-    },
-  });
-
-  // Decline friend request
-  const declineFriendRequest = useMutation({
-    mutationFn: async (requestId: string) => {
-      logger.breadcrumb('Declining friend request', 'friends', { requestId });
-
-      const { error } = await supabase
-        .from('friendships')
-        .update({ status: 'declined' })
-        .eq('id', requestId);
-
-      if (error) {
-        logger.error('Failed to decline friend request', error, { requestId });
-        throw error;
-      }
-
-      logger.info('Friend request declined', { requestId });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['friendRequests'] });
-    },
-  });
-
-  // Remove friend (unfriend)
-  const removeFriend = useMutation({
-    mutationFn: async (friendUserId: string) => {
-      logger.breadcrumb('Removing friend', 'friends', { friendUserId });
+  // Unfollow a user
+  const unfollowUser = useMutation({
+    mutationFn: async (targetUserId: string) => {
+      logger.breadcrumb('Unfollowing user', 'friends', { targetUserId });
 
       const {
         data: { user },
@@ -156,18 +111,19 @@ export function useFriends() {
         throw new Error('Not authenticated');
       }
 
-      // Delete friendship (works both ways due to RLS policy)
+      // Delete the follow relationship where current user is the follower
       const { error } = await supabase
         .from('friendships')
         .delete()
-        .or(`user_id.eq.${friendUserId},friend_id.eq.${friendUserId}`);
+        .eq('user_id', user.id)
+        .eq('friend_id', targetUserId);
 
       if (error) {
-        logger.error('Failed to remove friend', error, { friendUserId });
+        logger.error('Failed to unfollow user', error, { targetUserId });
         throw error;
       }
 
-      logger.info('Friend removed', { friendUserId });
+      logger.info('User unfollowed', { targetUserId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['friends'] });
@@ -178,7 +134,10 @@ export function useFriends() {
   const searchUsers = async (searchTerm: string): Promise<UserSearchResult[]> => {
     logger.breadcrumb('Searching users', 'friends', { searchTerm });
 
-    if (!searchTerm.trim()) {
+    // Remove @ prefix if present for search
+    const cleanSearchTerm = searchTerm.replace(/^@/, '').trim();
+
+    if (!cleanSearchTerm) {
       return [];
     }
 
@@ -194,7 +153,7 @@ export function useFriends() {
     const { data: profiles, error: profileError } = await supabase
       .from('profiles')
       .select('user_id, username')
-      .ilike('username', `%${searchTerm}%`)
+      .ilike('username', `%${cleanSearchTerm}%`)
       .neq('user_id', user.id) // Exclude current user
       .limit(20);
 
@@ -221,27 +180,21 @@ export function useFriends() {
       logger.warn('Failed to fetch user stats for search', statsError);
     }
 
-    // Get existing friendships
+    // Get existing follow relationships
     const { data: friendships, error: friendshipError } = await supabase
       .from('friendships')
       .select('user_id, friend_id, status')
-      .or(
-        `and(user_id.eq.${user.id},friend_id.in.(${profiles.map((p) => p.user_id).join(',')})),` +
-          `and(friend_id.eq.${user.id},user_id.in.(${profiles.map((p) => p.user_id).join(',')}))`
-      );
+      .eq('user_id', user.id)
+      .in('friend_id', profiles.map((p) => p.user_id));
 
     if (friendshipError) {
-      logger.warn('Failed to fetch friendships for search', friendshipError);
+      logger.warn('Failed to fetch follow status for search', friendshipError);
     }
 
     // Combine data
     const results: UserSearchResult[] = profiles.map((profile) => {
       const userStats = stats?.find((s) => s.user_id === profile.user_id);
-      const friendship = friendships?.find(
-        (f) =>
-          (f.user_id === user.id && f.friend_id === profile.user_id) ||
-          (f.friend_id === user.id && f.user_id === profile.user_id)
-      );
+      const friendship = friendships?.find((f) => f.friend_id === profile.user_id);
 
       const totalPicks = userStats?.total_picks || 0;
       const correctPicks = userStats?.correct_winner || 0;
@@ -261,31 +214,62 @@ export function useFriends() {
     return results;
   };
 
+  // Check if current user is following a specific user
+  const checkFollowing = async (targetUserId: string): Promise<boolean> => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return false;
+
+    const { data } = await supabase
+      .from('friendships')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('friend_id', targetUserId)
+      .eq('status', 'accepted')
+      .maybeSingle();
+
+    return !!data;
+  };
+
   return {
     // Data
     friends: friends || [],
     friendRequests: friendRequests || [],
+    following: friends || [], // Alias for clarity
 
     // Loading states
     friendsLoading,
     requestsLoading,
+    followLoading: followUser.isPending,
+    unfollowLoading: unfollowUser.isPending,
+
+    // Legacy loading state names for compatibility
+    sendRequestLoading: followUser.isPending,
+    acceptRequestLoading: false, // Not needed in follow model
+    removeFriendLoading: unfollowUser.isPending,
+    acceptFriendRequestLoading: false, // Legacy - not needed in follow model
+    declineFriendRequestLoading: false, // Legacy - not needed in follow model
 
     // Errors
     friendsError,
     requestsError,
 
-    // Mutations
-    sendFriendRequest: sendFriendRequest.mutateAsync,
-    sendFriendRequestLoading: sendFriendRequest.isPending,
-    acceptFriendRequest: acceptFriendRequest.mutateAsync,
-    acceptFriendRequestLoading: acceptFriendRequest.isPending,
-    declineFriendRequest: declineFriendRequest.mutateAsync,
-    declineFriendRequestLoading: declineFriendRequest.isPending,
-    removeFriend: removeFriend.mutateAsync,
-    removeFriendLoading: removeFriend.isPending,
+    // Actions - new names
+    follow: followUser.mutateAsync,
+    unfollow: unfollowUser.mutateAsync,
+
+    // Legacy action names for compatibility
+    sendRequest: followUser.mutateAsync,
+    acceptRequest: async () => {}, // No-op in follow model
+    removeFriend: unfollowUser.mutateAsync,
+    acceptFriendRequest: async (_requestId: string) => {}, // Legacy - no-op in follow model
+    declineFriendRequest: async (_requestId: string) => {}, // Legacy - no-op in follow model
 
     // Search
     searchUsers,
+    checkFollowing,
 
     // Refetch
     refetchFriends,

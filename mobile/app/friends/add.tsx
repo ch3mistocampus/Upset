@@ -1,5 +1,5 @@
 /**
- * Add Friend screen - search users by username
+ * Find Users screen - search and follow users by @handle
  * Theme-aware design with SurfaceCard and animations
  */
 
@@ -31,7 +31,7 @@ export default function AddFriend() {
   const { colors, isDark } = useTheme();
   const router = useRouter();
   const toast = useToast();
-  const { searchUsers, sendFriendRequest, sendFriendRequestLoading } = useFriends();
+  const { searchUsers, follow, followLoading } = useFriends();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
@@ -72,7 +72,7 @@ export default function AddFriend() {
 
   const handleSearch = useCallback(async () => {
     if (!searchTerm.trim()) {
-      toast.showError('Please enter a username to search');
+      toast.showError('Please enter a @handle to search');
       return;
     }
 
@@ -90,24 +90,24 @@ export default function AddFriend() {
     }
   }, [searchTerm, searchUsers, toast]);
 
-  const handleSendRequest = async (user: UserSearchResult) => {
+  const handleFollow = async (user: UserSearchResult) => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       setPendingRequests((prev) => new Set(prev).add(user.user_id));
 
-      await sendFriendRequest(user.user_id);
+      await follow(user.user_id);
 
-      toast.showSuccess(`Friend request sent to ${user.username}!`);
+      toast.showSuccess(`Now following @${user.username}!`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      // Update local state to reflect the pending request
+      // Update local state to reflect the follow
       setSearchResults((prev) =>
         prev.map((u) =>
-          u.user_id === user.user_id ? { ...u, friendship_status: 'pending' } : u
+          u.user_id === user.user_id ? { ...u, friendship_status: 'accepted' } : u
         )
       );
     } catch (error: any) {
-      toast.showError(error.message || 'Failed to send friend request');
+      toast.showError(error.message || 'Failed to follow user');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setPendingRequests((prev) => {
@@ -120,12 +120,9 @@ export default function AddFriend() {
 
   const getButtonConfig = (user: UserSearchResult) => {
     if (user.friendship_status === 'accepted') {
-      return { label: 'Friends', disabled: true, bgColor: colors.success };
+      return { label: 'Following', disabled: true, bgColor: colors.success };
     }
-    if (user.friendship_status === 'pending') {
-      return { label: 'Pending', disabled: true, bgColor: colors.textTertiary };
-    }
-    return { label: 'Add', disabled: false, bgColor: colors.accent };
+    return { label: 'Follow', disabled: false, bgColor: colors.accent };
   };
 
   const renderUserItem = (user: UserSearchResult, index: number) => {
@@ -149,7 +146,7 @@ export default function AddFriend() {
             </View>
 
             <View style={styles.userInfo}>
-              <Text style={[styles.userName, { color: colors.text }]}>{user.username}</Text>
+              <Text style={[styles.userName, { color: colors.text }]}>@{user.username}</Text>
               <Text style={[styles.userStats, { color: colors.textSecondary }]}>
                 {user.accuracy.toFixed(1)}% accuracy • {user.total_picks} picks
               </Text>
@@ -157,7 +154,7 @@ export default function AddFriend() {
 
             <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: buttonConfig.bgColor }]}
-              onPress={() => handleSendRequest(user)}
+              onPress={() => handleFollow(user)}
               disabled={buttonConfig.disabled || isLoading}
               activeOpacity={0.8}
             >
@@ -184,7 +181,7 @@ export default function AddFriend() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Add Friend</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Find Users</Text>
           <View style={styles.placeholder} />
         </View>
 
@@ -194,7 +191,7 @@ export default function AddFriend() {
             <Ionicons name="search" size={20} color={colors.textTertiary} style={styles.searchIcon} />
             <TextInput
               style={[styles.searchInput, { color: colors.text }]}
-              placeholder="Search by username..."
+              placeholder="Search by @handle..."
               placeholderTextColor={colors.textTertiary}
               value={searchTerm}
               onChangeText={setSearchTerm}
@@ -243,13 +240,13 @@ export default function AddFriend() {
           <EmptyState
             icon="person-outline"
             title="No Users Found"
-            message={`No users match "${searchTerm}". Try a different username.`}
+            message={`No users match "${searchTerm}". Try a different @handle.`}
           />
         ) : (
           <EmptyState
             icon="search-outline"
-            title="Find Friends"
-            message="Search for friends by their username to send them a friend request."
+            title="Find Users"
+            message="Search for users by their @handle to follow them."
           />
         )}
       </ScrollView>
