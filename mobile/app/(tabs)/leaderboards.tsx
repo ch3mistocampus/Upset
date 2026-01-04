@@ -299,13 +299,9 @@ export default function Leaderboards() {
           animatedBorder={isMe}
           style={isTopThree ? { borderWidth: 2, borderColor: getRankBorderColor(entry.rank) || colors.border, borderRadius: radius.card } : undefined}
         >
-          {isMe ? (
-            content
-          ) : (
-            <TouchableOpacity onPress={() => handleUserPress(entry.user_id)} activeOpacity={0.7}>
-              {content}
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity onPress={() => handleUserPress(entry.user_id)} activeOpacity={0.7}>
+            {content}
+          </TouchableOpacity>
         </SurfaceCard>
       </AnimatedLeaderboardItem>
     );
