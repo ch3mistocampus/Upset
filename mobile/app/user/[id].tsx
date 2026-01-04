@@ -12,6 +12,7 @@ import {
   RefreshControl,
   Animated,
   Easing,
+  ActivityIndicator,
 } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
