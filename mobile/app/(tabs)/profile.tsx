@@ -303,6 +303,21 @@ export default function Profile() {
             )}
             <Ionicons name="pencil" size={16} color={colors.textTertiary} style={styles.bioEditIcon} />
           </TouchableOpacity>
+
+          {/* View Public Profile */}
+          <TouchableOpacity
+            style={[styles.viewPublicButton, { borderColor: colors.border }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push(`/user/${user?.id}`);
+            }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="eye-outline" size={18} color={colors.textSecondary} />
+            <Text style={[styles.viewPublicText, { color: colors.textSecondary }]}>
+              View Public Profile
+            </Text>
+          </TouchableOpacity>
         </SurfaceCard>
       </AnimatedSection>
 
@@ -841,6 +856,19 @@ const styles = StyleSheet.create({
   bioEditIcon: {
     marginLeft: spacing.sm,
     marginTop: 2,
+  },
+  viewPublicButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+  },
+  viewPublicText: {
+    ...typography.meta,
+    fontWeight: '500',
   },
   // Bio Modal
   modalContainer: {

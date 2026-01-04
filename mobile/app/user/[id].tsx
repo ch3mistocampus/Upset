@@ -76,6 +76,9 @@ export default function UserProfile() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [showUnfollowConfirm, setShowUnfollowConfirm] = useState(false);
 
+  // Check if viewing own profile
+  const isOwnProfile = user?.id === id;
+
   // Entrance animations
   const headerOpacity = useRef(new Animated.Value(0)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
@@ -277,6 +280,16 @@ export default function UserProfile() {
   };
 
   const renderFollowAction = () => {
+    // If viewing own profile, show "This is you" badge
+    if (isOwnProfile) {
+      return (
+        <View style={[styles.followBadge, { backgroundColor: colors.surfaceAlt }]}>
+          <Ionicons name="person" size={14} color={colors.textSecondary} />
+          <Text style={[styles.followBadgeText, { color: colors.textSecondary }]}>This is you</Text>
+        </View>
+      );
+    }
+
     const isActionLoading = followLoading || unfollowLoading;
 
     if (isFollowing) {
