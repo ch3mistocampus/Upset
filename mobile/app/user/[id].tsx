@@ -16,7 +16,6 @@ import {
 import { useState, useEffect, useRef } from 'react';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
@@ -275,16 +274,10 @@ export default function UserProfile() {
           onPress={handleUnfollow}
           disabled={isActionLoading}
           activeOpacity={0.8}
+          style={[styles.followingBadge, { backgroundColor: colors.surfaceAlt }]}
         >
-          <LinearGradient
-            colors={['#22c55e', '#16a34a']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.followingBadge}
-          >
-            <Ionicons name="checkmark-circle" size={14} color="#fff" />
-            <Text style={styles.followingText}>Following</Text>
-          </LinearGradient>
+          <Ionicons name="checkmark-circle" size={14} color={colors.textSecondary} />
+          <Text style={[styles.followingText, { color: colors.textSecondary }]}>Following</Text>
         </TouchableOpacity>
       );
     }
@@ -721,16 +714,10 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 16,
     gap: 4,
-    shadowColor: '#22c55e',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
   },
   followingText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#fff',
   },
   tabContainer: {
     flexDirection: 'row',

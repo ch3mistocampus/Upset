@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   toast: {
-    borderRadius: radius.sm, // Sharp, not soft
+    borderRadius: radius.card, // Rounded to match app style
     borderLeftWidth: 4,
     flexDirection: 'row',
     alignItems: 'center',
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 32,
     height: 32,
-    borderRadius: 2, // Angular, UFC-inspired
+    borderRadius: radius.sm, // Rounded to match app style
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.sm,
