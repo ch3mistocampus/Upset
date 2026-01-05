@@ -21,7 +21,23 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../lib/theme';
 import { spacing, radius, typography } from '../../lib/tokens';
-import { useNotifications, NotificationPreferences } from '../../hooks/useNotifications';
+import { useNotifications, NotificationPreferences, NotificationLogItem } from '../../hooks/useNotifications';
+
+// Helper to format notification time
+function formatNotificationTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+}
 
 interface NotificationToggleProps {
   title: string;
@@ -69,6 +85,10 @@ export default function NotificationSettingsScreen() {
     updatePreferencesLoading,
     registerToken,
     isAvailable,
+    notificationHistory,
+    historyLoading,
+    markAsRead,
+    unreadCount,
   } = useNotifications();
 
   const [localPrefs, setLocalPrefs] = useState<Partial<NotificationPreferences>>({});
@@ -217,6 +237,82 @@ export default function NotificationSettingsScreen() {
         />
       </View>
 
+      {/* Notification History */}
+      <View style={[styles.section, { backgroundColor: colors.card }]}>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent</Text>
+          {unreadCount > 0 && (
+            <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
+              <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
+            </View>
+          )}
+        </View>
+
+        {historyLoading ? (
+          <View style={styles.historyLoading}>
+            <ActivityIndicator size="small" color={colors.primary} />
+          </View>
+        ) : notificationHistory.length === 0 ? (
+          <View style={styles.emptyHistory}>
+            <Ionicons name="notifications-outline" size={32} color={colors.textTertiary} />
+            <Text style={[styles.emptyHistoryText, { color: colors.textSecondary }]}>
+              No notifications yet
+            </Text>
+          </View>
+        ) : (
+          notificationHistory.slice(0, 10).map((notification) => (
+            <TouchableOpacity
+              key={notification.id}
+              style={[
+                styles.notificationItem,
+                { borderBottomColor: colors.border },
+                !notification.read_at && { backgroundColor: colors.surfaceAlt || colors.card },
+              ]}
+              onPress={async () => {
+                if (!notification.read_at) {
+                  await markAsRead(notification.id);
+                }
+                // Navigate based on notification data
+                const data = notification.data || {};
+                if (data.event_id) {
+                  router.push(`/event/${data.event_id}`);
+                } else if (data.user_id) {
+                  router.push(`/user/${data.user_id}`);
+                }
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.notificationContent}>
+                <View style={styles.notificationHeader}>
+                  <Text
+                    style={[
+                      styles.notificationTitle,
+                      { color: colors.text },
+                      !notification.read_at && { fontWeight: '600' as const },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {notification.title}
+                  </Text>
+                  {!notification.read_at && (
+                    <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} />
+                  )}
+                </View>
+                <Text
+                  style={[styles.notificationBody, { color: colors.textSecondary }]}
+                  numberOfLines={2}
+                >
+                  {notification.body}
+                </Text>
+                <Text style={[styles.notificationTime, { color: colors.textTertiary }]}>
+                  {formatNotificationTime(notification.sent_at)}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))
+        )}
+      </View>
+
       {/* Info */}
       <View style={styles.infoSection}>
         <Ionicons name="information-circle-outline" size={20} color={colors.textTertiary} />
@@ -318,5 +414,67 @@ const styles = StyleSheet.create({
   unavailableText: {
     fontSize: typography.sizes.md,
     textAlign: 'center',
+  },
+  // Notification history styles
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  unreadBadge: {
+    marginLeft: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  unreadBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  historyLoading: {
+    padding: spacing.xl,
+    alignItems: 'center',
+  },
+  emptyHistory: {
+    padding: spacing.xl,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  emptyHistoryText: {
+    fontSize: typography.sizes.sm,
+  },
+  notificationItem: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  notificationContent: {
+    flex: 1,
+  },
+  notificationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  notificationTitle: {
+    flex: 1,
+    fontSize: typography.sizes.md,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginLeft: spacing.sm,
+  },
+  notificationBody: {
+    fontSize: typography.sizes.sm,
+    lineHeight: 18,
+    marginBottom: spacing.xs,
+  },
+  notificationTime: {
+    fontSize: typography.sizes.xs,
   },
 });

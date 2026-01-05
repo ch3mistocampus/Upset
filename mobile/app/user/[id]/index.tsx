@@ -16,6 +16,7 @@ import {
   Image,
   Dimensions,
   Modal,
+  Alert,
 } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
@@ -25,6 +26,9 @@ import * as Haptics from 'expo-haptics';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../hooks/useAuth';
 import { useFriends } from '../../../hooks/useFriends';
+import { useBlocking } from '../../../hooks/useBlocking';
+import { useMute } from '../../../hooks/useMute';
+import { useShare } from '../../../hooks/useShare';
 import { useToast } from '../../../hooks/useToast';
 import { useTheme } from '../../../lib/theme';
 import { spacing, radius, typography } from '../../../lib/tokens';
@@ -77,8 +81,12 @@ export default function UserProfile() {
   const toast = useToast();
   const { user } = useAuth();
   const { follow, unfollow, followLoading, unfollowLoading } = useFriends();
+  const { blockedUsers, block, unblock, blockLoading } = useBlocking();
+  const { mutedUsers, mute, unmute, isMuting } = useMute();
+  const { shareProfile } = useShare();
 
   const [activeTab, setActiveTab] = useState<TabType>('picks');
+  const [showActionMenu, setShowActionMenu] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [eventGroups, setEventGroups] = useState<EventGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -90,6 +98,10 @@ export default function UserProfile() {
 
   // Check if viewing own profile
   const isOwnProfile = user?.id === id;
+
+  // Check mute/block status
+  const isMuted = mutedUsers?.some((m) => m.muted_user_id === id) ?? false;
+  const isBlocked = blockedUsers?.some((b) => b.user_id === id) ?? false;
 
   // Entrance animations
   const headerOpacity = useRef(new Animated.Value(0)).current;
@@ -329,6 +341,64 @@ export default function UserProfile() {
     }
   };
 
+  const handleMuteToggle = async () => {
+    setShowActionMenu(false);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      if (isMuted) {
+        await unmute(id!);
+        toast.showNeutral(`Unmuted @${profile?.username}`);
+      } else {
+        await mute(id!);
+        toast.showNeutral(`Muted @${profile?.username}`);
+      }
+    } catch (error: any) {
+      toast.showError(error.message || 'Failed to update mute status');
+    }
+  };
+
+  const handleBlockToggle = async () => {
+    setShowActionMenu(false);
+    if (isBlocked) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      try {
+        await unblock(id!);
+        toast.showNeutral(`Unblocked @${profile?.username}`);
+      } catch (error: any) {
+        toast.showError(error.message || 'Failed to unblock');
+      }
+    } else {
+      Alert.alert(
+        'Block User',
+        `Are you sure you want to block @${profile?.username}? They won't be able to see your profile or activity.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Block',
+            style: 'destructive',
+            onPress: async () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              try {
+                await block(id!);
+                toast.showNeutral(`Blocked @${profile?.username}`);
+                router.back();
+              } catch (error: any) {
+                toast.showError(error.message || 'Failed to block');
+              }
+            },
+          },
+        ]
+      );
+    }
+  };
+
+  const handleShare = async () => {
+    setShowActionMenu(false);
+    if (profile) {
+      await shareProfile(id!, profile.username);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -498,7 +568,19 @@ export default function UserProfile() {
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Profile</Text>
-          <View style={styles.placeholder} />
+          {!isOwnProfile ? (
+            <TouchableOpacity
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowActionMenu(true);
+              }}
+              style={styles.menuButton}
+            >
+              <Ionicons name="ellipsis-horizontal" size={24} color={colors.text} />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.placeholder} />
+          )}
         </View>
 
         {/* Hero Section with Banner */}
@@ -829,6 +911,87 @@ export default function UserProfile() {
               Tap anywhere to close
             </Text>
           </Animated.View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Action Menu Modal */}
+      <Modal
+        visible={showActionMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowActionMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.actionMenuBackdrop}
+          activeOpacity={1}
+          onPress={() => setShowActionMenu(false)}
+        >
+          <View style={[styles.actionMenuContainer, { backgroundColor: colors.surface }]}>
+            <TouchableOpacity
+              style={styles.actionMenuItem}
+              onPress={handleShare}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="share-outline" size={22} color={colors.text} />
+              <Text style={[styles.actionMenuText, { color: colors.text }]}>
+                Share Profile
+              </Text>
+            </TouchableOpacity>
+
+            <View style={[styles.actionMenuDivider, { backgroundColor: colors.border }]} />
+
+            <TouchableOpacity
+              style={styles.actionMenuItem}
+              onPress={handleMuteToggle}
+              disabled={isMuting}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={isMuted ? 'volume-high-outline' : 'volume-mute-outline'}
+                size={22}
+                color={colors.text}
+              />
+              <Text style={[styles.actionMenuText, { color: colors.text }]}>
+                {isMuted ? 'Unmute User' : 'Mute User'}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={[styles.actionMenuDivider, { backgroundColor: colors.border }]} />
+
+            <TouchableOpacity
+              style={styles.actionMenuItem}
+              onPress={handleBlockToggle}
+              disabled={blockLoading}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={isBlocked ? 'checkmark-circle-outline' : 'ban-outline'}
+                size={22}
+                color={isBlocked ? colors.text : colors.danger}
+              />
+              <Text
+                style={[
+                  styles.actionMenuText,
+                  { color: isBlocked ? colors.text : colors.danger },
+                ]}
+              >
+                {isBlocked ? 'Unblock User' : 'Block User'}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={[styles.actionMenuDivider, { backgroundColor: colors.border }]} />
+
+            <TouchableOpacity
+              style={styles.actionMenuItem}
+              onPress={() => setShowActionMenu(false)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="close-outline" size={22} color={colors.textSecondary} />
+              <Text style={[styles.actionMenuText, { color: colors.textSecondary }]}>
+                Cancel
+              </Text>
+            </TouchableOpacity>
+          </View>
         </TouchableOpacity>
       </Modal>
     </View>
@@ -1189,5 +1352,36 @@ const styles = StyleSheet.create({
   recentEventDivider: {
     height: 1,
     marginTop: spacing.sm,
+  },
+  // Menu button
+  menuButton: {
+    padding: 4,
+  },
+  // Action Menu
+  actionMenuBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  actionMenuContainer: {
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    paddingTop: spacing.md,
+    paddingBottom: 34,
+    paddingHorizontal: spacing.md,
+  },
+  actionMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    gap: spacing.md,
+  },
+  actionMenuText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  actionMenuDivider: {
+    height: 1,
+    marginHorizontal: -spacing.md,
   },
 });

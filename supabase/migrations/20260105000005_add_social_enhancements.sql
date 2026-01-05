@@ -90,13 +90,9 @@ CREATE TRIGGER activity_like_count_trigger
   EXECUTE FUNCTION update_activity_like_count();
 
 -- ============================================================================
--- PRIVACY SETTINGS (extend existing privacy_settings table)
--- ============================================================================
-ALTER TABLE public.privacy_settings ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT false;
-ALTER TABLE public.privacy_settings ADD COLUMN IF NOT EXISTS allow_follow_requests BOOLEAN DEFAULT true;
-
-COMMENT ON COLUMN public.privacy_settings.is_private IS 'Private accounts require follow approval';
-COMMENT ON COLUMN public.privacy_settings.allow_follow_requests IS 'Whether to accept new follow requests';
+-- PRIVACY SETTINGS
+-- Note: Following is open (no approval required). Privacy settings control
+-- visibility levels (public/friends/private) but not account privacy.
 
 -- ============================================================================
 -- ACCOUNT DELETION FUNCTION (Apple Required)
@@ -262,11 +258,9 @@ BEGIN
       us.total_picks
     FROM public.profiles p
     JOIN public.user_stats us ON us.user_id = p.user_id
-    LEFT JOIN public.privacy_settings ps ON ps.user_id = p.user_id
     WHERE p.user_id != current_user
       AND p.user_id NOT IN (SELECT friend_id FROM user_follows)
       AND p.user_id NOT IN (SELECT blocked_user_id FROM blocked_users)
-      AND (ps.is_private = false OR ps.is_private IS NULL)
       AND us.total_picks >= 10
     ORDER BY us.accuracy_pct DESC
     LIMIT 20
@@ -290,11 +284,9 @@ BEGIN
     SELECT suggested_user AS user_id FROM top_predictors
   ) suggested
   JOIN public.profiles p ON p.user_id = suggested.user_id
-  LEFT JOIN public.privacy_settings ps ON ps.user_id = suggested.user_id
   LEFT JOIN public.user_stats us ON us.user_id = suggested.user_id
   LEFT JOIN mutual_follow_counts mfc ON mfc.suggested_user = suggested.user_id
   LEFT JOIN top_predictors tp ON tp.suggested_user = suggested.user_id
-  WHERE ps.is_private = false OR ps.is_private IS NULL
   ORDER BY suggested.user_id, mfc.mutual_count DESC NULLS LAST, us.accuracy_pct DESC NULLS LAST
   LIMIT limit_count;
 END;
@@ -350,9 +342,7 @@ BEGIN
     a.created_at
   FROM public.activities a
   JOIN public.profiles p ON p.user_id = a.user_id
-  LEFT JOIN public.privacy_settings ps ON ps.user_id = a.user_id
   WHERE a.is_public = true
-    AND (ps.is_private = false OR ps.is_private IS NULL)
     -- Exclude blocked users
     AND NOT EXISTS (
       SELECT 1 FROM public.blocks b
@@ -498,10 +488,8 @@ BEGIN
   SELECT COUNT(*)::INTEGER INTO new_count
   FROM public.activities a
   JOIN public.profiles p ON p.user_id = a.user_id
-  LEFT JOIN public.privacy_settings ps ON ps.user_id = a.user_id
   WHERE a.is_public = true
     AND a.created_at > since_timestamp
-    AND (ps.is_private = false OR ps.is_private IS NULL)
     AND NOT EXISTS (
       SELECT 1 FROM public.blocks b
       WHERE (b.user_id = current_user AND b.blocked_user_id = a.user_id)
