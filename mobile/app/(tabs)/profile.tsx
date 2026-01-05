@@ -40,6 +40,7 @@ import {
 } from '../../hooks/useQueries';
 import { useTheme } from '../../lib/theme';
 import { supabase } from '../../lib/supabase';
+import { logger } from '../../lib/logger';
 import { spacing, radius } from '../../lib/tokens';
 import { isEventSubmitted } from '../../lib/storage';
 import { SurfaceCard, Button, SegmentedControl, EmptyState } from '../../components/ui';
@@ -148,7 +149,7 @@ export default function Profile() {
       setFollowingCount(following || 0);
       setFollowersCount(followers || 0);
     } catch (error) {
-      console.error('Failed to fetch social counts:', error);
+      logger.error('Failed to fetch social counts', error);
     }
   }, [user?.id]);
 
@@ -305,7 +306,7 @@ export default function Profile() {
         }
       }
     } catch (error: any) {
-      console.error('Image picker error:', error);
+      logger.error('Image picker error', error as Error);
       toast.showError('Profile photo requires a development build');
     }
   };
@@ -341,7 +342,7 @@ export default function Profile() {
       toast.showNeutral('Profile picture updated');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error: any) {
-      console.error('Avatar upload error:', error);
+      logger.error('Avatar upload error', error as Error);
       toast.showError(error.message || 'Failed to upload photo');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
@@ -380,7 +381,7 @@ export default function Profile() {
       toast.showNeutral('Banner updated');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error: any) {
-      console.error('Banner upload error:', error);
+      logger.error('Banner upload error', error as Error);
       toast.showError(error.message || 'Failed to upload banner');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {

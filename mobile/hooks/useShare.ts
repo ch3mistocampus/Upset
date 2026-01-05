@@ -7,6 +7,7 @@
 
 import { Share, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { logger } from '../lib/logger';
 
 interface SharePicksOptions {
   eventName: string;
@@ -79,7 +80,7 @@ export function useShare() {
 
       return result.action === Share.sharedAction;
     } catch (error) {
-      console.error('Error sharing picks:', error);
+      logger.error('Error sharing picks', error as Error);
       return false;
     }
   };
@@ -94,7 +95,7 @@ export function useShare() {
 
       return result.action === Share.sharedAction;
     } catch (error) {
-      console.error('Error sharing achievement:', error);
+      logger.error('Error sharing achievement', error as Error);
       return false;
     }
   };
@@ -109,7 +110,7 @@ export function useShare() {
 
       return result.action === Share.sharedAction;
     } catch (error) {
-      console.error('Error sharing profile:', error);
+      logger.error('Error sharing profile', error as Error);
       return false;
     }
   };
@@ -125,7 +126,7 @@ export function useShare() {
 
       return result.action === Share.sharedAction;
     } catch (error) {
-      console.error('Error sharing:', error);
+      logger.error('Error sharing', error as Error);
       return false;
     }
   };

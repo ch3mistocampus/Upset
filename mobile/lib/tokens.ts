@@ -120,6 +120,7 @@ export const colors = {
 } as const;
 
 export const typography = {
+  // Text styles
   h1: {
     fontSize: 28,
     fontWeight: '700' as const,
@@ -151,6 +152,22 @@ export const typography = {
     fontSize: 13,
     fontWeight: '500' as const,
     lineHeight: 18,
+  },
+  // Size helpers for direct fontSize access
+  sizes: {
+    xs: 11,
+    sm: 13,
+    md: 15,
+    lg: 17,
+    xl: 20,
+    xxl: 24,
+  },
+  // Weight helpers for direct fontWeight access
+  weights: {
+    regular: '400' as const,
+    medium: '500' as const,
+    semibold: '600' as const,
+    bold: '700' as const,
   },
 } as const;
 

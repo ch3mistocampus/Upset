@@ -109,6 +109,9 @@ export function useNotifications() {
           .eq('id', notificationId)
           .then(() => {
             queryClient.invalidateQueries({ queryKey: ['notificationHistory'] });
+          })
+          .catch((error) => {
+            logger.error('Failed to mark notification as clicked', error);
           });
       }
     });

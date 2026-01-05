@@ -152,9 +152,11 @@ export function useTrendingUsers() {
 
 // Helper function to format activity description
 export function formatActivityDescription(activity: ActivityItem): string {
-  const { type, metadata, event_name, target_username } = activity;
+  const { activity_type, metadata } = activity;
+  const event_name = metadata.event_name;
+  const target_username = metadata.target_username;
 
-  switch (type) {
+  switch (activity_type) {
     case 'made_picks':
       return `made ${metadata.total_picks || 0} picks for ${event_name || 'an event'}`;
 
@@ -168,16 +170,16 @@ export function formatActivityDescription(activity: ActivityItem): string {
       return 'joined UFC Picks Tracker';
 
     case 'streak_milestone':
-      return `hit a ${metadata.streak}-pick winning streak! 🔥`;
+      return `hit a ${metadata.streak}-pick winning streak!`;
 
     case 'accuracy_milestone':
-      return `reached ${metadata.accuracy}% accuracy! 🎯`;
+      return `reached ${metadata.accuracy}% accuracy!`;
 
     case 'followed_user':
-      return `started following @${target_username}`;
+      return `started following @${target_username || 'someone'}`;
 
     case 'event_winner':
-      return `was the top predictor at ${event_name}! 🏆`;
+      return `was the top predictor at ${event_name}!`;
 
     default:
       return 'had some activity';

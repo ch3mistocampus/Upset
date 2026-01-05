@@ -116,7 +116,7 @@ export function EventCard({ event, picksCount, totalBouts, isFirstUpcoming, isSu
 
   // Red glow style for submitted cards - more pronounced
   const submittedGlowStyle = showGlow ? {
-    shadowColor: '#C54A50',
+    shadowColor: colors.accent,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.7,
     shadowRadius: 18,

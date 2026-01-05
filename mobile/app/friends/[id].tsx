@@ -16,6 +16,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../lib/supabase';
+import { logger } from '../../lib/logger';
 import { useFriends } from '../../hooks/useFriends';
 import { useToast } from '../../hooks/useToast';
 import { useTheme } from '../../lib/theme';
@@ -132,7 +133,7 @@ export default function FriendProfile() {
 
       setPicks(formattedPicks);
     } catch (err: any) {
-      console.error('Error fetching user data:', err);
+      logger.error('Error fetching user data', err as Error);
       setError(err.message || 'Failed to load user profile');
     } finally {
       setIsLoading(false);

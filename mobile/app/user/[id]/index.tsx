@@ -24,6 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../../lib/supabase';
+import { logger } from '../../../lib/logger';
 import { useAuth } from '../../../hooks/useAuth';
 import { useFriends } from '../../../hooks/useFriends';
 import { useBlocking } from '../../../hooks/useBlocking';
@@ -291,7 +292,7 @@ export default function UserProfile() {
 
       setEventGroups(sortedGroups);
     } catch (err: any) {
-      console.error('Error fetching user data:', err);
+      logger.error('Error fetching user data', err as Error);
       setError(err.message || 'Failed to load user profile');
     } finally {
       setIsLoading(false);

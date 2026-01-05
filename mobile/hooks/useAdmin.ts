@@ -8,6 +8,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './useAuth';
+import { logger } from '../lib/logger';
 
 // Query keys
 export const adminKeys = {
@@ -76,7 +77,7 @@ export function useIsAdmin() {
         .rpc('is_admin', { check_user_id: user.id });
 
       if (error) {
-        console.error('Error checking admin status:', error);
+        logger.error('Error checking admin status', error);
         return false;
       }
 

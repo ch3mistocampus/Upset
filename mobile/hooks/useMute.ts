@@ -10,6 +10,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './useAuth';
+import { logger } from '../lib/logger';
 
 export const muteKeys = {
   all: ['mutes'] as const,
@@ -60,7 +61,7 @@ export function useIsMuted(targetUserId: string | null) {
       });
 
       if (error) {
-        console.error('Error checking mute status:', error);
+        logger.error('Error checking mute status', error);
         return false;
       }
 
