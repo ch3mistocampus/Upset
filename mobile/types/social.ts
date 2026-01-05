@@ -43,6 +43,8 @@ export interface PrivacySettings {
   picks_visibility: VisibilityLevel;
   profile_visibility: VisibilityLevel;
   stats_visibility: VisibilityLevel;
+  is_private: boolean;
+  allow_follow_requests: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -51,6 +53,8 @@ export interface PrivacySettingsUpdate {
   picks_visibility?: VisibilityLevel;
   profile_visibility?: VisibilityLevel;
   stats_visibility?: VisibilityLevel;
+  is_private?: boolean;
+  allow_follow_requests?: boolean;
 }
 
 // Leaderboard Types

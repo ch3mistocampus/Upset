@@ -793,6 +793,26 @@ export default function Profile() {
                 <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
               </TouchableOpacity>
 
+              <TouchableOpacity
+                style={[styles.menuRow, { backgroundColor: colors.surface }]}
+                onPress={() => router.push('/settings/privacy')}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />
+                <Text style={[styles.menuText, { color: colors.text }]}>Privacy</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.menuRow, { backgroundColor: colors.surface }]}
+                onPress={() => router.push('/settings/account')}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="person-circle-outline" size={20} color={colors.textSecondary} />
+                <Text style={[styles.menuText, { color: colors.text }]}>Account</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+              </TouchableOpacity>
+
               {isAdmin && (
                 <TouchableOpacity
                   style={[styles.menuRow, { backgroundColor: colors.surface }]}

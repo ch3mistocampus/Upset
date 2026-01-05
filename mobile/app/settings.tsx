@@ -54,12 +54,8 @@ export default function Settings() {
     }
   };
 
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete Account',
-      'This feature is coming soon. Contact support to delete your account.',
-      [{ text: 'OK' }]
-    );
+  const handleAccountSettings = () => {
+    router.push('/settings/account');
   };
 
   const openLink = async (url: string) => {
@@ -91,17 +87,17 @@ export default function Settings() {
           <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>ACCOUNT</Text>
           <SurfaceCard noPadding>
             <SettingsRow
+              icon="person-outline"
+              label="Account Settings"
+              type="link"
+              subtitle="Manage your account and data"
+              onPress={handleAccountSettings}
+            />
+            <SettingsRow
               icon="log-out-outline"
               label="Sign Out"
               type="button"
               onPress={handleSignOut}
-            />
-            <SettingsRow
-              icon="trash-outline"
-              label="Delete Account"
-              type="danger"
-              subtitle="Permanently delete your account and data"
-              onPress={handleDeleteAccount}
             />
           </SurfaceCard>
         </View>

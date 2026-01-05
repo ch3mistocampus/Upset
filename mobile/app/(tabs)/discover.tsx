@@ -7,7 +7,7 @@
  * - Trending users section
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Image,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -27,12 +28,15 @@ import {
   useDiscoverFeed,
   useFollowingFeed,
   useTrendingUsers,
-  formatActivityDescription,
-  getActivityIcon,
+  useNewActivityCount,
   ActivityItem,
   TrendingUser,
+  formatActivityDescription,
+  getActivityIcon,
 } from '../../hooks/useFeed';
 import { useFriends } from '../../hooks/useFriends';
+import { useLike } from '../../hooks/useLikes';
+import { useUserSuggestions, getSuggestionReasonText } from '../../hooks/useSuggestions';
 
 type FeedTab = 'discover' | 'following';
 
@@ -40,21 +44,55 @@ export default function DiscoverScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<FeedTab>('discover');
+  const [lastRefreshTime, setLastRefreshTime] = useState<string | null>(null);
+  const newPostsAnim = useRef(new Animated.Value(0)).current;
 
   const discoverFeed = useDiscoverFeed();
   const followingFeed = useFollowingFeed();
   const { data: trendingUsers, refetch: refetchTrending } = useTrendingUsers();
+  const { data: suggestions } = useUserSuggestions(5);
   const { follow, followLoading } = useFriends();
+  const { toggleLike, isToggling } = useLike();
+
+  // Track new posts since last refresh
+  const { data: newPostsCount } = useNewActivityCount(lastRefreshTime);
 
   const activeFeed = activeTab === 'discover' ? discoverFeed : followingFeed;
   const activities = activeFeed.data?.pages.flat() || [];
 
+  // Set initial refresh time on mount
+  useEffect(() => {
+    if (!lastRefreshTime && activities.length > 0) {
+      setLastRefreshTime(activities[0]?.created_at || new Date().toISOString());
+    }
+  }, [activities, lastRefreshTime]);
+
+  // Animate new posts banner
+  useEffect(() => {
+    if (newPostsCount && newPostsCount > 0) {
+      Animated.spring(newPostsAnim, {
+        toValue: 1,
+        tension: 100,
+        friction: 10,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      newPostsAnim.setValue(0);
+    }
+  }, [newPostsCount, newPostsAnim]);
+
   const handleRefresh = useCallback(() => {
     activeFeed.refetch();
+    setLastRefreshTime(new Date().toISOString());
     if (activeTab === 'discover') {
       refetchTrending();
     }
   }, [activeFeed, activeTab, refetchTrending]);
+
+  const handleNewPostsTap = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    handleRefresh();
+  }, [handleRefresh]);
 
   const handleLoadMore = useCallback(() => {
     if (activeFeed.hasNextPage && !activeFeed.isFetchingNextPage) {
@@ -71,6 +109,15 @@ export default function DiscoverScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       await follow(userId);
+    } catch {
+      // Error handled in hook
+    }
+  };
+
+  const handleLike = async (activityId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      await toggleLike(activityId);
     } catch {
       // Error handled in hook
     }
@@ -95,11 +142,35 @@ export default function DiscoverScreen() {
             @{item.username}
           </Text>
           <Text style={[styles.activityText, { color: colors.textSecondary }]}>
-            {getActivityIcon(item.type)} {formatActivityDescription(item)}
+            {getActivityIcon(item.activity_type)} {formatActivityDescription(item)}
           </Text>
-          <Text style={[styles.timestamp, { color: colors.textTertiary }]}>
-            {formatTimeAgo(item.created_at)}
-          </Text>
+          <View style={styles.activityFooter}>
+            <Text style={[styles.timestamp, { color: colors.textTertiary }]}>
+              {formatTimeAgo(item.created_at)}
+            </Text>
+            <TouchableOpacity
+              style={styles.likeButton}
+              onPress={() => handleLike(item.id)}
+              disabled={isToggling}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons
+                name={item.is_liked ? 'heart' : 'heart-outline'}
+                size={18}
+                color={item.is_liked ? colors.danger : colors.textTertiary}
+              />
+              {item.like_count > 0 && (
+                <Text
+                  style={[
+                    styles.likeCount,
+                    { color: item.is_liked ? colors.danger : colors.textTertiary },
+                  ]}
+                >
+                  {item.like_count}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -238,6 +309,38 @@ export default function DiscoverScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* New Posts Banner */}
+      {newPostsCount && newPostsCount > 0 && (
+        <Animated.View
+          style={[
+            styles.newPostsBanner,
+            {
+              backgroundColor: colors.primary,
+              transform: [
+                {
+                  translateY: newPostsAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-50, 0],
+                  }),
+                },
+              ],
+              opacity: newPostsAnim,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={styles.newPostsButton}
+            onPress={handleNewPostsTap}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-up" size={16} color="#FFFFFF" />
+            <Text style={styles.newPostsText}>
+              {newPostsCount} new {newPostsCount === 1 ? 'post' : 'posts'}
+            </Text>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
+
       {/* Activity Feed */}
       {activeFeed.isLoading ? (
         <View style={styles.loadingContainer}>
@@ -247,7 +350,7 @@ export default function DiscoverScreen() {
         <FlatList
           data={activities}
           renderItem={renderActivityItem}
-          keyExtractor={(item) => item.activity_id}
+          keyExtractor={(item) => item.id}
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={renderEmpty}
           ListFooterComponent={renderFooter}
@@ -412,6 +515,45 @@ const styles = StyleSheet.create({
   },
   timestamp: {
     fontSize: typography.sizes.xs,
+  },
+  activityFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.xs,
+  },
+  likeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  likeCount: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium as '500',
+  },
+
+  // New Posts Banner
+  newPostsBanner: {
+    position: 'absolute',
+    top: 60,
+    left: spacing.md,
+    right: spacing.md,
+    zIndex: 100,
+    borderRadius: radius.full,
+    overflow: 'hidden',
+  },
+  newPostsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    gap: spacing.xs,
+  },
+  newPostsText: {
+    color: '#FFFFFF',
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.semibold as '600',
   },
 
   // Empty State

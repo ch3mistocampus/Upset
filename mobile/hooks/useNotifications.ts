@@ -7,9 +7,10 @@
  * - Viewing notification history
  */
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { Platform } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
 
@@ -48,8 +49,79 @@ try {
   logger.debug('expo-notifications not installed');
 }
 
+/**
+ * Handle deep linking from notification data
+ */
+function getDeepLinkFromNotification(data: Record<string, unknown>): string | null {
+  const type = data.type as string;
+  const eventId = data.event_id as string | undefined;
+  const userId = data.user_id as string | undefined;
+  const notificationId = data.notification_id as string | undefined;
+
+  switch (type) {
+    case 'picks_graded':
+    case 'event_reminder':
+      return eventId ? `/event/${eventId}` : null;
+    case 'new_follower':
+    case 'friend_activity':
+      return userId ? `/user/${userId}` : null;
+    case 'weekly_recap':
+      return '/profile';
+    case 'streak_at_risk':
+      return '/pick';
+    default:
+      return null;
+  }
+}
+
 export function useNotifications() {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const notificationListener = useRef<any>(null);
+  const responseListener = useRef<any>(null);
+
+  // Set up notification response handler (when user taps notification)
+  useEffect(() => {
+    if (!Notifications) return;
+
+    // Handle notification received while app is foregrounded
+    notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
+      logger.debug('Notification received', { id: notification.request.identifier });
+    });
+
+    // Handle notification tap (deep linking)
+    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data || {};
+      logger.info('Notification tapped', { data });
+
+      const deepLink = getDeepLinkFromNotification(data);
+      if (deepLink) {
+        logger.info('Navigating to deep link', { deepLink });
+        router.push(deepLink as any);
+      }
+
+      // Mark notification as clicked in the log
+      const notificationId = data.notification_id as string | undefined;
+      if (notificationId) {
+        supabase
+          .from('notification_log')
+          .update({ clicked_at: new Date().toISOString() })
+          .eq('id', notificationId)
+          .then(() => {
+            queryClient.invalidateQueries({ queryKey: ['notificationHistory'] });
+          });
+      }
+    });
+
+    return () => {
+      if (notificationListener.current) {
+        Notifications.removeNotificationSubscription(notificationListener.current);
+      }
+      if (responseListener.current) {
+        Notifications.removeNotificationSubscription(responseListener.current);
+      }
+    };
+  }, [router, queryClient]);
 
   // Register push token
   const registerToken = useCallback(async () => {
