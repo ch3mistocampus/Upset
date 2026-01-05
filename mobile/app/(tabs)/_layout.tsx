@@ -33,9 +33,16 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="discover"
+        options={{
+          title: 'Discover',
+        }}
+      />
+      <Tabs.Screen
         name="friends"
         options={{
           title: 'Friends',
+          href: null, // Hidden from tab bar, accessible via navigation
         }}
       />
       <Tabs.Screen

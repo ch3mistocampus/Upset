@@ -29,6 +29,7 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { useGuestPicks } from '../../hooks/useGuestPicks';
+import { useIsAdmin } from '../../hooks/useAdmin';
 import {
   useUserStats,
   useRecentPicksSummary,
@@ -67,6 +68,7 @@ export default function Profile() {
     5
   );
   const { data: upcomingEvents, refetch: refetchUpcoming } = useUpcomingEvents();
+  const { data: isAdmin } = useIsAdmin();
 
   const [refreshing, setRefreshing] = useState(false);
   const [showBioModal, setShowBioModal] = useState(false);
@@ -780,6 +782,28 @@ export default function Profile() {
                 <Text style={[styles.menuText, { color: colors.text }]}>View Public Profile</Text>
                 <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.menuRow, { backgroundColor: colors.surface }]}
+                onPress={() => router.push('/settings/notifications')}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="notifications-outline" size={20} color={colors.textSecondary} />
+                <Text style={[styles.menuText, { color: colors.text }]}>Notifications</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+              </TouchableOpacity>
+
+              {isAdmin && (
+                <TouchableOpacity
+                  style={[styles.menuRow, { backgroundColor: colors.surface }]}
+                  onPress={() => router.push('/admin')}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="shield-outline" size={20} color={colors.primary} />
+                  <Text style={[styles.menuText, { color: colors.primary }]}>Admin Dashboard</Text>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+                </TouchableOpacity>
+              )}
 
               <TouchableOpacity
                 style={[styles.menuRow, { backgroundColor: colors.surface }]}
