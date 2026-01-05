@@ -149,21 +149,29 @@ export default function DiscoverScreen() {
               {formatTimeAgo(item.created_at)}
             </Text>
             <TouchableOpacity
-              style={styles.likeButton}
+              style={[
+                styles.likeButton,
+                isToggling && styles.likeButtonDisabled,
+              ]}
               onPress={() => handleLike(item.id)}
               disabled={isToggling}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel={item.is_liked ? 'Unlike this activity' : 'Like this activity'}
+              accessibilityState={{ disabled: isToggling }}
             >
               <Ionicons
                 name={item.is_liked ? 'heart' : 'heart-outline'}
                 size={18}
-                color={item.is_liked ? colors.danger : colors.textTertiary}
+                color={isToggling ? colors.textTertiary : (item.is_liked ? colors.danger : colors.textTertiary)}
+                style={isToggling ? { opacity: 0.5 } : undefined}
               />
               {item.like_count > 0 && (
                 <Text
                   style={[
                     styles.likeCount,
                     { color: item.is_liked ? colors.danger : colors.textTertiary },
+                    isToggling && { opacity: 0.5 },
                   ]}
                 >
                   {item.like_count}
@@ -282,11 +290,12 @@ export default function DiscoverScreen() {
   );
 
   const renderEmpty = () => (
-    <View style={styles.emptyContainer}>
+    <View style={styles.emptyContainer} accessibilityRole="alert">
       <Ionicons
         name={activeTab === 'discover' ? 'compass-outline' : 'people-outline'}
         size={64}
         color={colors.textTertiary}
+        accessibilityLabel={activeTab === 'discover' ? 'No activities' : 'No following activity'}
       />
       <Text style={[styles.emptyTitle, { color: colors.text }]}>
         {activeTab === 'discover' ? 'No activities yet' : 'Follow some pickers!'}
@@ -294,15 +303,45 @@ export default function DiscoverScreen() {
       <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
         {activeTab === 'discover'
           ? 'Be the first to make some picks'
-          : 'Switch to Discover to find people to follow'}
+          : 'Find and follow people to see their activity here'}
       </Text>
+      {activeTab === 'following' && (
+        <TouchableOpacity
+          style={[styles.emptyActionButton, { backgroundColor: colors.primary }]}
+          onPress={() => setActiveTab('discover')}
+          accessibilityRole="button"
+          accessibilityLabel="Go to Discover tab to find people to follow"
+        >
+          <Text style={styles.emptyActionText}>Discover People</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 
   const renderFooter = () => {
+    // Show error state if pagination failed
+    if (activeFeed.isError && !activeFeed.isFetchingNextPage) {
+      return (
+        <TouchableOpacity
+          style={[styles.paginationError, { backgroundColor: colors.card }]}
+          onPress={() => activeFeed.fetchNextPage()}
+          accessibilityRole="button"
+          accessibilityLabel="Failed to load more, tap to retry"
+        >
+          <Ionicons name="alert-circle-outline" size={20} color={colors.danger} />
+          <Text style={[styles.paginationErrorText, { color: colors.textSecondary }]}>
+            Failed to load more
+          </Text>
+          <Text style={[styles.paginationRetryText, { color: colors.primary }]}>
+            Tap to retry
+          </Text>
+        </TouchableOpacity>
+      );
+    }
+
     if (!activeFeed.isFetchingNextPage) return null;
     return (
-      <View style={styles.loadingFooter}>
+      <View style={styles.loadingFooter} accessibilityLabel="Loading more activities">
         <ActivityIndicator color={colors.primary} />
       </View>
     );
@@ -311,13 +350,16 @@ export default function DiscoverScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Tab Selector */}
-      <View style={[styles.tabContainer, { backgroundColor: colors.card }]}>
+      <View style={[styles.tabContainer, { backgroundColor: colors.card }]} accessibilityRole="tablist">
         <TouchableOpacity
           style={[
             styles.tab,
             activeTab === 'discover' && [styles.activeTab, { borderBottomColor: colors.primary }],
           ]}
           onPress={() => setActiveTab('discover')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === 'discover' }}
+          accessibilityLabel="Discover tab - Browse all public activity"
         >
           <Ionicons
             name="compass"
@@ -340,6 +382,9 @@ export default function DiscoverScreen() {
             activeTab === 'following' && [styles.activeTab, { borderBottomColor: colors.primary }],
           ]}
           onPress={() => setActiveTab('following')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === 'following' }}
+          accessibilityLabel="Following tab - Activity from people you follow"
         >
           <Ionicons
             name="people"
@@ -669,5 +714,39 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.md,
     textAlign: 'center',
     paddingHorizontal: spacing.xl,
+  },
+  emptyActionButton: {
+    marginTop: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radius.full,
+  },
+  emptyActionText: {
+    color: '#FFFFFF',
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.semibold as '600',
+  },
+
+  // Like button states
+  likeButtonDisabled: {
+    opacity: 0.5,
+  },
+
+  // Pagination error
+  paginationError: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    marginVertical: spacing.md,
+    gap: spacing.sm,
+  },
+  paginationErrorText: {
+    fontSize: typography.sizes.sm,
+  },
+  paginationRetryText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.semibold as '600',
   },
 });

@@ -215,11 +215,11 @@ export default function Leaderboards() {
   const getRankBorderColor = (rank: number) => {
     switch (rank) {
       case 1:
-        return '#fbbf24'; // gold
+        return colors.gold;
       case 2:
-        return '#9ca3af'; // silver
+        return colors.silver;
       case 3:
-        return '#cd7f32'; // bronze
+        return colors.bronze;
       default:
         return null;
     }
@@ -311,10 +311,13 @@ export default function Leaderboards() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Tabs */}
       <Animated.View style={[styles.tabContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border, opacity: headerFadeAnim }]}>
-        <View style={styles.tabsRow}>
+        <View style={styles.tabsRow} accessibilityRole="tablist">
           <TouchableOpacity
             style={styles.tab}
             onPress={() => handleTabPress('global')}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'global' }}
+            accessibilityLabel="Global leaderboard - All users ranked by accuracy"
           >
             <Ionicons
               name="globe-outline"
@@ -329,6 +332,9 @@ export default function Leaderboards() {
           <TouchableOpacity
             style={styles.tab}
             onPress={() => handleTabPress('friends')}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'friends' }}
+            accessibilityLabel="Friends leaderboard - Your friends ranked by accuracy"
           >
             <Ionicons
               name="people-outline"

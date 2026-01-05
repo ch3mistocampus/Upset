@@ -53,6 +53,11 @@ export const colors = {
 
     // Shadow
     shadowColor: 'rgba(0, 0, 0, 0.08)',
+
+    // Medal colors for leaderboard
+    gold: '#D4A017',
+    silver: '#71757E',
+    bronze: '#9D6739',
   },
 
   dark: {
@@ -106,6 +111,11 @@ export const colors = {
 
     // Shadow
     shadowColor: 'rgba(0, 0, 0, 0.45)',
+
+    // Medal colors for leaderboard
+    gold: '#FFD700',
+    silver: '#A8B0BC',
+    bronze: '#CD853F',
   },
 } as const;
 

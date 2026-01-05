@@ -396,6 +396,9 @@ export default function Home() {
                 styles.countdownInset,
                 { backgroundColor: isDark ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.025)' }
               ]}
+              accessibilityRole="timer"
+              accessibilityLabel={`${isLocked ? 'Event has started' : `Picks lock in ${timeUntil}`}`}
+              accessibilityLiveRegion="polite"
             >
               <Text style={[styles.countdownLabel, { color: colors.textSecondary }]}>
                 {isLocked ? 'Event Started' : 'Picks Lock In'}

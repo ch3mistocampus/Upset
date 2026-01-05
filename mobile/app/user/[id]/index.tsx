@@ -624,7 +624,18 @@ export default function UserProfile() {
           </TouchableOpacity>
 
           {/* Username */}
-          <Text style={[styles.username, { color: colors.text }]}>@{profile.username}</Text>
+          <View style={styles.usernameRow}>
+            <Text style={[styles.username, { color: colors.text }]}>@{profile.username}</Text>
+            {isMuted && (
+              <View
+                style={[styles.mutedBadge, { backgroundColor: colors.surfaceAlt }]}
+                accessibilityLabel="This user is muted"
+              >
+                <Ionicons name="volume-mute" size={12} color={colors.textTertiary} />
+                <Text style={[styles.mutedBadgeText, { color: colors.textTertiary }]}>Muted</Text>
+              </View>
+            )}
+          </View>
 
           {/* Bio */}
           {profile.bio && (
@@ -698,13 +709,16 @@ export default function UserProfile() {
         </View>
 
         {/* Tabs */}
-        <View style={[styles.tabContainer, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+        <View style={[styles.tabContainer, { backgroundColor: colors.background, borderBottomColor: colors.border }]} accessibilityRole="tablist">
           <TouchableOpacity
             style={[styles.tab, activeTab === 'picks' && { borderBottomColor: colors.accent }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setActiveTab('picks');
             }}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'picks' }}
+            accessibilityLabel="Picks tab - View user's picks"
           >
             <Text style={[
               styles.tabText,
@@ -721,6 +735,9 @@ export default function UserProfile() {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setActiveTab('stats');
             }}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'stats' }}
+            accessibilityLabel="Stats tab - View user's statistics"
           >
             <Text style={[
               styles.tabText,
@@ -1053,10 +1070,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
+  usernameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: 2,
+  },
   username: {
     fontSize: 18,
     fontWeight: '700',
-    marginBottom: 2,
+  },
+  mutedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: 10,
+    gap: 4,
+  },
+  mutedBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   bio: {
     fontSize: 13,

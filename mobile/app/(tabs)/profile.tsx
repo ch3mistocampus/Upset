@@ -20,6 +20,7 @@ import {
   ActionSheetIOS,
   Alert,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -663,14 +664,22 @@ export default function Profile() {
             style={styles.avatarContainer}
             onPress={handleAvatarPress}
             activeOpacity={0.8}
+            disabled={uploadingAvatar}
+            accessibilityRole="button"
+            accessibilityLabel={uploadingAvatar ? 'Uploading profile picture' : 'Tap to view or change profile picture'}
           >
             {profile?.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={[styles.avatarSquare, { backgroundColor: colors.accent }]} />
+              <Image source={{ uri: profile.avatar_url }} style={[styles.avatarSquare, { backgroundColor: colors.accent }, uploadingAvatar && styles.avatarUploading]} />
             ) : (
-              <View style={[styles.avatarSquare, { backgroundColor: colors.accent }]}>
+              <View style={[styles.avatarSquare, { backgroundColor: colors.accent }, uploadingAvatar && styles.avatarUploading]}>
                 <Text style={styles.avatarText}>
                   {profile?.username?.charAt(0).toUpperCase() || '?'}
                 </Text>
+              </View>
+            )}
+            {uploadingAvatar && (
+              <View style={styles.avatarUploadOverlay}>
+                <ActivityIndicator size="small" color="#fff" />
               </View>
             )}
           </TouchableOpacity>
@@ -1097,6 +1106,16 @@ const styles = StyleSheet.create({
   avatarSquare: {
     width: 80,
     height: 80,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarUploading: {
+    opacity: 0.6,
+  },
+  avatarUploadOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
