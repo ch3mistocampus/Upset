@@ -75,8 +75,8 @@ export function useDiscoverFeed() {
       logger.breadcrumb('Fetching discover feed', 'feed', { offset: pageParam });
 
       const { data, error } = await supabase.rpc('get_discover_feed', {
-        limit_count: PAGE_SIZE,
-        offset_count: pageParam,
+        p_limit: PAGE_SIZE,
+        p_offset: pageParam,
       });
 
       if (error) {
@@ -105,8 +105,8 @@ export function useFollowingFeed() {
       logger.breadcrumb('Fetching following feed', 'feed', { offset: pageParam });
 
       const { data, error } = await supabase.rpc('get_following_feed', {
-        limit_count: PAGE_SIZE,
-        offset_count: pageParam,
+        p_limit: PAGE_SIZE,
+        p_offset: pageParam,
       });
 
       if (error) {
@@ -135,7 +135,7 @@ export function useTrendingUsers() {
       logger.breadcrumb('Fetching trending users', 'feed');
 
       const { data, error } = await supabase.rpc('get_trending_users', {
-        limit_count: 20,
+        p_limit: 20,
       });
 
       if (error) {

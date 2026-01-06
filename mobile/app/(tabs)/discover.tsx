@@ -7,7 +7,7 @@
  * - Trending users section
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -37,18 +37,30 @@ import {
 import { useFriends } from '../../hooks/useFriends';
 import { useLike } from '../../hooks/useLikes';
 import { useUserSuggestions, getSuggestionReasonText, UserSuggestion } from '../../hooks/useSuggestions';
+import { usePostsFeed, useFollowingPostsFeed } from '../../hooks/usePosts';
+import { useAuth } from '../../hooks/useAuth';
+import { PostCard } from '../../components/posts';
+import { Post } from '../../types/posts';
 
 type FeedTab = 'discover' | 'following';
+
+// Union type for feed items (either activity or post)
+type FeedItem =
+  | { type: 'activity'; data: ActivityItem }
+  | { type: 'post'; data: Post };
 
 export default function DiscoverScreen() {
   const { colors } = useTheme();
   const router = useRouter();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<FeedTab>('discover');
   const [lastRefreshTime, setLastRefreshTime] = useState<string | null>(null);
   const newPostsAnim = useRef(new Animated.Value(0)).current;
 
   const discoverFeed = useDiscoverFeed();
   const followingFeed = useFollowingFeed();
+  const discoverPosts = usePostsFeed();
+  const followingPosts = useFollowingPostsFeed(user?.id ?? null);
   const { data: trendingUsers, refetch: refetchTrending } = useTrendingUsers();
   const { data: suggestions } = useUserSuggestions(5);
   const { follow, followLoading } = useFriends();
@@ -58,7 +70,21 @@ export default function DiscoverScreen() {
   const { data: newPostsCount } = useNewActivityCount(lastRefreshTime);
 
   const activeFeed = activeTab === 'discover' ? discoverFeed : followingFeed;
+  const activePostsFeed = activeTab === 'discover' ? discoverPosts : followingPosts;
   const activities = activeFeed.data?.pages.flat() || [];
+  const posts = activePostsFeed.data?.pages.flat() || [];
+
+  // Combine activities and posts into a single feed, sorted by created_at
+  const combinedFeed: FeedItem[] = useMemo(() => {
+    const activityItems: FeedItem[] = activities.map(a => ({ type: 'activity' as const, data: a }));
+    const postItems: FeedItem[] = posts.map(p => ({ type: 'post' as const, data: p }));
+
+    return [...activityItems, ...postItems].sort((a, b) => {
+      const dateA = new Date(a.data.created_at).getTime();
+      const dateB = new Date(b.data.created_at).getTime();
+      return dateB - dateA; // Most recent first
+    });
+  }, [activities, posts]);
 
   // Set initial refresh time on mount
   useEffect(() => {
@@ -66,6 +92,12 @@ export default function DiscoverScreen() {
       setLastRefreshTime(activities[0]?.created_at || new Date().toISOString());
     }
   }, [activities, lastRefreshTime]);
+
+  // Refetch data when tab changes
+  useEffect(() => {
+    activeFeed.refetch();
+    activePostsFeed.refetch();
+  }, [activeTab]);
 
   // Animate new posts banner
   useEffect(() => {
@@ -83,11 +115,12 @@ export default function DiscoverScreen() {
 
   const handleRefresh = useCallback(() => {
     activeFeed.refetch();
+    activePostsFeed.refetch();
     setLastRefreshTime(new Date().toISOString());
     if (activeTab === 'discover') {
       refetchTrending();
     }
-  }, [activeFeed, activeTab, refetchTrending]);
+  }, [activeFeed, activePostsFeed, activeTab, refetchTrending]);
 
   const handleNewPostsTap = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -98,7 +131,10 @@ export default function DiscoverScreen() {
     if (activeFeed.hasNextPage && !activeFeed.isFetchingNextPage) {
       activeFeed.fetchNextPage();
     }
-  }, [activeFeed]);
+    if (activePostsFeed.hasNextPage && !activePostsFeed.isFetchingNextPage) {
+      activePostsFeed.fetchNextPage();
+    }
+  }, [activeFeed, activePostsFeed]);
 
   const handleUserPress = (userId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -121,6 +157,18 @@ export default function DiscoverScreen() {
     } catch {
       // Error handled in hook
     }
+  };
+
+  // Render combined feed item (either activity or post)
+  const renderFeedItem = ({ item }: { item: FeedItem }) => {
+    if (item.type === 'post') {
+      return (
+        <View style={styles.postWrapper}>
+          <PostCard post={item.data} />
+        </View>
+      );
+    }
+    return renderActivityItem({ item: item.data });
   };
 
   const renderActivityItem = ({ item }: { item: ActivityItem }) => (
@@ -282,9 +330,9 @@ export default function DiscoverScreen() {
         </View>
       )}
 
-      {/* Activity Section Header */}
+      {/* Feed Section Header */}
       <Text style={[styles.sectionTitle, { color: colors.text, marginTop: spacing.lg }]}>
-        {activeTab === 'discover' ? '✨ Recent Activity' : '👥 From People You Follow'}
+        {activeTab === 'discover' ? '✨ Activity & Posts' : '👥 From People You Follow'}
       </Text>
     </View>
   );
@@ -403,7 +451,7 @@ export default function DiscoverScreen() {
       </View>
 
       {/* New Posts Banner */}
-      {newPostsCount && newPostsCount > 0 && (
+      {newPostsCount != null && newPostsCount > 0 && (
         <Animated.View
           style={[
             styles.newPostsBanner,
@@ -434,16 +482,16 @@ export default function DiscoverScreen() {
         </Animated.View>
       )}
 
-      {/* Activity Feed */}
-      {activeFeed.isLoading ? (
+      {/* Content */}
+      {(activeFeed.isLoading || activePostsFeed.isLoading) ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <FlatList
-          data={activities}
-          renderItem={renderActivityItem}
-          keyExtractor={(item) => item.id}
+          data={combinedFeed}
+          renderItem={renderFeedItem}
+          keyExtractor={(item) => `${item.type}-${item.data.id}`}
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={renderEmpty}
           ListFooterComponent={renderFooter}
@@ -451,7 +499,7 @@ export default function DiscoverScreen() {
           onEndReachedThreshold={0.5}
           refreshControl={
             <RefreshControl
-              refreshing={activeFeed.isRefetching}
+              refreshing={activeFeed.isRefetching || activePostsFeed.isRefetching}
               onRefresh={handleRefresh}
               tintColor={colors.primary}
             />
@@ -615,6 +663,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: typography.sizes.xs,
     fontWeight: typography.weights.semibold as '600',
+  },
+
+  // Post wrapper (for PostCard in feed)
+  postWrapper: {
+    marginBottom: spacing.sm,
   },
 
   // Activity Items

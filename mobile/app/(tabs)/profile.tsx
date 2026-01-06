@@ -83,6 +83,16 @@ export default function Profile() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
 
+  // Debug: log recent summary
+  useEffect(() => {
+    console.log('[DEBUG] recentSummary updated:', {
+      isLoading: summaryLoading,
+      length: recentSummary?.length,
+      showSettings,
+      data: recentSummary?.map(s => ({ eventName: s.event?.name, total: s.total, correct: s.correct }))
+    });
+  }, [recentSummary, summaryLoading, showSettings]);
+
   // Animations
   const headerScale = useRef(new Animated.Value(0.95)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
@@ -877,16 +887,18 @@ export default function Profile() {
                     RECENT EVENTS
                   </Text>
                   <View style={styles.eventsList}>
-                    {(recentSummary as RecentEventSummary[]).map((summary) =>
-                      renderEventCard(
-                        summary.event.id,
-                        summary.event.name,
-                        summary.total,
-                        summary.total,
-                        summary.correct,
-                        false
-                      )
-                    )}
+                    {(recentSummary as RecentEventSummary[]).map((summary) => (
+                      <View key={summary.event.id}>
+                        {renderEventCard(
+                          summary.event.id,
+                          summary.event.name,
+                          summary.total,
+                          summary.total,
+                          summary.correct,
+                          false
+                        )}
+                      </View>
+                    ))}
                   </View>
                 </View>
               ) : !upcomingEvents?.length && (
@@ -1149,29 +1161,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
-    marginBottom: 4,
+    paddingVertical: 8,
+    marginBottom: 6,
   },
   mainStatItem: {
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
   },
   mainStatValue: {
-    fontSize: 17,
+    fontSize: 24,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
-    lineHeight: 20,
+    lineHeight: 28,
   },
   mainStatLabel: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '600',
     textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    marginTop: 1,
+    letterSpacing: 0.5,
+    marginTop: 2,
   },
   mainStatDivider: {
     width: 1,
-    height: 24,
+    height: 32,
     marginHorizontal: 0,
   },
 
@@ -1179,22 +1191,22 @@ const styles = StyleSheet.create({
   socialRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 16,
-    marginTop: 6,
-    marginBottom: 8,
+    gap: 24,
+    marginTop: 8,
+    marginBottom: 12,
   },
   socialItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
   socialNumber: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '700',
-    lineHeight: 16,
+    lineHeight: 20,
   },
   socialLabel: {
-    fontSize: 11,
+    fontSize: 14,
   },
 
   // Section Divider

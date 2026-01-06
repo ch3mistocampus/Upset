@@ -219,11 +219,11 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  current_user UUID;
+  cur_user_id UUID;
 BEGIN
-  current_user := auth.uid();
+  cur_user_id := auth.uid();
 
-  IF current_user IS NULL THEN
+  IF cur_user_id IS NULL THEN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
@@ -231,12 +231,12 @@ BEGIN
   WITH user_follows AS (
     -- Users the current user follows
     SELECT friend_id FROM public.friendships
-    WHERE user_id = current_user AND status = 'accepted'
+    WHERE user_id = cur_user_id AND status = 'accepted'
   ),
   blocked_users AS (
-    SELECT blocked_user_id FROM public.blocks WHERE user_id = current_user
+    SELECT blocked_user_id FROM public.blocks WHERE user_id = cur_user_id
     UNION
-    SELECT user_id FROM public.blocks WHERE blocked_user_id = current_user
+    SELECT user_id FROM public.blocks WHERE blocked_user_id = cur_user_id
   ),
   mutual_follow_counts AS (
     -- Count mutual follows (friends of friends)
@@ -245,7 +245,7 @@ BEGIN
       COUNT(*) AS mutual_count
     FROM user_follows uf
     JOIN public.friendships f2 ON f2.user_id = uf.friend_id AND f2.status = 'accepted'
-    WHERE f2.friend_id != current_user
+    WHERE f2.friend_id != cur_user_id
       AND f2.friend_id NOT IN (SELECT friend_id FROM user_follows)
       AND f2.friend_id NOT IN (SELECT blocked_user_id FROM blocked_users)
     GROUP BY f2.friend_id
@@ -258,7 +258,7 @@ BEGIN
       us.total_picks
     FROM public.profiles p
     JOIN public.user_stats us ON us.user_id = p.user_id
-    WHERE p.user_id != current_user
+    WHERE p.user_id != cur_user_id
       AND p.user_id NOT IN (SELECT friend_id FROM user_follows)
       AND p.user_id NOT IN (SELECT blocked_user_id FROM blocked_users)
       AND us.total_picks >= 10
@@ -297,6 +297,11 @@ GRANT EXECUTE ON FUNCTION get_user_suggestions(INTEGER) TO authenticated;
 -- ============================================================================
 -- UPDATE FEED FUNCTIONS TO EXCLUDE MUTED USERS
 -- ============================================================================
+-- Drop existing functions first (different signature from migration 3)
+DROP FUNCTION IF EXISTS get_discover_feed(INTEGER, INTEGER);
+DROP FUNCTION IF EXISTS get_following_feed(INTEGER, INTEGER);
+DROP FUNCTION IF EXISTS get_trending_users(INTEGER);
+
 CREATE OR REPLACE FUNCTION get_discover_feed(
   p_limit INTEGER DEFAULT 20,
   p_offset INTEGER DEFAULT 0
@@ -319,9 +324,9 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  current_user UUID;
+  cur_user_id UUID;
 BEGIN
-  current_user := auth.uid();
+  cur_user_id := auth.uid();
 
   RETURN QUERY
   SELECT
@@ -337,7 +342,7 @@ BEGIN
     a.like_count,
     EXISTS (
       SELECT 1 FROM public.activity_likes al
-      WHERE al.activity_id = a.id AND al.user_id = current_user
+      WHERE al.activity_id = a.id AND al.user_id = cur_user_id
     ) AS is_liked,
     a.created_at
   FROM public.activities a
@@ -346,13 +351,13 @@ BEGIN
     -- Exclude blocked users
     AND NOT EXISTS (
       SELECT 1 FROM public.blocks b
-      WHERE (b.user_id = current_user AND b.blocked_user_id = a.user_id)
-         OR (b.blocked_user_id = current_user AND b.user_id = a.user_id)
+      WHERE (b.user_id = cur_user_id AND b.blocked_user_id = a.user_id)
+         OR (b.blocked_user_id = cur_user_id AND b.user_id = a.user_id)
     )
     -- Exclude muted users
     AND NOT EXISTS (
       SELECT 1 FROM public.mutes m
-      WHERE m.user_id = current_user AND m.muted_user_id = a.user_id
+      WHERE m.user_id = cur_user_id AND m.muted_user_id = a.user_id
     )
   ORDER BY a.engagement_score DESC, a.created_at DESC
   LIMIT p_limit
@@ -382,11 +387,11 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  current_user UUID;
+  cur_user_id UUID;
 BEGIN
-  current_user := auth.uid();
+  cur_user_id := auth.uid();
 
-  IF current_user IS NULL THEN
+  IF cur_user_id IS NULL THEN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
@@ -404,19 +409,19 @@ BEGIN
     a.like_count,
     EXISTS (
       SELECT 1 FROM public.activity_likes al
-      WHERE al.activity_id = a.id AND al.user_id = current_user
+      WHERE al.activity_id = a.id AND al.user_id = cur_user_id
     ) AS is_liked,
     a.created_at
   FROM public.activities a
   JOIN public.profiles p ON p.user_id = a.user_id
   WHERE a.user_id IN (
     SELECT friend_id FROM public.friendships
-    WHERE user_id = current_user AND status = 'accepted'
+    WHERE user_id = cur_user_id AND status = 'accepted'
   )
   -- Exclude muted users (even if following)
   AND NOT EXISTS (
     SELECT 1 FROM public.mutes m
-    WHERE m.user_id = current_user AND m.muted_user_id = a.user_id
+    WHERE m.user_id = cur_user_id AND m.muted_user_id = a.user_id
   )
   ORDER BY a.created_at DESC
   LIMIT p_limit
@@ -433,20 +438,20 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  current_user UUID;
+  cur_user_id UUID;
   existing_like UUID;
   new_like_count INTEGER;
 BEGIN
-  current_user := auth.uid();
+  cur_user_id := auth.uid();
 
-  IF current_user IS NULL THEN
+  IF cur_user_id IS NULL THEN
     RAISE EXCEPTION 'Not authenticated';
   END IF;
 
   -- Check if already liked
   SELECT id INTO existing_like
   FROM public.activity_likes
-  WHERE activity_id = p_activity_id AND user_id = current_user;
+  WHERE activity_id = p_activity_id AND user_id = cur_user_id;
 
   IF existing_like IS NOT NULL THEN
     -- Unlike
@@ -459,7 +464,7 @@ BEGIN
   ELSE
     -- Like
     INSERT INTO public.activity_likes (activity_id, user_id)
-    VALUES (p_activity_id, current_user);
+    VALUES (p_activity_id, cur_user_id);
 
     SELECT like_count INTO new_like_count
     FROM public.activities WHERE id = p_activity_id;
@@ -480,10 +485,10 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  current_user UUID;
+  cur_user_id UUID;
   new_count INTEGER;
 BEGIN
-  current_user := auth.uid();
+  cur_user_id := auth.uid();
 
   SELECT COUNT(*)::INTEGER INTO new_count
   FROM public.activities a
@@ -492,12 +497,12 @@ BEGIN
     AND a.created_at > since_timestamp
     AND NOT EXISTS (
       SELECT 1 FROM public.blocks b
-      WHERE (b.user_id = current_user AND b.blocked_user_id = a.user_id)
-         OR (b.blocked_user_id = current_user AND b.user_id = a.user_id)
+      WHERE (b.user_id = cur_user_id AND b.blocked_user_id = a.user_id)
+         OR (b.blocked_user_id = cur_user_id AND b.user_id = a.user_id)
     )
     AND NOT EXISTS (
       SELECT 1 FROM public.mutes m
-      WHERE m.user_id = current_user AND m.muted_user_id = a.user_id
+      WHERE m.user_id = cur_user_id AND m.muted_user_id = a.user_id
     );
 
   RETURN new_count;
