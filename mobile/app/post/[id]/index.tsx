@@ -25,20 +25,29 @@ import { useTheme } from '../../../lib/theme';
 import { spacing, radius, typography } from '../../../lib/tokens';
 import { usePostWithComments, buildCommentTree, formatRelativeTime } from '../../../hooks/usePosts';
 import { useTogglePostLike } from '../../../hooks/usePostLikes';
+import { useToggleBookmark } from '../../../hooks/usePostBookmarks';
 import { Avatar } from '../../../components/Avatar';
-import { CommentItem, CommentInput } from '../../../components/posts';
+import { CommentItem, CommentInput, PostActionsMenu, ReportModal, EditPostModal } from '../../../components/posts';
 import { EmptyState } from '../../../components/EmptyState';
+import { useToast } from '../../../hooks/useToast';
+import { useAuth } from '../../../hooks/useAuth';
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const toast = useToast();
+  const { user } = useAuth();
   const { data, isLoading, isRefetching, refetch, error } = usePostWithComments(id);
   const toggleLike = useTogglePostLike();
+  const toggleBookmark = useToggleBookmark();
   const scrollViewRef = useRef<ScrollView>(null);
 
   const [replyTo, setReplyTo] = useState<{ commentId: string; username: string } | null>(null);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const post = data?.post;
   const comments = data?.comments ?? [];
@@ -63,6 +72,22 @@ export default function PostDetailScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       router.push(`/user/${post.user_id}`);
     }
+  };
+
+  const handleBookmarkPress = async () => {
+    if (!post) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const result = await toggleBookmark.mutateAsync(post.id);
+      toast.showNeutral(result.bookmarked ? 'Post saved' : 'Post removed from saved');
+    } catch (err: any) {
+      toast.showError(err.message || 'Failed to save post');
+    }
+  };
+
+  const handleActionsPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowActionsMenu(true);
   };
 
   const handleInputFocus = useCallback(() => {
@@ -135,6 +160,26 @@ export default function PostDetailScreen() {
               <Ionicons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
           ),
+          headerRight: () => (
+            <View style={styles.headerRightContainer}>
+              <TouchableOpacity
+                onPress={handleBookmarkPress}
+                style={styles.headerButton}
+                disabled={toggleBookmark.isPending}
+              >
+                <Ionicons
+                  name={post?.user_has_bookmarked ? 'bookmark' : 'bookmark-outline'}
+                  size={22}
+                  color={post?.user_has_bookmarked ? colors.accent : colors.text}
+                />
+              </TouchableOpacity>
+              {!isSystemPost && (
+                <TouchableOpacity onPress={handleActionsPress} style={styles.headerButton}>
+                  <Ionicons name="ellipsis-horizontal" size={22} color={colors.text} />
+                </TouchableOpacity>
+              )}
+            </View>
+          ),
         }}
       />
 
@@ -172,9 +217,16 @@ export default function PostDetailScreen() {
             )}
             <View style={styles.authorInfo}>
               <Text style={[styles.authorName, { color: colors.text }]}>{authorName}</Text>
-              <Text style={[styles.timestamp, { color: colors.textTertiary }]}>
-                {formatRelativeTime(post.created_at)}
-              </Text>
+              <View style={styles.timestampRow}>
+                <Text style={[styles.timestamp, { color: colors.textTertiary }]}>
+                  {formatRelativeTime(post.created_at)}
+                </Text>
+                {post.is_edited && (
+                  <Text style={[styles.editedLabel, { color: colors.textTertiary }]}>
+                    {' · edited'}
+                  </Text>
+                )}
+              </View>
             </View>
           </TouchableOpacity>
 
@@ -285,6 +337,30 @@ export default function PostDetailScreen() {
           onFocus={handleInputFocus}
         />
       </View>
+
+      {/* Action Modals */}
+      <PostActionsMenu
+        visible={showActionsMenu}
+        onClose={() => setShowActionsMenu(false)}
+        post={post}
+        onEdit={() => setShowEditModal(true)}
+        onReport={() => setShowReportModal(true)}
+      />
+
+      <ReportModal
+        visible={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        type="post"
+        targetId={post.id}
+      />
+
+      <EditPostModal
+        visible={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        postId={post.id}
+        initialTitle={post.title}
+        initialBody={post.body}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -304,6 +380,10 @@ const styles = StyleSheet.create({
   },
   headerButton: {
     padding: spacing.sm,
+  },
+  headerRightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   scrollView: {
     flex: 1,
@@ -336,9 +416,16 @@ const styles = StyleSheet.create({
   authorName: {
     ...typography.h3,
   },
+  timestampRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
   timestamp: {
     ...typography.meta,
-    marginTop: 2,
+  },
+  editedLabel: {
+    ...typography.meta,
   },
   systemBadge: {
     paddingHorizontal: spacing.sm,

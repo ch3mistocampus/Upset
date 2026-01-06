@@ -21,8 +21,11 @@ export interface Post {
   body: string | null;
   like_count: number;
   comment_count: number;
+  view_count: number;
   engagement_score: number;
   is_public: boolean;
+  is_edited: boolean;
+  edited_at: string | null;
   created_at: string;
   updated_at: string;
   // Joined fields
@@ -34,6 +37,7 @@ export interface Post {
   fighter_b_name: string | null;
   images: PostImage[];
   user_has_liked: boolean;
+  user_has_bookmarked: boolean;
 }
 
 // Comment Types
@@ -46,6 +50,8 @@ export interface Comment {
   like_count: number;
   reply_count: number;
   depth: number;
+  is_edited: boolean;
+  edited_at: string | null;
   created_at: string;
   updated_at: string;
   // Joined fields
@@ -83,4 +89,45 @@ export interface LikeToggleResult {
 // For displaying comments in a tree structure
 export interface CommentWithReplies extends Comment {
   replies: CommentWithReplies[];
+}
+
+// Update post input
+export interface UpdatePostInput {
+  postId: string;
+  title: string;
+  body?: string;
+}
+
+// Update comment input
+export interface UpdateCommentInput {
+  commentId: string;
+  postId: string;
+  body: string;
+}
+
+// Report reason types
+export type ReportReason =
+  | 'spam'
+  | 'harassment'
+  | 'hate_speech'
+  | 'misinformation'
+  | 'inappropriate'
+  | 'other';
+
+// Notification types
+export type PostNotificationType = 'post_like' | 'post_comment' | 'comment_like' | 'comment_reply';
+
+export interface PostNotification {
+  id: string;
+  type: PostNotificationType;
+  is_read: boolean;
+  created_at: string;
+  post_id: string;
+  comment_id: string | null;
+  post_title: string;
+  actor: {
+    user_id: string;
+    username: string;
+    avatar_url: string | null;
+  };
 }

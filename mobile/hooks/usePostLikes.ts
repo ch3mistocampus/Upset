@@ -37,16 +37,15 @@ export function useTogglePostLike() {
     },
     // Optimistic update for instant feedback
     onMutate: async (postId) => {
-      // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: postKeys.feed() });
-      await queryClient.cancelQueries({ queryKey: postKeys.detail(postId) });
+      // Cancel outgoing refetches for all post queries
+      await queryClient.cancelQueries({ queryKey: postKeys.all });
 
       // Snapshot current data
       const previousFeed = queryClient.getQueryData(postKeys.feed());
       const previousDetail = queryClient.getQueryData(postKeys.detail(postId));
 
-      // Optimistically update feed
-      queryClient.setQueryData(postKeys.feed(), (old: any) => {
+      // Helper function to update a post in paginated data
+      const updatePostInPages = (old: any) => {
         if (!old?.pages) return old;
         return {
           ...old,
@@ -65,7 +64,22 @@ export function useTogglePostLike() {
             })
           ),
         };
-      });
+      };
+
+      // Optimistically update main feed
+      queryClient.setQueryData(postKeys.feed(), updatePostInPages);
+
+      // Optimistically update all following feeds (they all start with ['posts', 'following'])
+      queryClient.setQueriesData(
+        { queryKey: [...postKeys.all, 'following'], exact: false },
+        updatePostInPages
+      );
+
+      // Optimistically update user posts feeds
+      queryClient.setQueriesData(
+        { queryKey: [...postKeys.all, 'user'], exact: false },
+        updatePostInPages
+      );
 
       // Optimistically update detail
       queryClient.setQueryData(postKeys.detail(postId), (old: PostWithComments | null) => {
@@ -92,11 +106,13 @@ export function useTogglePostLike() {
       if (context?.previousDetail) {
         queryClient.setQueryData(postKeys.detail(postId), context.previousDetail);
       }
+      // Also invalidate all to ensure consistency
+      queryClient.invalidateQueries({ queryKey: postKeys.all });
     },
-    // Always refetch after mutation
+    // Always refetch after mutation to ensure consistency
     onSettled: (_, __, postId) => {
-      queryClient.invalidateQueries({ queryKey: postKeys.feed() });
-      queryClient.invalidateQueries({ queryKey: postKeys.detail(postId) });
+      // Invalidate all post-related queries to update like counts everywhere
+      queryClient.invalidateQueries({ queryKey: postKeys.all });
     },
   });
 }

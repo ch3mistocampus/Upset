@@ -4,7 +4,7 @@
  */
 
 import { View, Text, StyleSheet, TouchableOpacity, Image, Animated } from 'react-native';
-import { useRef } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -15,19 +15,33 @@ import { Avatar } from '../Avatar';
 import { Post } from '../../types/posts';
 import { formatRelativeTime } from '../../hooks/usePosts';
 import { useTogglePostLike } from '../../hooks/usePostLikes';
+import { PostActionsMenu } from './PostActionsMenu';
+import { ReportModal } from './ReportModal';
+import { EditPostModal } from './EditPostModal';
 
 interface PostCardProps {
   post: Post;
   onPress?: () => void;
+  showActions?: boolean;
 }
 
-export function PostCard({ post, onPress }: PostCardProps) {
+export function PostCard({ post, onPress, showActions = true }: PostCardProps) {
   const router = useRouter();
   const { colors } = useTheme();
   const toggleLike = useTogglePostLike();
 
-  // Press animation
+  // Modal states
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  // Press animation - use ref to persist across renders
   const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  // Reset animation when post changes (handles FlatList recycling)
+  useEffect(() => {
+    scaleAnim.setValue(1);
+  }, [post.id, scaleAnim]);
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -66,6 +80,11 @@ export function PostCard({ post, onPress }: PostCardProps) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       router.push(`/user/${post.user_id}`);
     }
+  };
+
+  const handleActionsPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowActionsMenu(true);
   };
 
   const isSystemPost = post.post_type === 'system';
@@ -117,17 +136,36 @@ export function PostCard({ post, onPress }: PostCardProps) {
                 <Text style={[styles.authorName, { color: colors.text }]} numberOfLines={1}>
                   {authorName}
                 </Text>
-                <Text style={[styles.timestamp, { color: colors.textTertiary }]}>
-                  {formatRelativeTime(post.created_at)}
-                </Text>
+                <View style={styles.timestampRow}>
+                  <Text style={[styles.timestamp, { color: colors.textTertiary }]}>
+                    {formatRelativeTime(post.created_at)}
+                  </Text>
+                  {post.is_edited && (
+                    <Text style={[styles.editedLabel, { color: colors.textTertiary }]}>
+                      {' · edited'}
+                    </Text>
+                  )}
+                </View>
               </View>
             </TouchableOpacity>
 
-            {isSystemPost && (
-              <View style={[styles.systemBadge, { backgroundColor: colors.accentSoft }]}>
-                <Text style={[styles.systemBadgeText, { color: colors.accent }]}>EVENT</Text>
-              </View>
-            )}
+            <View style={styles.headerRight}>
+              {isSystemPost && (
+                <View style={[styles.systemBadge, { backgroundColor: colors.accentSoft }]}>
+                  <Text style={[styles.systemBadgeText, { color: colors.accent }]}>EVENT</Text>
+                </View>
+              )}
+
+              {showActions && !isSystemPost && (
+                <TouchableOpacity
+                  onPress={handleActionsPress}
+                  style={styles.actionButton}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="ellipsis-horizontal" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
 
           {/* Content */}
@@ -201,6 +239,30 @@ export function PostCard({ post, onPress }: PostCardProps) {
           </View>
         </SurfaceCard>
       </Animated.View>
+
+      {/* Action Modals */}
+      <PostActionsMenu
+        visible={showActionsMenu}
+        onClose={() => setShowActionsMenu(false)}
+        post={post}
+        onEdit={() => setShowEditModal(true)}
+        onReport={() => setShowReportModal(true)}
+      />
+
+      <ReportModal
+        visible={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        type="post"
+        targetId={post.id}
+      />
+
+      <EditPostModal
+        visible={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        postId={post.id}
+        initialTitle={post.title}
+        initialBody={post.body}
+      />
     </TouchableOpacity>
   );
 }
@@ -235,9 +297,21 @@ const styles = StyleSheet.create({
     ...typography.body,
     fontWeight: '600',
   },
+  timestampRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
   timestamp: {
     ...typography.meta,
-    marginTop: 2,
+  },
+  editedLabel: {
+    ...typography.meta,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   systemBadge: {
     paddingHorizontal: spacing.sm,
@@ -248,6 +322,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  actionButton: {
+    padding: spacing.xs,
   },
   content: {
     marginBottom: spacing.md,

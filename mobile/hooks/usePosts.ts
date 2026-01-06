@@ -23,6 +23,7 @@ import {
 export const postKeys = {
   all: ['posts'] as const,
   feed: () => [...postKeys.all, 'feed'] as const,
+  followingFeed: (userId: string) => [...postKeys.all, 'following', userId] as const,
   detail: (id: string) => [...postKeys.all, 'detail', id] as const,
   userPosts: (userId: string) => [...postKeys.all, 'user', userId] as const,
 };
@@ -73,7 +74,7 @@ export function usePostsFeed() {
  */
 export function useFollowingPostsFeed(userId: string | null) {
   return useInfiniteQuery({
-    queryKey: [...postKeys.all, 'following', userId] as const,
+    queryKey: postKeys.followingFeed(userId || ''),
     queryFn: async ({ pageParam = 0 }): Promise<Post[]> => {
       if (!userId) {
         logger.warn('No userId provided to following posts feed');
@@ -207,8 +208,8 @@ export function useCreatePost() {
       return data as string;
     },
     onSuccess: () => {
-      // Invalidate feed to show new post
-      queryClient.invalidateQueries({ queryKey: postKeys.feed() });
+      // Invalidate all post feeds to show new post
+      queryClient.invalidateQueries({ queryKey: postKeys.all });
     },
   });
 }
@@ -243,8 +244,8 @@ export function useCreateComment() {
     onSuccess: (_, variables) => {
       // Invalidate post detail to show new comment
       queryClient.invalidateQueries({ queryKey: postKeys.detail(variables.postId) });
-      // Also invalidate feed to update comment count
-      queryClient.invalidateQueries({ queryKey: postKeys.feed() });
+      // Also invalidate all feeds to update comment count
+      queryClient.invalidateQueries({ queryKey: postKeys.all });
     },
   });
 }
@@ -272,7 +273,8 @@ export function useDeletePost() {
       return data as boolean;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: postKeys.feed() });
+      // Invalidate all post queries
+      queryClient.invalidateQueries({ queryKey: postKeys.all });
     },
   });
 }
@@ -301,41 +303,79 @@ export function useDeleteComment() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: postKeys.detail(variables.postId) });
-      queryClient.invalidateQueries({ queryKey: postKeys.feed() });
+      // Invalidate all feeds to update counts
+      queryClient.invalidateQueries({ queryKey: postKeys.all });
     },
   });
 }
 
 /**
  * Helper to build comment tree from flat array
+ * Optimized for large comment sets with O(n) complexity
+ * @param comments - Flat array of comments
+ * @param maxDepth - Maximum nesting depth to process (default 3)
+ * @returns Tree structure of comments with nested replies
  */
-export function buildCommentTree(comments: Comment[]): CommentWithReplies[] {
+export function buildCommentTree(comments: Comment[], maxDepth: number = 3): CommentWithReplies[] {
+  // Handle empty or small arrays efficiently
+  if (!comments || comments.length === 0) {
+    return [];
+  }
+
+  // Use Map for O(1) lookups
   const commentMap = new Map<string, CommentWithReplies>();
   const rootComments: CommentWithReplies[] = [];
 
-  // First pass: create map of all comments with empty replies
-  comments.forEach(comment => {
-    commentMap.set(comment.id, { ...comment, replies: [] });
-  });
+  // Pre-allocate all comment objects in a single pass
+  // This is more memory-efficient than creating objects on the fly
+  for (let i = 0; i < comments.length; i++) {
+    const comment = comments[i];
+    commentMap.set(comment.id, {
+      ...comment,
+      replies: [],
+    });
+  }
 
-  // Second pass: build tree structure
-  comments.forEach(comment => {
+  // Build tree structure in a single pass
+  // Process comments in order (assumes they're sorted by created_at)
+  for (let i = 0; i < comments.length; i++) {
+    const comment = comments[i];
     const commentWithReplies = commentMap.get(comment.id)!;
+
+    // Skip comments that exceed max depth (safety check)
+    if (comment.depth > maxDepth) {
+      continue;
+    }
 
     if (comment.parent_id) {
       const parent = commentMap.get(comment.parent_id);
-      if (parent) {
+      if (parent && parent.depth < maxDepth) {
         parent.replies.push(commentWithReplies);
       } else {
-        // Parent not found, treat as root
+        // Parent not found or at max depth, treat as root
         rootComments.push(commentWithReplies);
       }
     } else {
       rootComments.push(commentWithReplies);
     }
-  });
+  }
 
   return rootComments;
+}
+
+/**
+ * Sort replies within a comment tree by created_at
+ * Call this after buildCommentTree if replies need to be sorted
+ */
+export function sortCommentReplies(comments: CommentWithReplies[]): CommentWithReplies[] {
+  return comments.map(comment => ({
+    ...comment,
+    replies: sortCommentReplies(
+      comment.replies.sort((a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      )
+    ),
+  }));
 }
 
 /**
