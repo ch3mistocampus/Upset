@@ -1,5 +1,6 @@
 /**
- * Friends screen - friends list, friend requests, add friends
+ * People screen - following list, follow requests, find users
+ * Uses X-style followers/following model instead of mutual friendships
  * Requires authentication - shows gate for guests
  * Theme-aware design with SurfaceCard and entrance animations
  */
@@ -30,7 +31,7 @@ import { SkeletonCard } from '../../components/SkeletonCard';
 import { AuthPromptModal } from '../../components/AuthPromptModal';
 import type { Friend, FriendRequest } from '../../types/social';
 
-type TabType = 'friends' | 'requests';
+type TabType = 'following' | 'requests';
 
 // Animated friend card wrapper
 function AnimatedFriendCard({ children, index }: { children: React.ReactNode; index: number }) {
@@ -75,7 +76,7 @@ export default function Friends() {
   const toast = useToast();
   const { colors } = useTheme();
   const { showGate, closeGate, openGate, isGuest, gateContext } = useAuthGate();
-  const [activeTab, setActiveTab] = useState<TabType>('friends');
+  const [activeTab, setActiveTab] = useState<TabType>('following');
   const [refreshing, setRefreshing] = useState(false);
   const [gateDismissed, setGateDismissed] = useState(false);
 
@@ -107,7 +108,7 @@ export default function Friends() {
   // Animate tab indicator
   useEffect(() => {
     Animated.spring(tabIndicatorPosition, {
-      toValue: activeTab === 'friends' ? 0 : 1,
+      toValue: activeTab === 'following' ? 0 : 1,
       tension: 300,
       friction: 20,
       useNativeDriver: true,
@@ -200,14 +201,14 @@ export default function Friends() {
     router.push('/friends/add');
   };
 
-  const isLoading = activeTab === 'friends' ? friendsLoading : requestsLoading;
-  const hasError = activeTab === 'friends' ? friendsError : requestsError;
+  const isLoading = activeTab === 'following' ? friendsLoading : requestsLoading;
+  const hasError = activeTab === 'following' ? friendsError : requestsError;
 
   if (hasError) {
     return (
       <ErrorState
         message={`Failed to load ${activeTab}. Check your connection and try again.`}
-        onRetry={() => (activeTab === 'friends' ? refetchFriends() : refetchRequests())}
+        onRetry={() => (activeTab === 'following' ? refetchFriends() : refetchRequests())}
       />
     );
   }
@@ -299,9 +300,9 @@ export default function Friends() {
         <View style={styles.tabsRow}>
           <TouchableOpacity
             style={styles.tab}
-            onPress={() => handleTabPress('friends')}
+            onPress={() => handleTabPress('following')}
           >
-            <Text style={[styles.tabText, { color: activeTab === 'friends' ? colors.text : colors.textTertiary }]}>
+            <Text style={[styles.tabText, { color: activeTab === 'following' ? colors.text : colors.textTertiary }]}>
               Following ({friends.length})
             </Text>
           </TouchableOpacity>
@@ -311,7 +312,7 @@ export default function Friends() {
             onPress={() => handleTabPress('requests')}
           >
             <Text style={[styles.tabText, { color: activeTab === 'requests' ? colors.text : colors.textTertiary }]}>
-              Requests
+              Follow Requests
             </Text>
             {friendRequests.length > 0 && (
               <View style={[styles.badge, { backgroundColor: colors.accent }]}>
@@ -359,7 +360,7 @@ export default function Friends() {
             <SkeletonCard />
             <SkeletonCard />
           </>
-        ) : activeTab === 'friends' ? (
+        ) : activeTab === 'following' ? (
           friends.length === 0 ? (
             <EmptyState
               icon="people-outline"
@@ -374,8 +375,8 @@ export default function Friends() {
         ) : friendRequests.length === 0 ? (
           <EmptyState
             icon="mail-outline"
-            title="No Pending Requests"
-            message="When someone follows you, it will appear here."
+            title="No Follow Requests"
+            message="When someone wants to follow you, their request will appear here."
           />
         ) : (
           friendRequests.map((request, index) => renderRequestItem(request, index))

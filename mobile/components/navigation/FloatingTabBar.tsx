@@ -32,8 +32,9 @@ const TAB_CONFIG: Record<string, {
   label: string
 }> = {
   home: { icon: 'home', iconOutline: 'home-outline', label: 'Home' },
-  pick: { icon: 'clipboard', iconOutline: 'clipboard-outline', label: 'Picks' },
+  pick: { icon: 'calendar', iconOutline: 'calendar-outline', label: 'Events' },
   discover: { icon: 'compass', iconOutline: 'compass-outline', label: 'Discover' },
+  friends: { icon: 'people', iconOutline: 'people-outline', label: 'People' },
   leaderboards: { icon: 'trophy', iconOutline: 'trophy-outline', label: 'Ranks' },
   profile: { icon: 'person', iconOutline: 'person-outline', label: 'Profile' },
 };

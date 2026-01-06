@@ -29,7 +29,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="pick"
         options={{
-          title: 'Make Picks',
+          title: 'Events',
         }}
       />
       <Tabs.Screen
@@ -41,14 +41,14 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="friends"
         options={{
-          title: 'Friends',
-          href: null, // Hidden from tab bar, accessible via navigation
+          title: 'People',
         }}
       />
       <Tabs.Screen
         name="leaderboards"
         options={{
           title: 'Leaderboard',
+          href: null, // Accessible via profile/discover, not main tab bar
         }}
       />
       <Tabs.Screen

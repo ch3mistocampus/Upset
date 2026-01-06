@@ -378,7 +378,16 @@ export default function EventDetail() {
         <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
           {event?.name || 'Event'}
         </Text>
-        <View style={styles.headerSpacer} />
+        <TouchableOpacity
+          style={styles.scorecardsButton}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push(`/event/${id}/scorecards`);
+          }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="stats-chart" size={22} color={colors.accent} />
+        </TouchableOpacity>
       </View>
       {/* Sticky Progress Header */}
       <Animated.View
@@ -989,6 +998,10 @@ const styles = StyleSheet.create({
   },
   headerSpacer: {
     width: 40,
+  },
+  scorecardsButton: {
+    width: 40,
+    alignItems: 'flex-end',
   },
   content: {
     paddingHorizontal: spacing.md,
