@@ -13,3 +13,8 @@ export { SurfaceCard } from './SurfaceCard';
 export { PrimaryCTA } from './PrimaryCTA';
 export { ProgressPill } from './ProgressPill';
 export { CountdownText } from './CountdownText';
+
+// Scorecard components
+export { LiveBadge } from './LiveBadge';
+export { ScoreBucketChart, ScoreBucketBar } from './ScoreBucketChart';
+export { ConsensusIndicator, ConsensusRing } from './ConsensusIndicator';

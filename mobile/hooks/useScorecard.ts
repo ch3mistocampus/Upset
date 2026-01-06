@@ -250,6 +250,88 @@ export function getScorecardPollingInterval(phase: string | undefined): number |
 }
 
 // =============================================================================
+// CHECK BOUT LIVE STATUS
+// =============================================================================
+
+/**
+ * Check if a specific bout has an active scorecard (is live or scoring)
+ */
+export function useBoutLiveStatus(boutId: string | undefined) {
+  return useQuery({
+    queryKey: [...scorecardKeys.fight(boutId || ''), 'status'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('round_state')
+        .select('phase, current_round, scheduled_rounds')
+        .eq('bout_id', boutId)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (!data) {
+        return { isLive: false, phase: null, currentRound: null, scheduledRounds: null };
+      }
+
+      const isLive = data.phase === 'ROUND_LIVE' || data.phase === 'ROUND_BREAK';
+      const isActive = data.phase !== 'FIGHT_ENDED' && data.phase !== null;
+
+      return {
+        isLive,
+        isActive,
+        phase: data.phase,
+        currentRound: data.current_round,
+        scheduledRounds: data.scheduled_rounds,
+      };
+    },
+    enabled: !!boutId,
+    staleTime: 10000, // 10 seconds
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+}
+
+/**
+ * Check live status for multiple bouts (for event view)
+ */
+export function useEventLiveStatus(boutIds: string[]) {
+  return useQuery({
+    queryKey: ['scorecard', 'event-status', boutIds.sort().join(',')],
+    queryFn: async () => {
+      if (boutIds.length === 0) return new Map();
+
+      const { data, error } = await supabase
+        .from('round_state')
+        .select('bout_id, phase, current_round, scheduled_rounds')
+        .in('bout_id', boutIds);
+
+      if (error) throw error;
+
+      const statusMap = new Map<string, {
+        phase: string;
+        currentRound: number;
+        scheduledRounds: number;
+        isLive: boolean;
+        isScoring: boolean;
+      }>();
+
+      (data || []).forEach((row) => {
+        statusMap.set(row.bout_id, {
+          phase: row.phase,
+          currentRound: row.current_round,
+          scheduledRounds: row.scheduled_rounds,
+          isLive: row.phase === 'ROUND_LIVE',
+          isScoring: row.phase === 'ROUND_BREAK',
+        });
+      });
+
+      return statusMap;
+    },
+    enabled: boutIds.length > 0,
+    staleTime: 10000,
+    refetchInterval: 30000,
+  });
+}
+
+// =============================================================================
 // OPTIMISTIC UPDATE HELPER
 // =============================================================================
 

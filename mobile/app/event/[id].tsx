@@ -19,13 +19,15 @@ import { useOnboarding } from '../../hooks/useOnboarding';
 import { useTheme } from '../../lib/theme';
 import { spacing, radius, typography } from '../../lib/tokens';
 import { submitEvent, isEventSubmitted, unsubmitEvent } from '../../lib/storage';
-import { SurfaceCard, EmptyState } from '../../components/ui';
+import { SurfaceCard, EmptyState, LiveBadge } from '../../components/ui';
 import { ErrorState } from '../../components/ErrorState';
 import { SkeletonFightCard } from '../../components/SkeletonFightCard';
 import { LockExplainerModal } from '../../components/LockExplainerModal';
 import { AuthPromptModal } from '../../components/AuthPromptModal';
+import { useEventLiveStatus } from '../../hooks/useScorecard';
 import { BoutWithPick, PickInsert } from '../../types/database';
 import type { CommunityPickPercentages } from '../../types/social';
+import type { RoundPhase } from '../../types/scorecard';
 
 // UFC Corner Colors - theme-aware (maroon red, navy blue)
 const useCornerColors = () => {
@@ -157,6 +159,7 @@ export default function EventDetail() {
 
   const boutIds = useMemo(() => bouts?.map((b) => b.id) || [], [bouts]);
   const { data: communityPercentages, refetch: refetchPercentages } = useEventCommunityPercentages(boutIds);
+  const { data: liveStatusMap, refetch: refetchLiveStatus } = useEventLiveStatus(boutIds);
 
   const [refreshing, setRefreshing] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -258,7 +261,7 @@ export default function EventDetail() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([refetchEvent(), refetchBouts(), refetchPercentages()]);
+    await Promise.all([refetchEvent(), refetchBouts(), refetchPercentages(), refetchLiveStatus()]);
     setRefreshing(false);
   };
 
@@ -604,7 +607,12 @@ export default function EventDetail() {
         </View>
 
         {/* Fights List */}
-        {bouts.map((bout, index) => (
+        {bouts.map((bout, index) => {
+          const liveStatus = liveStatusMap?.get(bout.id);
+          const isLive = liveStatus?.isLive || liveStatus?.isScoring;
+          const canScore = liveStatus?.phase === 'ROUND_BREAK';
+
+          return (
           <SurfaceCard
             key={bout.id}
             weakWash
@@ -612,11 +620,21 @@ export default function EventDetail() {
             paddingSize="sm"
             style={styles.fightCard}
           >
-            {/* Order Index / Weight Class */}
+            {/* Order Index / Weight Class / Live Badge */}
             <View style={styles.fightHeader}>
-              <Text style={[styles.fightOrder, { color: colors.accent }]}>
-                {index === 0 ? 'Main Event' : `Fight ${bouts.length - index}`}
-              </Text>
+              <View style={styles.fightHeaderLeft}>
+                <Text style={[styles.fightOrder, { color: colors.accent }]}>
+                  {index === 0 ? 'Main Event' : `Fight ${bouts.length - index}`}
+                </Text>
+                {liveStatus?.phase && (
+                  <LiveBadge
+                    phase={liveStatus.phase as RoundPhase}
+                    currentRound={liveStatus.currentRound}
+                    size="sm"
+                    showRound
+                  />
+                )}
+              </View>
               {bout.weight_class && (
                 <Text style={[styles.weightClass, { color: colors.textTertiary }]}>
                   {bout.weight_class}
@@ -775,8 +793,41 @@ export default function EventDetail() {
                 </View>
               );
             })()}
+
+            {/* Score Fight Button - shown when fight is live */}
+            {isLive && (
+              <TouchableOpacity
+                style={[
+                  styles.scoreFightButton,
+                  {
+                    backgroundColor: canScore ? colors.success : colors.surfaceAlt,
+                    borderColor: canScore ? colors.success : colors.border,
+                  },
+                ]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push(`/bout/${bout.id}/scorecard`);
+                }}
+                activeOpacity={0.85}
+              >
+                <Ionicons
+                  name={canScore ? 'create-outline' : 'stats-chart-outline'}
+                  size={16}
+                  color={canScore ? '#fff' : colors.text}
+                />
+                <Text
+                  style={[
+                    styles.scoreFightButtonText,
+                    { color: canScore ? '#fff' : colors.text },
+                  ]}
+                >
+                  {canScore ? 'Score This Round' : 'View Scorecard'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </SurfaceCard>
-        ))}
+        );
+        })}
 
         {/* Bottom padding for safe area and submit button */}
         <View style={{ height: insets.bottom + spacing.lg + (picksCount > 0 && !locked && !isSubmitted ? 70 : 0) }} />
@@ -1091,12 +1142,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.xs,
   },
+  fightHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   fightOrder: {
     fontSize: 11,
     fontWeight: '600',
   },
   weightClass: {
     fontSize: 11,
+  },
+  scoreFightButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.button,
+    borderWidth: 1,
+  },
+  scoreFightButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   canceledBanner: {
     borderRadius: radius.sm,
