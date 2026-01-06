@@ -39,6 +39,7 @@ import { useLike } from '../../hooks/useLikes';
 import { useUserSuggestions, getSuggestionReasonText, UserSuggestion } from '../../hooks/useSuggestions';
 import { usePostsFeed, useFollowingPostsFeed } from '../../hooks/usePosts';
 import { useAuth } from '../../hooks/useAuth';
+import { useUnreadNotificationCount } from '../../hooks/usePostNotifications';
 import { PostCard } from '../../components/posts';
 import { Post } from '../../types/posts';
 
@@ -65,6 +66,7 @@ export default function DiscoverScreen() {
   const { data: suggestions } = useUserSuggestions(5);
   const { follow, followLoading } = useFriends();
   const { toggleLike, isToggling } = useLike();
+  const { data: unreadNotifications } = useUnreadNotificationCount();
 
   // Track new posts since last refresh
   const { data: newPostsCount } = useNewActivityCount(lastRefreshTime);
@@ -139,6 +141,16 @@ export default function DiscoverScreen() {
   const handleUserPress = (userId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push(`/user/${userId}`);
+  };
+
+  const handleSearchPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/post/search');
+  };
+
+  const handleNotificationsPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/post/notifications');
   };
 
   const handleFollow = async (userId: string) => {
@@ -397,6 +409,38 @@ export default function DiscoverScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Header Bar */}
+      <View style={[styles.headerBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Discover</Text>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            onPress={handleSearchPress}
+            style={styles.headerButton}
+            accessibilityRole="button"
+            accessibilityLabel="Search posts"
+          >
+            <Ionicons name="search" size={22} color={colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleNotificationsPress}
+            style={styles.headerButton}
+            accessibilityRole="button"
+            accessibilityLabel={`Notifications${unreadNotifications ? `, ${unreadNotifications} unread` : ''}`}
+          >
+            <View>
+              <Ionicons name="notifications-outline" size={22} color={colors.text} />
+              {unreadNotifications && unreadNotifications > 0 && (
+                <View style={[styles.notificationBadge, { backgroundColor: colors.danger }]}>
+                  <Text style={styles.notificationBadgeText}>
+                    {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {/* Tab Selector */}
       <View style={[styles.tabContainer, { backgroundColor: colors.card }]} accessibilityRole="tablist">
         <TouchableOpacity
@@ -542,6 +586,42 @@ function formatTimeAgo(dateString: string): string {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+  },
+  headerTitle: {
+    fontSize: typography.sizes.xl,
+    fontWeight: typography.weights.bold as '700',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  headerButton: {
+    padding: spacing.sm,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  notificationBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: typography.weights.bold as '700',
   },
   tabContainer: {
     flexDirection: 'row',

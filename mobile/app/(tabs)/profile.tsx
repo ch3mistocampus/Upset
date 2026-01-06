@@ -805,6 +805,26 @@ export default function Profile() {
 
               <TouchableOpacity
                 style={[styles.menuRow, { backgroundColor: colors.surface }]}
+                onPress={() => router.push('/post/bookmarks')}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="bookmark-outline" size={20} color={colors.textSecondary} />
+                <Text style={[styles.menuText, { color: colors.text }]}>Saved Posts</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.menuRow, { backgroundColor: colors.surface }]}
+                onPress={() => router.push('/post/notifications')}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.textSecondary} />
+                <Text style={[styles.menuText, { color: colors.text }]}>Post Activity</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.menuRow, { backgroundColor: colors.surface }]}
                 onPress={() => router.push('/settings/notifications')}
                 activeOpacity={0.7}
               >
