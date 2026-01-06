@@ -23,6 +23,7 @@ import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useTheme } from '../../lib/theme';
 import { useFriends } from '../../hooks/useFriends';
 import { useAuth } from '../../hooks/useAuth';
+import type { ThemeColors } from '../../lib/tokens';
 
 // Tab configuration with outline (inactive) and filled (active) icons
 const TAB_CONFIG: Record<string, {
@@ -55,7 +56,7 @@ function TabButton({
   showGuestDot: boolean;
   showBadge: boolean;
   pendingCount: number;
-  colors: any;
+  colors: ThemeColors;
   onPress: () => void;
   onLongPress: () => void;
 }) {

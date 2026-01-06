@@ -30,6 +30,7 @@ export function SegmentedControl<T extends string>({
         styles.container,
         { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
       ]}
+      accessibilityRole="tablist"
     >
       {options.map((option) => {
         const isSelected = option.value === selectedValue;
@@ -49,6 +50,9 @@ export function SegmentedControl<T extends string>({
             ]}
             onPress={() => handlePress(option.value)}
             activeOpacity={0.7}
+            accessibilityRole="tab"
+            accessibilityLabel={option.label}
+            accessibilityState={{ selected: isSelected }}
           >
             <Text
               style={[

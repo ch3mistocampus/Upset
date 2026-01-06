@@ -10,7 +10,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { Platform } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
 
@@ -74,11 +74,14 @@ function getDeepLinkFromNotification(data: Record<string, unknown>): string | nu
   }
 }
 
+// Type for notification subscription
+type NotificationSubscription = { remove: () => void } | null;
+
 export function useNotifications() {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const notificationListener = useRef<any>(null);
-  const responseListener = useRef<any>(null);
+  const notificationListener = useRef<NotificationSubscription>(null);
+  const responseListener = useRef<NotificationSubscription>(null);
 
   // Set up notification response handler (when user taps notification)
   useEffect(() => {
@@ -97,7 +100,7 @@ export function useNotifications() {
       const deepLink = getDeepLinkFromNotification(data);
       if (deepLink) {
         logger.info('Navigating to deep link', { deepLink });
-        router.push(deepLink as any);
+        router.push(deepLink as Href);
       }
 
       // Mark notification as clicked in the log

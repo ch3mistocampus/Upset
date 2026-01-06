@@ -130,6 +130,9 @@ export function Button({
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         disabled={disabled || loading}
+        accessibilityRole="button"
+        accessibilityLabel={title}
+        accessibilityState={{ disabled: disabled || loading }}
       >
         {loading ? (
           <ActivityIndicator color={getTextColor()} size="small" />
@@ -165,6 +168,9 @@ export function LinkButton({ title, onPress, disabled, style }: LinkButtonProps)
       disabled={disabled}
       style={style}
       activeOpacity={0.7}
+      accessibilityRole="link"
+      accessibilityLabel={title}
+      accessibilityState={{ disabled }}
     >
       <Text
         style={[

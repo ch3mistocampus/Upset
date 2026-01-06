@@ -7,6 +7,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useTheme } from '../lib/theme';
+import type { ThemeColors } from '../lib/tokens';
 
 interface ChartData {
   eventName: string;
@@ -39,7 +40,7 @@ export const MiniChart: React.FC<MiniChartProps> = ({ data }) => {
     <View style={styles.container}>
       {chartData.map((item, index) => (
         <ChartRow
-          key={index}
+          key={item.eventName}
           eventName={truncateName(item.eventName)}
           accuracy={item.accuracy}
           color={getBarColor(item.accuracy)}
@@ -56,7 +57,7 @@ interface ChartRowProps {
   accuracy: number;
   color: string;
   delay: number;
-  colors: any;
+  colors: ThemeColors;
 }
 
 const ChartRow: React.FC<ChartRowProps> = ({ eventName, accuracy, color, delay, colors }) => {

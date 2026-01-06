@@ -310,7 +310,7 @@ export default function Home() {
           if (match) {
             const [, num, unit] = match;
             return (
-              <View key={index} style={styles.countdownPart}>
+              <View key={`countdown-${unit}`} style={styles.countdownPart}>
                 {index > 0 && (
                   <Text style={[styles.countdownSeparator, { color: colors.textTertiary }]}>
                     ·
@@ -327,7 +327,7 @@ export default function Home() {
           }
           // Fallback for non-matching (e.g., "Event Started")
           return (
-            <Text key={index} style={[styles.countdownNum, { color: colors.accent }]}>
+            <Text key={`countdown-fallback-${part}`} style={[styles.countdownNum, { color: colors.accent }]}>
               {part}
             </Text>
           );

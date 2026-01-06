@@ -69,7 +69,13 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 
         {/* Optional action button */}
         {actionLabel && onAction && (
-          <TouchableOpacity style={styles.actionButton} onPress={onAction} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={onAction}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={actionLabel}
+          >
             <View style={styles.buttonInner}>
               <Ionicons name="refresh" size={18} color="#fff" style={styles.buttonIcon} />
               <Text style={styles.actionText}>{actionLabel}</Text>
