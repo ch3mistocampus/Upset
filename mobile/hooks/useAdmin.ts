@@ -226,6 +226,7 @@ export function useAdminStats() {
 
 /**
  * Search users for admin management
+ * Uses optimized RPC to fetch users with stats in a single query
  */
 export function useAdminUserSearch(searchTerm: string) {
   const { data: isAdmin } = useIsAdmin();
@@ -233,52 +234,36 @@ export function useAdminUserSearch(searchTerm: string) {
   return useQuery({
     queryKey: adminKeys.users(searchTerm),
     queryFn: async () => {
-      let query = supabase
-        .from('profiles')
-        .select(`
-          user_id,
-          username,
-          avatar_url,
-          created_at
-        `)
-        .order('created_at', { ascending: false })
-        .limit(50);
+      const { data, error } = await supabase.rpc('get_admin_users_with_stats', {
+        search_term: searchTerm || null,
+        limit_count: 50,
+      });
 
-      if (searchTerm) {
-        query = query.ilike('username', `%${searchTerm}%`);
+      if (error) {
+        logger.error('Failed to fetch admin users', error);
+        throw error;
       }
 
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      // Get additional stats for each user
-      const usersWithStats = await Promise.all(
-        (data || []).map(async (profile) => {
-          const { count: pickCount } = await supabase
-            .from('picks')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', profile.user_id);
-
-          const { count: reportCount } = await supabase
-            .from('reports')
-            .select('*', { count: 'exact', head: true })
-            .eq('reported_user_id', profile.user_id);
-
-          return {
-            id: profile.user_id,
-            username: profile.username,
-            avatar_url: profile.avatar_url,
-            created_at: profile.created_at,
-            total_picks: pickCount || 0,
-            correct_picks: 0, // Would need to calculate
-            is_banned: false, // Would need banned column
-            report_count: reportCount || 0,
-          } as AdminUser;
-        })
-      );
-
-      return usersWithStats;
+      // Map RPC response to AdminUser interface
+      return (data || []).map((user: {
+        id: string;
+        username: string;
+        avatar_url: string | null;
+        created_at: string;
+        total_picks: number;
+        correct_picks: number;
+        is_banned: boolean;
+        report_count: number;
+      }) => ({
+        id: user.id,
+        username: user.username,
+        avatar_url: user.avatar_url,
+        created_at: user.created_at,
+        total_picks: user.total_picks,
+        correct_picks: user.correct_picks,
+        is_banned: user.is_banned,
+        report_count: user.report_count,
+      } as AdminUser));
     },
     enabled: isAdmin === true && searchTerm.length >= 0,
   });

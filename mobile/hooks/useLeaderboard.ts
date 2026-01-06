@@ -118,6 +118,7 @@ export function useCommunityPickPercentages(fightId: string | undefined) {
 
 /**
  * Hook for fetching community pick percentages for all bouts in an event
+ * Uses optimized batch RPC to fetch all percentages in a single query
  */
 export function useEventCommunityPercentages(boutIds: string[]) {
   return useQuery({
@@ -131,31 +132,37 @@ export function useEventCommunityPercentages(boutIds: string[]) {
         boutCount: boutIds.length,
       });
 
+      // Fetch all percentages in a single batch query
+      const { data, error } = await supabase.rpc('get_batch_community_pick_percentages', {
+        fight_ids: boutIds,
+      });
+
+      if (error) {
+        logger.error('Failed to fetch batch community percentages', error);
+        throw error;
+      }
+
       const percentagesMap = new Map<string, CommunityPickPercentages>();
 
-      // Fetch percentages for all bouts in parallel
-      const results = await Promise.all(
-        boutIds.map(async (boutId) => {
-          const { data, error } = await supabase.rpc('get_community_pick_percentages', {
-            fight_id_input: boutId,
-          });
-
-          if (error) {
-            logger.warn('Failed to fetch percentages for bout', { boutId, error });
-            return null;
-          }
-
-          const result = Array.isArray(data) && data.length > 0 ? data[0] : null;
-          return result ? { boutId, data: result as CommunityPickPercentages } : null;
-        })
-      );
-
-      // Build the map
-      results.forEach((result) => {
-        if (result) {
-          percentagesMap.set(result.boutId, result.data);
-        }
-      });
+      // Build the map from batch results
+      if (Array.isArray(data)) {
+        data.forEach((row: {
+          fight_id: string;
+          total_picks: number;
+          fighter_a_picks: number;
+          fighter_b_picks: number;
+          fighter_a_percentage: number;
+          fighter_b_percentage: number;
+        }) => {
+          percentagesMap.set(row.fight_id, {
+            total_picks: row.total_picks,
+            fighter_a_picks: row.fighter_a_picks,
+            fighter_b_picks: row.fighter_b_picks,
+            fighter_a_percentage: row.fighter_a_percentage,
+            fighter_b_percentage: row.fighter_b_percentage,
+          } as CommunityPickPercentages);
+        });
+      }
 
       logger.debug('Event community percentages fetched', {
         boutCount: boutIds.length,
