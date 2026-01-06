@@ -664,22 +664,11 @@ export default function EventDetail() {
             {(() => {
               const pcts = communityPercentages?.get(bout.id);
               const userHasPicked = !!bout.pick;
-              // TODO: Restore after testing: const hasEnoughPicks = (pcts?.total_picks || 0) >= MIN_COMMUNITY_PICKS;
-              const hasEnoughPicks = true; // TESTING: bypass for UI preview
+              const hasEnoughPicks = (pcts?.total_picks || 0) >= MIN_COMMUNITY_PICKS;
               const showCommunity = userHasPicked && hasEnoughPicks;
 
-              // TESTING: Mock percentages to preview bar at various ratios
-              const mockRatios = [
-                { red: 82, blue: 18 },
-                { red: 64, blue: 36 },
-                { red: 51, blue: 49 },
-                { red: 38, blue: 62 },
-                { red: 25, blue: 75 },
-                { red: 50, blue: 50 },
-              ];
-              const mockPct = mockRatios[index % mockRatios.length];
-              const redPct = mockPct.red;
-              const bluePct = mockPct.blue;
+              const redPct = pcts?.fighter_a_percentage || 0;
+              const bluePct = pcts?.fighter_b_percentage || 0;
               const pickedRed = bout.pick?.picked_corner === 'red';
               const pickedBlue = bout.pick?.picked_corner === 'blue';
 

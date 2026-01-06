@@ -80,15 +80,6 @@ export default function Profile() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
 
-  // Debug: log recent summary
-  useEffect(() => {
-    console.log('[DEBUG] recentSummary updated:', {
-      isLoading: summaryLoading,
-      length: recentSummary?.length,
-      data: recentSummary?.map(s => ({ eventName: s.event?.name, total: s.total, correct: s.correct }))
-    });
-  }, [recentSummary, summaryLoading]);
-
   // Animations
   const headerScale = useRef(new Animated.Value(0.95)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;

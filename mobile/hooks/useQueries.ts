@@ -504,8 +504,6 @@ export function useRecentPicksSummary(userId: string | null, limit = 5) {
     queryFn: async () => {
       if (!userId) return [];
 
-      console.log('[DEBUG] Fetching recent picks summary for user:', userId);
-
       // Get recent events
       const { data: events, error: eventsError } = await supabase
         .from('events')
@@ -515,10 +513,8 @@ export function useRecentPicksSummary(userId: string | null, limit = 5) {
         .limit(limit);
 
       if (eventsError) {
-        console.log('[DEBUG] Events error:', eventsError);
         throw eventsError;
       }
-      console.log('[DEBUG] Completed events found:', events?.length);
       if (!events || events.length === 0) return [];
 
       const eventIds = events.map((e) => e.id);
@@ -532,10 +528,8 @@ export function useRecentPicksSummary(userId: string | null, limit = 5) {
         .eq('status', 'graded');
 
       if (picksError) {
-        console.log('[DEBUG] Picks error:', picksError);
         throw picksError;
       }
-      console.log('[DEBUG] User picks found:', picks?.length);
 
       // Group by event
       const picksByEvent = new Map<string, Pick[]>();

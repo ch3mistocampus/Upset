@@ -13,6 +13,12 @@ import { logger } from '../lib/logger';
 import { LikeToggleResult, Post, PostWithComments, Comment } from '../types/posts';
 import { postKeys } from './usePosts';
 
+// Type for paginated post data from infinite queries
+interface PaginatedPosts {
+  pages: Post[][];
+  pageParams: unknown[];
+}
+
 /**
  * Toggle like on a post
  */
@@ -45,12 +51,12 @@ export function useTogglePostLike() {
       const previousDetail = queryClient.getQueryData(postKeys.detail(postId));
 
       // Helper function to update a post in paginated data
-      const updatePostInPages = (old: any) => {
+      const updatePostInPages = (old: PaginatedPosts | undefined) => {
         if (!old?.pages) return old;
         return {
           ...old,
-          pages: old.pages.map((page: Post[]) =>
-            page.map((post: Post) => {
+          pages: old.pages.map((page) =>
+            page.map((post) => {
               if (post.id === postId) {
                 return {
                   ...post,

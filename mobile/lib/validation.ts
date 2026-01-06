@@ -89,8 +89,9 @@ export const isEmail = (input: string): boolean => {
  * @param error - Error object from Supabase
  * @returns Human-readable error message
  */
-export const getAuthErrorMessage = (error: any): string => {
-  const code = error?.code || error?.message;
+export const getAuthErrorMessage = (error: unknown): string => {
+  const errorObj = error as { code?: string; message?: string } | null;
+  const code = errorObj?.code || errorObj?.message;
 
   // Map common Supabase error codes to user-friendly messages
   const errorMessages: Record<string, string> = {
