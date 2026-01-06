@@ -4,7 +4,7 @@
  */
 
 import { View, Text, StyleSheet, TouchableOpacity, Image, Animated } from 'react-native';
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -26,8 +26,13 @@ export function PostCard({ post, onPress }: PostCardProps) {
   const { colors } = useTheme();
   const toggleLike = useTogglePostLike();
 
-  // Press animation
+  // Press animation - use ref to persist across renders
   const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  // Reset animation when post changes (handles FlatList recycling)
+  useEffect(() => {
+    scaleAnim.setValue(1);
+  }, [post.id, scaleAnim]);
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {

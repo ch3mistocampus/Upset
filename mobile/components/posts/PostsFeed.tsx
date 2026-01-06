@@ -1,16 +1,23 @@
 /**
  * PostsFeed - Paginated feed of posts
  * Uses infinite scroll with pull-to-refresh
+ * Optimized with FlatList performance props
  */
 
 import { View, FlatList, StyleSheet, RefreshControl, ActivityIndicator, Text } from 'react-native';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useTheme } from '../../lib/theme';
 import { spacing, typography } from '../../lib/tokens';
 import { PostCard } from './PostCard';
+import { PostErrorBoundary } from './PostErrorBoundary';
 import { EmptyState } from '../EmptyState';
 import { usePostsFeed } from '../../hooks/usePosts';
 import { Post } from '../../types/posts';
+
+// Estimated item height for getItemLayout optimization
+// This is approximate - actual height varies by content
+const ESTIMATED_ITEM_HEIGHT = 280;
+const ITEM_MARGIN = 16; // spacing.md
 
 export function PostsFeed() {
   const { colors } = useTheme();
@@ -25,8 +32,8 @@ export function PostsFeed() {
     error,
   } = usePostsFeed();
 
-  // Flatten pages into single array
-  const posts = data?.pages.flat() ?? [];
+  // Flatten pages into single array - memoized to prevent unnecessary recalculations
+  const posts = useMemo(() => data?.pages.flat() ?? [], [data?.pages]);
 
   const handleEndReached = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) {
@@ -36,20 +43,30 @@ export function PostsFeed() {
 
   const renderItem = useCallback(({ item }: { item: Post }) => (
     <View style={styles.postWrapper}>
-      <PostCard post={item} />
+      <PostErrorBoundary>
+        <PostCard post={item} />
+      </PostErrorBoundary>
     </View>
   ), []);
 
   const keyExtractor = useCallback((item: Post) => item.id, []);
 
-  const renderFooter = () => {
+  // Estimated layout for better scroll performance
+  // Not perfect due to variable content, but helps with initial render
+  const getItemLayout = useCallback((_data: ArrayLike<Post> | null | undefined, index: number) => ({
+    length: ESTIMATED_ITEM_HEIGHT + ITEM_MARGIN,
+    offset: (ESTIMATED_ITEM_HEIGHT + ITEM_MARGIN) * index,
+    index,
+  }), []);
+
+  const renderFooter = useCallback(() => {
     if (!isFetchingNextPage) return null;
     return (
       <View style={styles.loadingFooter}>
         <ActivityIndicator color={colors.accent} />
       </View>
     );
-  };
+  }, [isFetchingNextPage, colors.accent]);
 
   if (isLoading) {
     return (
@@ -106,6 +123,13 @@ export function PostsFeed() {
         />
       }
       showsVerticalScrollIndicator={false}
+      // Performance optimizations
+      getItemLayout={getItemLayout}
+      removeClippedSubviews={true}
+      maxToRenderPerBatch={10}
+      windowSize={5}
+      initialNumToRender={5}
+      updateCellsBatchingPeriod={50}
     />
   );
 }
