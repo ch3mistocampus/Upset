@@ -508,6 +508,20 @@ export default function DiscoverScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {/* Create Post FAB */}
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: colors.primary }]}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          router.push('/post/create');
+        }}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel="Create new post"
+      >
+        <Ionicons name="add" size={28} color="#fff" />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -801,5 +815,22 @@ const styles = StyleSheet.create({
   paginationRetryText: {
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.semibold as '600',
+  },
+
+  // FAB
+  fab: {
+    position: 'absolute',
+    bottom: spacing.xl,
+    right: spacing.md,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });

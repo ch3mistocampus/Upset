@@ -38,7 +38,10 @@ import { SkeletonCard } from '../../../components/SkeletonCard';
 import { EmptyState, SurfaceCard } from '../../../components/ui';
 import { AccuracyRing } from '../../../components/AccuracyRing';
 import { MiniChart } from '../../../components/MiniChart';
+import { PostCard, PostErrorBoundary } from '../../../components/posts';
+import { useUserPosts } from '../../../hooks/usePosts';
 import type { FriendshipStatus } from '../../../types/social';
+import type { Post } from '../../../types/posts';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -72,7 +75,7 @@ interface EventGroup {
   total: number;
 }
 
-type TabType = 'picks' | 'stats';
+type TabType = 'picks' | 'posts' | 'stats';
 type RelationshipStatus = 'none' | 'following';
 
 export default function UserProfile() {
@@ -96,6 +99,10 @@ export default function UserProfile() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [showUnfollowConfirm, setShowUnfollowConfirm] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+
+  // Fetch user's posts
+  const userPosts = useUserPosts(id || '');
+  const posts = userPosts.data?.pages.flat() ?? [];
 
   // Check if viewing own profile
   const isOwnProfile = user?.id === id;
@@ -731,6 +738,25 @@ export default function UserProfile() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            style={[styles.tab, activeTab === 'posts' && { borderBottomColor: colors.accent }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setActiveTab('posts');
+            }}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'posts' }}
+            accessibilityLabel="Posts tab - View user's posts"
+          >
+            <Text style={[
+              styles.tabText,
+              { color: colors.textTertiary },
+              activeTab === 'posts' && { color: colors.text }
+            ]}>
+              Posts
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={[styles.tab, activeTab === 'stats' && { borderBottomColor: colors.accent }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -764,7 +790,7 @@ export default function UserProfile() {
           />
         }
       >
-        {activeTab === 'picks' ? (
+        {activeTab === 'picks' && (
           eventGroups.length === 0 ? (
             <EmptyState
               icon="clipboard-outline"
@@ -776,7 +802,52 @@ export default function UserProfile() {
               {eventGroups.map((group, index) => renderEventCard(group, index))}
             </View>
           )
-        ) : (
+        )}
+
+        {activeTab === 'posts' && (
+          userPosts.isLoading ? (
+            <View style={styles.postsLoadingContainer}>
+              <ActivityIndicator color={colors.accent} />
+            </View>
+          ) : posts.length === 0 ? (
+            <EmptyState
+              icon="chatbubbles-outline"
+              title="No Posts Yet"
+              message={isOwnProfile
+                ? "You haven't created any posts yet. Share your thoughts!"
+                : `@${profile.username} hasn't posted anything yet.`}
+              actionLabel={isOwnProfile ? "Create Post" : undefined}
+              onAction={isOwnProfile ? () => router.push('/post/create') : undefined}
+            />
+          ) : (
+            <View style={styles.postsList}>
+              {posts.map((post: Post) => (
+                <View key={post.id} style={styles.postWrapper}>
+                  <PostErrorBoundary>
+                    <PostCard post={post} />
+                  </PostErrorBoundary>
+                </View>
+              ))}
+              {userPosts.hasNextPage && (
+                <TouchableOpacity
+                  style={[styles.loadMoreButton, { backgroundColor: colors.surfaceAlt }]}
+                  onPress={() => userPosts.fetchNextPage()}
+                  disabled={userPosts.isFetchingNextPage}
+                >
+                  {userPosts.isFetchingNextPage ? (
+                    <ActivityIndicator color={colors.accent} size="small" />
+                  ) : (
+                    <Text style={[styles.loadMoreText, { color: colors.textSecondary }]}>
+                      Load More
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+          )
+        )}
+
+        {activeTab === 'stats' && (
           <Animated.View
             style={{
               opacity: contentOpacity,
@@ -1418,5 +1489,26 @@ const styles = StyleSheet.create({
   actionMenuDivider: {
     height: 1,
     marginHorizontal: -spacing.md,
+  },
+  // Posts Tab Styles
+  postsLoadingContainer: {
+    paddingVertical: spacing.xxl,
+    alignItems: 'center',
+  },
+  postsList: {
+    gap: spacing.md,
+  },
+  postWrapper: {
+    marginBottom: 0,
+  },
+  loadMoreButton: {
+    paddingVertical: spacing.md,
+    borderRadius: radius.card,
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  loadMoreText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
