@@ -422,6 +422,17 @@ export default function DiscoverScreen() {
             <Ionicons name="search" size={22} color={colors.text} />
           </TouchableOpacity>
           <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/(tabs)/friends');
+            }}
+            style={styles.headerButton}
+            accessibilityRole="button"
+            accessibilityLabel="Find people to follow"
+          >
+            <Ionicons name="person-add-outline" size={22} color={colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity
             onPress={handleNotificationsPress}
             style={styles.headerButton}
             accessibilityRole="button"

@@ -39,16 +39,16 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="friends"
+        name="leaderboards"
         options={{
-          title: 'People',
+          title: 'Ranks',
         }}
       />
       <Tabs.Screen
-        name="leaderboards"
+        name="friends"
         options={{
-          title: 'Leaderboard',
-          href: null, // Accessible via profile/discover, not main tab bar
+          title: 'People',
+          href: null, // Accessible via Discover header, not main tab bar
         }}
       />
       <Tabs.Screen

@@ -368,6 +368,8 @@ export default function Friends() {
               message="Follow users to see their picks and compete on the leaderboard!"
               actionLabel="Find Users"
               onAction={handleAddFriend}
+              secondaryActionLabel="View Leaderboard"
+              secondaryOnAction={() => router.push('/(tabs)/leaderboards')}
             />
           ) : (
             friends.map((friend, index) => renderFriendItem(friend, index))
