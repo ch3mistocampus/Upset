@@ -4,7 +4,7 @@
  * Admin screen for searching and managing users.
  */
 
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -84,18 +84,24 @@ export default function UsersScreen() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const { data: users, isLoading } = useAdminUserSearch(debouncedSearch);
   const banUser = useBanUser();
 
-  // Debounce search
-  const handleSearch = (text: string) => {
+  // Debounce search with proper cleanup
+  const handleSearch = useCallback((text: string) => {
     setSearchTerm(text);
-    // Simple debounce
-    setTimeout(() => {
+
+    // Clear previous timeout to prevent stale updates
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    debounceTimeoutRef.current = setTimeout(() => {
       setDebouncedSearch(text);
     }, 300);
-  };
+  }, []);
 
   const handleViewProfile = (userId: string) => {
     router.push(`/user/${userId}`);

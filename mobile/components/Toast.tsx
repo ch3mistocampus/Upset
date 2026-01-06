@@ -3,7 +3,7 @@
  * Bold, UFC-inspired alert system with aggressive animations
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -61,18 +61,41 @@ export const Toast: React.FC<ToastProps> = ({ id, type, message, onDismiss, inde
 
   const config = TOAST_CONFIG[type];
 
+  const handleDismiss = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: -100,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scale, {
+        toValue: 0.8,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      onDismiss(id);
+    });
+  }, [id, onDismiss, translateY, opacity, scale]);
+
+  // Haptic feedback on mount based on type
   useEffect(() => {
-    // Haptic feedback based on toast type
     if (type === 'error') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } else if (type === 'success') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } else if (type === 'neutral') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } else {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
+  }, [type]);
 
+  // Entrance animation and auto-dismiss timer
+  useEffect(() => {
     // Aggressive slam-in animation
     Animated.parallel([
       Animated.spring(translateY, {
@@ -100,29 +123,7 @@ export const Toast: React.FC<ToastProps> = ({ id, type, message, onDismiss, inde
     }, 3500);
 
     return () => clearTimeout(timer);
-  }, []);
-
-  const handleDismiss = () => {
-    Animated.parallel([
-      Animated.timing(translateY, {
-        toValue: -100,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scale, {
-        toValue: 0.8,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      onDismiss(id);
-    });
-  };
+  }, [handleDismiss, translateY, opacity, scale]);
 
   return (
     <Animated.View
