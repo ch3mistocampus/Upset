@@ -6,8 +6,10 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
+import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './useAuth';
 import { logger } from '../lib/logger';
@@ -649,5 +651,221 @@ export function createOptimisticScore(
   return {
     ...currentData,
     user_scores: newUserScores,
+  };
+}
+
+// =============================================================================
+// REALTIME SUBSCRIPTIONS
+// =============================================================================
+
+interface RealtimeOptions {
+  /** Called when round state changes (phase transitions, round changes) */
+  onRoundStateChange?: (payload: { phase: string; current_round: number }) => void;
+  /** Called when aggregates are updated (new scores) */
+  onAggregatesUpdate?: () => void;
+  /** Whether to automatically refetch on changes */
+  autoRefetch?: boolean;
+}
+
+/**
+ * Subscribe to realtime updates for a specific fight's scorecard
+ *
+ * Subscribes to:
+ * - round_state table changes for phase transitions
+ * - round_aggregates table changes for score updates
+ *
+ * @param boutId - The bout ID to subscribe to
+ * @param options - Configuration options
+ */
+export function useScorecardRealtime(
+  boutId: string | undefined,
+  options: RealtimeOptions = {}
+) {
+  const queryClient = useQueryClient();
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const { autoRefetch = true, onRoundStateChange, onAggregatesUpdate } = options;
+
+  const invalidateScorecard = useCallback(() => {
+    if (!boutId) return;
+    queryClient.invalidateQueries({
+      queryKey: scorecardKeys.fight(boutId),
+    });
+  }, [boutId, queryClient]);
+
+  useEffect(() => {
+    if (!boutId) return;
+
+    // Create unique channel name for this bout
+    const channelName = `scorecard:${boutId}`;
+
+    // Subscribe to realtime changes
+    const channel = supabase
+      .channel(channelName)
+      // Listen for round_state changes
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'round_state',
+          filter: `bout_id=eq.${boutId}`,
+        },
+        (payload: RealtimePostgresChangesPayload<{ phase: string; current_round: number }>) => {
+          logger.info('Realtime: round_state change', { boutId, event: payload.eventType });
+
+          if (payload.new && typeof payload.new === 'object') {
+            onRoundStateChange?.({
+              phase: (payload.new as any).phase,
+              current_round: (payload.new as any).current_round,
+            });
+          }
+
+          if (autoRefetch) {
+            invalidateScorecard();
+          }
+        }
+      )
+      // Listen for round_aggregates changes
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'round_aggregates',
+          filter: `bout_id=eq.${boutId}`,
+        },
+        (payload) => {
+          logger.info('Realtime: round_aggregates change', { boutId, event: payload.eventType });
+
+          onAggregatesUpdate?.();
+
+          if (autoRefetch) {
+            invalidateScorecard();
+          }
+        }
+      )
+      .subscribe((status) => {
+        logger.info('Realtime subscription status', { boutId, status });
+      });
+
+    channelRef.current = channel;
+
+    // Cleanup on unmount
+    return () => {
+      logger.info('Unsubscribing from realtime channel', { boutId });
+      channel.unsubscribe();
+      channelRef.current = null;
+    };
+  }, [boutId, autoRefetch, invalidateScorecard, onRoundStateChange, onAggregatesUpdate]);
+
+  // Return method to manually trigger refetch
+  return {
+    refetch: invalidateScorecard,
+  };
+}
+
+/**
+ * Subscribe to realtime updates for all fights in an event
+ * Useful for event scorecard overview screens
+ */
+export function useEventScorecardRealtime(
+  eventId: string | undefined,
+  boutIds: string[],
+  options: { autoRefetch?: boolean } = {}
+) {
+  const queryClient = useQueryClient();
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const { autoRefetch = true } = options;
+
+  useEffect(() => {
+    if (!eventId || boutIds.length === 0) return;
+
+    const channelName = `event-scorecards:${eventId}`;
+
+    // Subscribe to changes for all bouts in the event
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'round_state',
+        },
+        (payload) => {
+          // Check if this change is for one of our bouts
+          const changedBoutId = (payload.new as any)?.bout_id;
+          if (changedBoutId && boutIds.includes(changedBoutId)) {
+            logger.info('Realtime: event round_state change', { eventId, boutId: changedBoutId });
+
+            if (autoRefetch) {
+              queryClient.invalidateQueries({
+                queryKey: scorecardKeys.event(eventId),
+              });
+              queryClient.invalidateQueries({
+                queryKey: ['scorecard', 'event-status'],
+              });
+            }
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'round_aggregates',
+        },
+        (payload) => {
+          const changedBoutId = (payload.new as any)?.bout_id;
+          if (changedBoutId && boutIds.includes(changedBoutId)) {
+            logger.info('Realtime: event round_aggregates change', { eventId, boutId: changedBoutId });
+
+            if (autoRefetch) {
+              queryClient.invalidateQueries({
+                queryKey: scorecardKeys.event(eventId),
+              });
+            }
+          }
+        }
+      )
+      .subscribe((status) => {
+        logger.info('Event realtime subscription status', { eventId, status });
+      });
+
+    channelRef.current = channel;
+
+    return () => {
+      channel.unsubscribe();
+      channelRef.current = null;
+    };
+  }, [eventId, boutIds.join(','), autoRefetch, queryClient]);
+}
+
+/**
+ * Hook to check if realtime is connected and working
+ */
+export function useRealtimeStatus() {
+  const channelRef = useRef<RealtimeChannel | null>(null);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('realtime-status-check')
+      .on('presence', { event: 'sync' }, () => {
+        logger.info('Realtime presence sync');
+      })
+      .subscribe((status) => {
+        logger.info('Realtime connection status', { status });
+      });
+
+    channelRef.current = channel;
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, []);
+
+  return {
+    isConnected: channelRef.current?.state === 'joined',
   };
 }

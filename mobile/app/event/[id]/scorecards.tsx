@@ -21,7 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/theme';
 import { spacing, radius, typography } from '../../../lib/tokens';
 import { useEvent, useBoutsForEvent } from '../../../hooks/useQueries';
-import { useEventScorecards, useEventLiveStatus, getEventPollingInterval } from '../../../hooks/useScorecard';
+import { useEventScorecards, useEventLiveStatus, getEventPollingInterval, useEventScorecardRealtime } from '../../../hooks/useScorecard';
 import { useAuth } from '../../../hooks/useAuth';
 import { SurfaceCard, EmptyState, LiveBadge, ScoreBucketBar } from '../../../components/ui';
 import { ErrorState } from '../../../components/ErrorState';
@@ -192,6 +192,9 @@ export default function EventScorecardsScreen() {
 
   const { data: scorecards, isLoading: scorecardsLoading, isError: scorecardsError, refetch: refetchScorecards } =
     useEventScorecards(id || undefined, { refetchInterval: pollingInterval });
+
+  // Subscribe to realtime updates for all bouts in this event
+  useEventScorecardRealtime(id || undefined, boutIds);
 
   const [refreshing, setRefreshing] = React.useState(false);
 
