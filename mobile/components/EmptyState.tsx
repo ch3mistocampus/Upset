@@ -1,12 +1,13 @@
 /**
  * EmptyState Component
- * Refined empty/no-data states with optional actions
- * UFC-inspired but calm and informative (not alarming)
+ * Theme-aware empty/no-data states with optional actions
  */
 
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../lib/theme';
+import { spacing, radius, typography } from '../lib/tokens';
 
 interface EmptyStateProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -23,15 +24,15 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   actionLabel,
   onAction,
 }) => {
+  const { colors } = useTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
 
   useEffect(() => {
-    // Gentle fade and slide in
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 600,
+        duration: 400,
         useNativeDriver: true,
       }),
       Animated.spring(slideAnim, {
@@ -54,38 +55,29 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           },
         ]}
       >
-        {/* Icon - large but muted */}
-        <View style={styles.iconContainer}>
-          <View style={styles.iconBg}>
-            <Ionicons name={icon} size={88} color="#444" />
-          </View>
+        {/* Icon */}
+        <View style={[styles.iconBg, { backgroundColor: colors.surfaceAlt }]}>
+          <Ionicons name={icon} size={48} color={colors.textTertiary} />
         </View>
 
-        {/* Title - bold and clear */}
-        <Text style={styles.title}>{title}</Text>
+        {/* Title */}
+        <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
 
-        {/* Message - helpful and conversational */}
-        <Text style={styles.message}>{message}</Text>
+        {/* Message */}
+        <Text style={[styles.message, { color: colors.textSecondary }]}>{message}</Text>
 
         {/* Optional action button */}
         {actionLabel && onAction && (
           <TouchableOpacity
-            style={styles.actionButton}
+            style={[styles.actionButton, { backgroundColor: colors.accent }]}
             onPress={onAction}
             activeOpacity={0.8}
             accessibilityRole="button"
             accessibilityLabel={actionLabel}
           >
-            <View style={styles.buttonInner}>
-              <Ionicons name="refresh" size={18} color="#fff" style={styles.buttonIcon} />
-              <Text style={styles.actionText}>{actionLabel}</Text>
-            </View>
+            <Text style={styles.actionText}>{actionLabel}</Text>
           </TouchableOpacity>
         )}
-
-        {/* Subtle decorative elements */}
-        <View style={styles.decorTop} />
-        <View style={styles.decorBottom} />
       </Animated.View>
     </View>
   );
@@ -96,85 +88,40 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#000',
-    padding: 32,
+    padding: spacing.xl,
   },
   content: {
     alignItems: 'center',
-    maxWidth: 360,
+    maxWidth: 300,
     width: '100%',
   },
-  iconContainer: {
-    marginBottom: 28,
-  },
   iconBg: {
-    width: 140,
-    height: 140,
-    borderRadius: 4,
-    backgroundColor: 'rgba(68, 68, 68, 0.08)',
+    width: 80,
+    height: 80,
+    borderRadius: radius.card,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#222',
+    marginBottom: spacing.lg,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#fff',
+    ...typography.h2,
     textAlign: 'center',
-    marginBottom: 12,
-    letterSpacing: 0.3,
+    marginBottom: spacing.sm,
   },
   message: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#888',
+    ...typography.body,
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 32,
-    letterSpacing: 0.2,
+    marginBottom: spacing.lg,
   },
   actionButton: {
-    backgroundColor: '#d4202a',
-    borderRadius: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    minWidth: 160,
-    shadowColor: '#d4202a',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  buttonInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonIcon: {
-    marginRight: 8,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xl,
   },
   actionText: {
     color: '#fff',
     fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  decorTop: {
-    position: 'absolute',
-    top: -20,
-    left: -20,
-    width: 60,
-    height: 1,
-    backgroundColor: '#222',
-  },
-  decorBottom: {
-    position: 'absolute',
-    bottom: -20,
-    right: -20,
-    width: 60,
-    height: 1,
-    backgroundColor: '#222',
+    fontWeight: '600',
   },
 });

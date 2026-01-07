@@ -27,6 +27,8 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import * as FileSystem from 'expo-file-system/legacy';
+import { decode } from 'base64-arraybuffer';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { useGuestPicks } from '../../hooks/useGuestPicks';
@@ -318,12 +320,15 @@ export default function Profile() {
       const ext = uri.split('.').pop()?.toLowerCase() || 'jpg';
       const fileName = `avatar-${user.id}-${Date.now()}.${ext}`;
 
-      const response = await fetch(uri);
-      const blob = await response.blob();
+      // Read file as base64 and decode for React Native compatibility
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: 'base64',
+      });
+      const arrayBuffer = decode(base64);
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(fileName, blob, {
+        .upload(fileName, arrayBuffer, {
           contentType: `image/${ext}`,
           upsert: true,
         });
@@ -357,12 +362,15 @@ export default function Profile() {
       const ext = uri.split('.').pop()?.toLowerCase() || 'jpg';
       const fileName = `banner-${user.id}-${Date.now()}.${ext}`;
 
-      const response = await fetch(uri);
-      const blob = await response.blob();
+      // Read file as base64 and decode for React Native compatibility
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: 'base64',
+      });
+      const arrayBuffer = decode(base64);
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(fileName, blob, {
+        .upload(fileName, arrayBuffer, {
           contentType: `image/${ext}`,
           upsert: true,
         });
@@ -778,18 +786,6 @@ export default function Profile() {
             >
               <Ionicons name="eye-outline" size={16} color={colors.text} />
               <Text style={[styles.quickActionText, { color: colors.text }]}>View Profile</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.quickAction, { backgroundColor: colors.surfaceAlt }]}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/post/bookmarks');
-              }}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="bookmark-outline" size={16} color={colors.text} />
-              <Text style={[styles.quickActionText, { color: colors.text }]}>Saved</Text>
             </TouchableOpacity>
 
             <TouchableOpacity

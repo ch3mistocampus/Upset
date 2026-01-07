@@ -29,7 +29,7 @@ import { SkeletonCard } from '../../components/SkeletonCard';
 import { AuthPromptModal } from '../../components/AuthPromptModal';
 import type { LeaderboardEntry } from '../../types/social';
 
-type TabType = 'global' | 'friends';
+// Single tab - global only (friends accessible from profile)
 
 const MIN_GRADED_PICKS = 10;
 
@@ -76,52 +76,31 @@ export default function Leaderboards() {
   const { user } = useAuth();
   const { colors } = useTheme();
   const { showGate, closeGate, openGate, isGuest, gateContext } = useAuthGate();
-  const [activeTab, setActiveTab] = useState<TabType>('global');
+  // Global leaderboard only
   const [refreshing, setRefreshing] = useState(false);
   const [gateDismissed, setGateDismissed] = useState(false);
 
   // Entrance animations
-  const headerFadeAnim = useRef(new Animated.Value(0)).current;
-  const tabIndicatorPosition = useRef(new Animated.Value(0)).current;
   const bannerFadeAnim = useRef(new Animated.Value(0)).current;
   const bannerTranslateAnim = useRef(new Animated.Value(6)).current;
 
   useEffect(() => {
-    // Header entrance
-    Animated.timing(headerFadeAnim, {
-      toValue: 1,
-      duration: 220,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-
     // Banner entrance
-    setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(bannerFadeAnim, {
-          toValue: 1,
-          duration: 220,
-          useNativeDriver: true,
-        }),
-        Animated.timing(bannerTranslateAnim, {
-          toValue: 0,
-          duration: 220,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }, 100);
-  }, [headerFadeAnim, bannerFadeAnim, bannerTranslateAnim]);
+    Animated.parallel([
+      Animated.timing(bannerFadeAnim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(bannerTranslateAnim, {
+        toValue: 0,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [bannerFadeAnim, bannerTranslateAnim]);
 
-  // Animate tab indicator
-  useEffect(() => {
-    Animated.spring(tabIndicatorPosition, {
-      toValue: activeTab === 'global' ? 0 : 1,
-      tension: 300,
-      friction: 20,
-      useNativeDriver: true,
-    }).start();
-  }, [activeTab, tabIndicatorPosition]);
 
   // All hooks must be called before any conditional returns
   const {
@@ -168,17 +147,13 @@ export default function Leaderboards() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    if (activeTab === 'global') {
-      await refetchGlobal();
-    } else {
-      await refetchFriends();
-    }
+    await refetchGlobal();
     setRefreshing(false);
   };
 
-  const isLoading = activeTab === 'global' ? globalLoading : friendsLoading;
-  const hasError = activeTab === 'global' ? globalError : friendsError;
-  const leaderboard = activeTab === 'global' ? globalLeaderboard : friendsLeaderboard;
+  const isLoading = globalLoading;
+  const hasError = globalError;
+  const leaderboard = globalLeaderboard;
 
   // Find current user's rank
   const myRank = leaderboard.find((entry) => entry.user_id === user?.id);
@@ -186,27 +161,9 @@ export default function Leaderboards() {
   if (hasError) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.tabContainer, { backgroundColor: colors.surface, borderBottomColor: colors.divider }]}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'global' && { borderBottomColor: colors.accent }]}
-            onPress={() => setActiveTab('global')}
-          >
-            <Text style={[styles.tabText, { color: colors.textMuted }, activeTab === 'global' && { color: colors.text }]}>
-              Global
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'friends' && { borderBottomColor: colors.accent }]}
-            onPress={() => setActiveTab('friends')}
-          >
-            <Text style={[styles.tabText, { color: colors.textMuted }, activeTab === 'friends' && { color: colors.text }]}>
-              Friends
-            </Text>
-          </TouchableOpacity>
-        </View>
         <ErrorState
-          message={`Failed to load ${activeTab} leaderboard. Check your connection.`}
-          onRetry={() => (activeTab === 'global' ? refetchGlobal() : refetchFriends())}
+          message="Failed to load leaderboard. Check your connection."
+          onRetry={refetchGlobal}
         />
       </View>
     );
@@ -236,11 +193,6 @@ export default function Leaderboards() {
       default:
         return null;
     }
-  };
-
-  const handleTabPress = (tab: TabType) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setActiveTab(tab);
   };
 
   const handleUserPress = (userId: string) => {
@@ -309,63 +261,6 @@ export default function Leaderboards() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Tabs */}
-      <Animated.View style={[styles.tabContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border, opacity: headerFadeAnim }]}>
-        <View style={styles.tabsRow} accessibilityRole="tablist">
-          <TouchableOpacity
-            style={styles.tab}
-            onPress={() => handleTabPress('global')}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeTab === 'global' }}
-            accessibilityLabel="Global leaderboard - All users ranked by accuracy"
-          >
-            <Ionicons
-              name="globe-outline"
-              size={18}
-              color={activeTab === 'global' ? colors.text : colors.textTertiary}
-            />
-            <Text style={[styles.tabText, { color: activeTab === 'global' ? colors.text : colors.textTertiary }]}>
-              Global
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.tab}
-            onPress={() => handleTabPress('friends')}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeTab === 'friends' }}
-            accessibilityLabel="Friends leaderboard - Your friends ranked by accuracy"
-          >
-            <Ionicons
-              name="people-outline"
-              size={18}
-              color={activeTab === 'friends' ? colors.text : colors.textTertiary}
-            />
-            <Text style={[styles.tabText, { color: activeTab === 'friends' ? colors.text : colors.textTertiary }]}>
-              Friends
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Animated tab indicator */}
-        <Animated.View
-          style={[
-            styles.tabIndicator,
-            { backgroundColor: colors.accent },
-            {
-              transform: [
-                {
-                  translateX: tabIndicatorPosition.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, 180],
-                  }),
-                },
-              ],
-            },
-          ]}
-        />
-      </Animated.View>
-
       {/* My Rank Banner */}
       {myRank && !isLoading && (
         <Animated.View
@@ -420,12 +315,8 @@ export default function Leaderboards() {
         ) : leaderboard.length === 0 ? (
           <EmptyState
             icon="trophy-outline"
-            title={activeTab === 'global' ? 'No Rankings Yet' : 'No Friends Yet'}
-            message={
-              activeTab === 'global'
-                ? 'Be the first to make picks and appear on the leaderboard!'
-                : 'Add friends to see how you rank against them!'
-            }
+            title="No Rankings Yet"
+            message="Be the first to make picks and appear on the leaderboard!"
           />
         ) : (
           <>

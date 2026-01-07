@@ -125,12 +125,6 @@ export default function Settings() {
           <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>CONTENT</Text>
           <SurfaceCard noPadding>
             <SettingsRow
-              icon="bookmark-outline"
-              label="Saved Posts"
-              type="link"
-              onPress={() => router.push('/post/bookmarks')}
-            />
-            <SettingsRow
               icon="chatbubble-ellipses-outline"
               label="Post Activity"
               type="link"

@@ -58,6 +58,8 @@ jest.mock('expo-status-bar', () => ({
   StatusBar: jest.fn(() => null),
 }));
 
+// @expo/vector-icons is mocked via __mocks__/@expo/vector-icons.js
+
 // ============================================================================
 // React Query - Use real implementation for proper testing
 // ============================================================================

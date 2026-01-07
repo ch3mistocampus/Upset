@@ -1,0 +1,31 @@
+{
+  "snapshotId": "20260107044402_z6d5",
+  "branch": "main",
+  "fetchedAt": "2026-01-07T04:44:04.399Z",
+  "files": {
+    "fighter_details": {
+      "rowCount": 4451,
+      "success": true
+    },
+    "fighter_tott": {
+      "rowCount": 4451,
+      "success": true
+    },
+    "event_details": {
+      "rowCount": 757,
+      "success": true
+    },
+    "fight_details": {
+      "rowCount": 8494,
+      "success": true
+    },
+    "fight_results": {
+      "rowCount": 8494,
+      "success": true
+    },
+    "fight_stats": {
+      "rowCount": 39964,
+      "success": true
+    }
+  }
+}

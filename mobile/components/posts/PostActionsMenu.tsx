@@ -1,6 +1,6 @@
 /**
  * PostActionsMenu - Bottom sheet menu for post actions
- * Share, Bookmark, Edit (own posts), Report, Delete (own posts)
+ * Share, Edit (own posts), Report, Delete (own posts)
  */
 
 import {
@@ -16,7 +16,6 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../lib/theme';
 import { spacing, radius, typography } from '../../lib/tokens';
-import { useToggleBookmark } from '../../hooks/usePostBookmarks';
 import { useDeletePost } from '../../hooks/usePosts';
 import { useToast } from '../../hooks/useToast';
 import { useAuth } from '../../hooks/useAuth';
@@ -40,7 +39,6 @@ export function PostActionsMenu({
   const { colors } = useTheme();
   const toast = useToast();
   const { user } = useAuth();
-  const toggleBookmark = useToggleBookmark();
   const deletePost = useDeletePost();
 
   const isOwnPost = user?.id === post.user_id;
@@ -53,23 +51,9 @@ export function PostActionsMenu({
     try {
       await Share.share({
         message: `Check out this post: "${post.title}"`,
-        // In production, include a deep link URL here
-        // url: `https://yourapp.com/post/${post.id}`
       });
-    } catch (error) {
+    } catch {
       // User cancelled or error occurred
-    }
-  };
-
-  const handleBookmark = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onClose();
-
-    try {
-      const result = await toggleBookmark.mutateAsync(post.id);
-      toast.showNeutral(result.bookmarked ? 'Post saved' : 'Post removed from saved');
-    } catch (error: any) {
-      toast.showError(error.message || 'Failed to save post');
     }
   };
 
@@ -131,24 +115,6 @@ export function PostActionsMenu({
           >
             <Ionicons name="share-outline" size={22} color={colors.text} />
             <Text style={[styles.menuItemText, { color: colors.text }]}>Share</Text>
-          </TouchableOpacity>
-
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-          {/* Bookmark */}
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={handleBookmark}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name={post.user_has_bookmarked ? 'bookmark' : 'bookmark-outline'}
-              size={22}
-              color={colors.text}
-            />
-            <Text style={[styles.menuItemText, { color: colors.text }]}>
-              {post.user_has_bookmarked ? 'Remove from Saved' : 'Save Post'}
-            </Text>
           </TouchableOpacity>
 
           {/* Edit (own posts only, not system posts) */}

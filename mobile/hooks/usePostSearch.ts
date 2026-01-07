@@ -28,6 +28,7 @@ interface TrendingPost extends Post {
 
 /**
  * Search posts by query
+ * Falls back to direct table query if search_posts RPC doesn't exist
  */
 export function useSearchPosts(query: string, sortBy: SearchSortBy = 'relevance') {
   return useInfiniteQuery({
@@ -37,18 +38,70 @@ export function useSearchPosts(query: string, sortBy: SearchSortBy = 'relevance'
         return [];
       }
 
-      logger.breadcrumb('Searching posts', 'search', { query, sortBy, offset: pageParam });
+      const searchTerm = query.trim();
+      logger.breadcrumb('Searching posts', 'search', { query: searchTerm, sortBy, offset: pageParam });
 
+      // Try the RPC function first
       const { data, error } = await supabase.rpc('search_posts', {
-        p_query: query.trim(),
+        p_query: searchTerm,
         p_limit: 20,
         p_offset: pageParam,
         p_sort_by: sortBy,
       });
 
       if (error) {
+        // Function doesn't exist - fall back to direct query
+        if (error.code === 'PGRST202') {
+          logger.debug('search_posts not available, using direct query');
+
+          // Build base query with ilike search on title and body
+          let fallbackQuery = supabase
+            .from('posts')
+            .select(`
+              *,
+              profiles:user_id (
+                username,
+                display_name,
+                avatar_url
+              )
+            `)
+            .or(`title.ilike.%${searchTerm}%,body.ilike.%${searchTerm}%`)
+            .eq('is_public', true)
+            .range(pageParam, pageParam + 19);
+
+          // Apply sorting
+          if (sortBy === 'recent') {
+            fallbackQuery = fallbackQuery.order('created_at', { ascending: false });
+          } else if (sortBy === 'popular') {
+            fallbackQuery = fallbackQuery.order('like_count', { ascending: false });
+          } else {
+            // relevance - order by like_count then created_at
+            fallbackQuery = fallbackQuery
+              .order('like_count', { ascending: false })
+              .order('created_at', { ascending: false });
+          }
+
+          const { data: fallbackData, error: fallbackError } = await fallbackQuery;
+
+          if (fallbackError) {
+            logger.error('Failed to search posts (fallback)', fallbackError);
+            return [];
+          }
+
+          // Transform to match expected Post shape
+          return (fallbackData || []).map((p: any) => ({
+            ...p,
+            author_username: p.profiles?.username || null,
+            author_display_name: p.profiles?.display_name || null,
+            author_avatar_url: p.profiles?.avatar_url || null,
+            images: [],
+            user_has_liked: false,
+            user_has_bookmarked: false,
+          })) as SearchPost[];
+        }
+
         logger.error('Failed to search posts', error);
-        throw error;
+        return [];
       }
 
       return (data || []) as SearchPost[];
@@ -65,6 +118,7 @@ export function useSearchPosts(query: string, sortBy: SearchSortBy = 'relevance'
 
 /**
  * Get trending posts
+ * Note: Falls back to recent popular posts if get_trending_posts function doesn't exist
  */
 export function useTrendingPosts(hours = 24) {
   return useQuery({
@@ -72,14 +126,26 @@ export function useTrendingPosts(hours = 24) {
     queryFn: async (): Promise<TrendingPost[]> => {
       logger.breadcrumb('Fetching trending posts', 'search', { hours });
 
+      // Try the trending posts function first
       const { data, error } = await supabase.rpc('get_trending_posts', {
         p_hours: hours,
         p_limit: 10,
       });
 
       if (error) {
+        // Function doesn't exist - fall back to recent popular posts
+        if (error.code === 'PGRST202') {
+          logger.debug('get_trending_posts not available, falling back to recent posts');
+          const { data: fallbackData } = await supabase
+            .from('posts')
+            .select('*')
+            .order('like_count', { ascending: false })
+            .order('created_at', { ascending: false })
+            .limit(10);
+          return (fallbackData || []).map((p) => ({ ...p, trending_score: p.like_count })) as TrendingPost[];
+        }
         logger.error('Failed to fetch trending posts', error);
-        throw error;
+        return [];
       }
 
       return (data || []) as TrendingPost[];

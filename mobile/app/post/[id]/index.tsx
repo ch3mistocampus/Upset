@@ -11,10 +11,8 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Platform,
-  Keyboard,
 } from 'react-native';
 import { useState, useCallback, useRef } from 'react';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
@@ -25,11 +23,10 @@ import { useTheme } from '../../../lib/theme';
 import { spacing, radius, typography } from '../../../lib/tokens';
 import { usePostWithComments, buildCommentTree, formatRelativeTime } from '../../../hooks/usePosts';
 import { useTogglePostLike } from '../../../hooks/usePostLikes';
-import { useToggleBookmark } from '../../../hooks/usePostBookmarks';
 import { Avatar } from '../../../components/Avatar';
-import { CommentItem, CommentInput, PostActionsMenu, ReportModal, EditPostModal } from '../../../components/posts';
+import { CommentItem, CommentInput, PostActionsMenu, ReportModal, EditPostModal, PostImageGrid, EngagementRow } from '../../../components/posts';
 import { EmptyState } from '../../../components/EmptyState';
-import { useToast } from '../../../hooks/useToast';
+import { ImageViewer } from '../../../components/ImageViewer';
 import { useAuth } from '../../../hooks/useAuth';
 
 export default function PostDetailScreen() {
@@ -37,17 +34,17 @@ export default function PostDetailScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const toast = useToast();
   const { user } = useAuth();
   const { data, isLoading, isRefetching, refetch, error } = usePostWithComments(id);
   const toggleLike = useTogglePostLike();
-  const toggleBookmark = useToggleBookmark();
   const scrollViewRef = useRef<ScrollView>(null);
 
   const [replyTo, setReplyTo] = useState<{ commentId: string; username: string } | null>(null);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showImageViewer, setShowImageViewer] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   const post = data?.post;
   const comments = data?.comments ?? [];
@@ -71,17 +68,6 @@ export default function PostDetailScreen() {
     if (post?.user_id) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       router.push(`/user/${post.user_id}`);
-    }
-  };
-
-  const handleBookmarkPress = async () => {
-    if (!post) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    try {
-      const result = await toggleBookmark.mutateAsync(post.id);
-      toast.showNeutral(result.bookmarked ? 'Post saved' : 'Post removed from saved');
-    } catch (err: any) {
-      toast.showError(err.message || 'Failed to save post');
     }
   };
 
@@ -160,26 +146,12 @@ export default function PostDetailScreen() {
               <Ionicons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
           ),
-          headerRight: () => (
-            <View style={styles.headerRightContainer}>
-              <TouchableOpacity
-                onPress={handleBookmarkPress}
-                style={styles.headerButton}
-                disabled={toggleBookmark.isPending}
-              >
-                <Ionicons
-                  name={post?.user_has_bookmarked ? 'bookmark' : 'bookmark-outline'}
-                  size={22}
-                  color={post?.user_has_bookmarked ? colors.accent : colors.text}
-                />
+          headerRight: () =>
+            !isSystemPost ? (
+              <TouchableOpacity onPress={handleActionsPress} style={styles.headerButton}>
+                <Ionicons name="ellipsis-horizontal" size={22} color={colors.text} />
               </TouchableOpacity>
-              {!isSystemPost && (
-                <TouchableOpacity onPress={handleActionsPress} style={styles.headerButton}>
-                  <Ionicons name="ellipsis-horizontal" size={22} color={colors.text} />
-                </TouchableOpacity>
-              )}
-            </View>
-          ),
+            ) : null,
         }}
       />
 
@@ -197,12 +169,14 @@ export default function PostDetailScreen() {
           />
         }
       >
-        {/* Post Header */}
-        <View style={styles.postHeader}>
+        {/* Post - Twitter-style layout */}
+        <View style={styles.postContainer}>
+          {/* Avatar Column */}
           <TouchableOpacity
             onPress={handleAuthorPress}
             disabled={isSystemPost}
-            style={styles.authorRow}
+            style={styles.avatarColumn}
+            accessibilityLabel={`View ${authorName}'s profile`}
           >
             {isSystemPost ? (
               <View style={[styles.systemAvatar, { backgroundColor: colors.accent }]}>
@@ -215,93 +189,76 @@ export default function PostDetailScreen() {
                 size="medium"
               />
             )}
-            <View style={styles.authorInfo}>
-              <Text style={[styles.authorName, { color: colors.text }]}>{authorName}</Text>
-              <View style={styles.timestampRow}>
+          </TouchableOpacity>
+
+          {/* Content Column */}
+          <View style={styles.contentColumn}>
+            {/* Author Row */}
+            <View style={styles.authorRow}>
+              <TouchableOpacity
+                onPress={handleAuthorPress}
+                disabled={isSystemPost}
+                style={styles.authorInfo}
+              >
+                <Text style={[styles.displayName, { color: colors.text }]} numberOfLines={1}>
+                  {authorName}
+                </Text>
+                {!isSystemPost && (
+                  <Text style={[styles.username, { color: colors.textSecondary }]} numberOfLines={1}>
+                    {' '}@{post.author_username || 'user'}
+                  </Text>
+                )}
+                <Text style={[styles.separator, { color: colors.textTertiary }]}> · </Text>
                 <Text style={[styles.timestamp, { color: colors.textTertiary }]}>
                   {formatRelativeTime(post.created_at)}
                 </Text>
                 {post.is_edited && (
-                  <Text style={[styles.editedLabel, { color: colors.textTertiary }]}>
-                    {' · edited'}
-                  </Text>
+                  <Text style={[styles.timestamp, { color: colors.textTertiary }]}> · edited</Text>
                 )}
+              </TouchableOpacity>
+            </View>
+
+            {/* System Badge */}
+            {isSystemPost && (
+              <View style={[styles.systemBadge, { backgroundColor: colors.accentSoft }]}>
+                <Text style={[styles.systemBadgeText, { color: colors.accent }]}>EVENT</Text>
               </View>
-            </View>
-          </TouchableOpacity>
+            )}
 
-          {isSystemPost && (
-            <View style={[styles.systemBadge, { backgroundColor: colors.accentSoft }]}>
-              <Text style={[styles.systemBadgeText, { color: colors.accent }]}>EVENT</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Post Content */}
-        <View style={styles.postContent}>
-          <Text style={[styles.title, { color: colors.text }]}>{post.title}</Text>
-
-          {post.fighter_a_name && post.fighter_b_name && (
-            <Text style={[styles.matchup, { color: colors.textSecondary }]}>
-              {post.fighter_a_name} vs {post.fighter_b_name}
+            {/* Content Text */}
+            <Text style={[styles.contentText, { color: colors.text }]}>
+              {post.title}
+              {post.fighter_a_name && post.fighter_b_name && (
+                `\n${post.fighter_a_name} vs ${post.fighter_b_name}`
+              )}
+              {post.event_name && !post.fighter_a_name && `\n${post.event_name}`}
+              {post.body && `\n\n${post.body}`}
             </Text>
-          )}
 
-          {post.event_name && (
-            <View style={styles.eventRow}>
-              <Ionicons name="calendar-outline" size={14} color={colors.textTertiary} />
-              <Text style={[styles.eventName, { color: colors.textTertiary }]}>
-                {post.event_name}
-              </Text>
-            </View>
-          )}
-
-          {post.body && (
-            <Text style={[styles.body, { color: colors.text }]}>{post.body}</Text>
-          )}
-        </View>
-
-        {/* Images */}
-        {post.images && post.images.length > 0 && (
-          <View style={styles.imagesContainer}>
-            {post.images.map((image) => (
-              <Image
-                key={image.id}
-                source={{ uri: image.image_url }}
-                style={[styles.image, { backgroundColor: colors.surfaceAlt }]}
-                resizeMode="cover"
+            {/* Images */}
+            {post.images && post.images.length > 0 && (
+              <PostImageGrid
+                images={post.images}
+                onImagePress={(index) => {
+                  setSelectedImageIndex(index);
+                  setShowImageViewer(true);
+                }}
               />
-            ))}
-          </View>
-        )}
+            )}
 
-        {/* Engagement Stats */}
-        <View style={[styles.engagementBar, { borderColor: colors.border }]}>
-          <TouchableOpacity
-            style={styles.engagementButton}
-            onPress={handleLikePress}
-            disabled={toggleLike.isPending}
-          >
-            <Ionicons
-              name={post.user_has_liked ? 'heart' : 'heart-outline'}
-              size={24}
-              color={post.user_has_liked ? colors.accent : colors.textSecondary}
+            {/* Engagement Row */}
+            <EngagementRow
+              commentCount={post.comment_count}
+              likeCount={post.like_count}
+              userHasLiked={post.user_has_liked}
+              onCommentPress={() => {}}
+              onLikePress={handleLikePress}
+              shareContent={{
+                message: `${post.title}${post.body ? '\n\n' + post.body : ''}\n\n- via UFC Picks`,
+                title: post.title,
+              }}
+              disabled={toggleLike.isPending}
             />
-            <Text
-              style={[
-                styles.engagementCount,
-                { color: post.user_has_liked ? colors.accent : colors.textSecondary },
-              ]}
-            >
-              {post.like_count} {post.like_count === 1 ? 'like' : 'likes'}
-            </Text>
-          </TouchableOpacity>
-
-          <View style={styles.engagementButton}>
-            <Ionicons name="chatbubble-outline" size={22} color={colors.textSecondary} />
-            <Text style={[styles.engagementCount, { color: colors.textSecondary }]}>
-              {post.comment_count} {post.comment_count === 1 ? 'comment' : 'comments'}
-            </Text>
           </View>
         </View>
 
@@ -361,6 +318,16 @@ export default function PostDetailScreen() {
         initialTitle={post.title}
         initialBody={post.body}
       />
+
+      {/* Image Viewer */}
+      {post.images && post.images.length > 0 && (
+        <ImageViewer
+          visible={showImageViewer}
+          images={post.images.map((img) => img.image_url)}
+          initialIndex={selectedImageIndex}
+          onClose={() => setShowImageViewer(false)}
+        />
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -381,26 +348,49 @@ const styles = StyleSheet.create({
   headerButton: {
     padding: spacing.sm,
   },
-  headerRightContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: spacing.md,
   },
-  postHeader: {
+  postContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingVertical: spacing.md,
+  },
+  avatarColumn: {
+    width: 56,
+    marginRight: spacing.md,
+    alignSelf: 'flex-start',
+  },
+  contentColumn: {
+    flex: 1,
   },
   authorRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  authorInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
+    flexWrap: 'wrap',
+  },
+  displayName: {
+    fontSize: typography.body.fontSize,
+    fontWeight: '600',
+  },
+  username: {
+    fontSize: typography.meta.fontSize,
+    fontWeight: typography.meta.fontWeight,
+  },
+  separator: {
+    fontSize: typography.meta.fontSize,
+  },
+  timestamp: {
+    fontSize: typography.meta.fontSize,
+    fontWeight: typography.meta.fontWeight,
   },
   systemAvatar: {
     width: 56,
@@ -409,85 +399,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  authorInfo: {
-    marginLeft: spacing.md,
-    flex: 1,
-  },
-  authorName: {
-    ...typography.h3,
-  },
-  timestampRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  timestamp: {
-    ...typography.meta,
-  },
-  editedLabel: {
-    ...typography.meta,
-  },
   systemBadge: {
+    alignSelf: 'flex-start',
     paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
+    paddingVertical: 2,
     borderRadius: radius.sm,
+    marginBottom: spacing.xs,
   },
   systemBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.5,
   },
-  postContent: {
-    marginBottom: spacing.md,
-  },
-  title: {
-    ...typography.h2,
-    marginBottom: spacing.sm,
-  },
-  matchup: {
-    ...typography.body,
-    fontWeight: '600',
-    marginBottom: spacing.xs,
-  },
-  eventRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.sm,
-  },
-  eventName: {
-    ...typography.meta,
-  },
-  body: {
-    ...typography.body,
+  contentText: {
+    fontSize: typography.body.fontSize,
+    fontWeight: typography.body.fontWeight,
     lineHeight: 24,
-    marginTop: spacing.sm,
-  },
-  imagesContainer: {
-    marginBottom: spacing.md,
-    gap: spacing.sm,
-  },
-  image: {
-    width: '100%',
-    height: 220,
-    borderRadius: radius.card,
-  },
-  engagementBar: {
-    flexDirection: 'row',
-    paddingVertical: spacing.md,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    marginBottom: spacing.lg,
-  },
-  engagementButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: spacing.xl,
-  },
-  engagementCount: {
-    ...typography.body,
-    marginLeft: spacing.sm,
-    fontWeight: '500',
   },
   commentsSection: {
     paddingBottom: spacing.md,

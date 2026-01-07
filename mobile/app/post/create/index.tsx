@@ -1,6 +1,8 @@
 /**
- * Create Post Screen
- * Allows users to create new posts with title, body, and images
+ * Create Post Screen - Twitter/X style compose
+ *
+ * Layout: Avatar on left, text input + images on right
+ * Bottom toolbar with image picker
  */
 
 import {
@@ -16,21 +18,24 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { decode } from 'base64-arraybuffer';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/theme';
 import { spacing, radius, typography } from '../../../lib/tokens';
 import { useCreatePost } from '../../../hooks/usePosts';
 import { useToast } from '../../../hooks/useToast';
+import { useAuth } from '../../../hooks/useAuth';
 import { supabase } from '../../../lib/supabase';
 import { logger } from '../../../lib/logger';
+import { Avatar } from '../../../components/Avatar';
 
-const MAX_TITLE_LENGTH = 200;
-const MAX_BODY_LENGTH = 5000;
+const MAX_CONTENT_LENGTH = 5000;
 const MAX_IMAGES = 4;
 
 interface SelectedImage {
@@ -43,18 +48,19 @@ interface SelectedImage {
 export default function CreatePostScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const toast = useToast();
   const createPost = useCreatePost();
+  const { user, profile } = useAuth();
 
-  const [title, setTitle] = useState('');
-  const [body, setBody] = useState('');
+  const [content, setContent] = useState('');
   const [images, setImages] = useState<SelectedImage[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const canSubmit = title.trim().length > 0 && !isSubmitting && !images.some((i) => i.uploading);
+  const canSubmit = content.trim().length > 0 && !isSubmitting && !images.some((i) => i.uploading);
 
   const handleClose = () => {
-    if (title.trim() || body.trim() || images.length > 0) {
+    if (content.trim() || images.length > 0) {
       Alert.alert('Discard Post?', 'You have unsaved changes. Are you sure you want to discard this post?', [
         { text: 'Keep Editing', style: 'cancel' },
         {
@@ -98,25 +104,29 @@ export default function CreatePostScreen() {
 
       setImages((prev) => [...prev, newImage]);
 
-      // Upload the image
+      // Upload the image - path must start with user ID for RLS policy
       try {
+        if (!user?.id) {
+          throw new Error('User not authenticated');
+        }
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-        const filePath = `posts/${fileName}`;
+        const filePath = `${user.id}/${fileName}`;
 
-        // Read the file as blob
-        const response = await fetch(asset.uri);
-        const blob = await response.blob();
+        // Read file as base64 and decode for React Native compatibility
+        const base64 = await FileSystem.readAsStringAsync(asset.uri, {
+          encoding: 'base64',
+        });
+        const arrayBuffer = decode(base64);
 
         const { error: uploadError } = await supabase.storage
           .from('post-images')
-          .upload(filePath, blob, {
+          .upload(filePath, arrayBuffer, {
             contentType: 'image/jpeg',
             upsert: false,
           });
 
         if (uploadError) throw uploadError;
 
-        // Get public URL
         const {
           data: { publicUrl },
         } = supabase.storage.from('post-images').getPublicUrl(filePath);
@@ -148,21 +158,15 @@ export default function CreatePostScreen() {
   const handleSubmit = async () => {
     if (!canSubmit) return;
 
-    const trimmedTitle = title.trim();
-    const trimmedBody = body.trim();
+    const trimmedContent = content.trim();
 
-    if (trimmedTitle.length === 0) {
-      toast.showError('Title is required');
+    if (trimmedContent.length === 0) {
+      toast.showError('Post cannot be empty');
       return;
     }
 
-    if (trimmedTitle.length > MAX_TITLE_LENGTH) {
-      toast.showError(`Title must be ${MAX_TITLE_LENGTH} characters or less`);
-      return;
-    }
-
-    if (trimmedBody.length > MAX_BODY_LENGTH) {
-      toast.showError(`Body must be ${MAX_BODY_LENGTH} characters or less`);
+    if (trimmedContent.length > MAX_CONTENT_LENGTH) {
+      toast.showError(`Post must be ${MAX_CONTENT_LENGTH} characters or less`);
       return;
     }
 
@@ -182,9 +186,10 @@ export default function CreatePostScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
+      // Use full content as title (API expects title)
       const postId = await createPost.mutateAsync({
-        title: trimmedTitle,
-        body: trimmedBody || undefined,
+        title: trimmedContent,
+        body: undefined,
         imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
       });
 
@@ -197,21 +202,23 @@ export default function CreatePostScreen() {
     }
   };
 
+  const displayName = profile?.username || 'User';
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <Stack.Screen
-        options={{
-          headerShown: false,
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
 
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={handleClose} style={styles.headerButton}>
-          <Ionicons name="close" size={24} color={colors.text} />
+        <TouchableOpacity
+          onPress={handleClose}
+          style={styles.closeButton}
+          accessibilityLabel="Close"
+        >
+          <Ionicons name="close" size={26} color={colors.text} />
         </TouchableOpacity>
 
-        <Text style={[styles.headerTitle, { color: colors.text }]}>New Post</Text>
+        <View style={styles.headerSpacer} />
 
         <TouchableOpacity
           onPress={handleSubmit}
@@ -220,6 +227,8 @@ export default function CreatePostScreen() {
             styles.postButton,
             { backgroundColor: canSubmit ? colors.accent : colors.surfaceAlt },
           ]}
+          accessibilityLabel="Post"
+          accessibilityState={{ disabled: !canSubmit }}
         >
           {isSubmitting ? (
             <ActivityIndicator size="small" color="#fff" />
@@ -234,106 +243,84 @@ export default function CreatePostScreen() {
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Title Input */}
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={[styles.titleInput, { color: colors.text }]}
-              placeholder="Title"
-              placeholderTextColor={colors.textTertiary}
-              value={title}
-              onChangeText={setTitle}
-              maxLength={MAX_TITLE_LENGTH}
-              multiline
-              autoFocus
-            />
-            <Text style={[styles.charCount, { color: colors.textTertiary }]}>
-              {title.length}/{MAX_TITLE_LENGTH}
-            </Text>
-          </View>
-
-          {/* Body Input */}
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={[styles.bodyInput, { color: colors.text }]}
-              placeholder="Share your thoughts... (optional)"
-              placeholderTextColor={colors.textTertiary}
-              value={body}
-              onChangeText={setBody}
-              maxLength={MAX_BODY_LENGTH}
-              multiline
-              textAlignVertical="top"
-            />
-            {body.length > 0 && (
-              <Text style={[styles.charCount, { color: colors.textTertiary }]}>
-                {body.length}/{MAX_BODY_LENGTH}
-              </Text>
-            )}
-          </View>
-
-          {/* Images */}
-          {images.length > 0 && (
-            <View style={styles.imagesContainer}>
-              {images.map((image, index) => (
-                <View key={image.uri} style={styles.imageWrapper}>
-                  <Image source={{ uri: image.uri }} style={styles.imagePreview} />
-
-                  {image.uploading && (
-                    <View style={styles.imageOverlay}>
-                      <ActivityIndicator color="#fff" />
-                    </View>
-                  )}
-
-                  {image.error && (
-                    <View style={[styles.imageOverlay, { backgroundColor: 'rgba(255,0,0,0.5)' }]}>
-                      <Ionicons name="alert-circle" size={24} color="#fff" />
-                    </View>
-                  )}
-
-                  <TouchableOpacity
-                    style={styles.removeImageButton}
-                    onPress={() => removeImage(image.uri)}
-                  >
-                    <Ionicons name="close-circle" size={24} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              ))}
+          {/* Compose Area - Avatar left, content right */}
+          <View style={styles.composeRow}>
+            <View style={styles.avatarColumn}>
+              <Avatar
+                imageUrl={profile?.avatar_url}
+                username={displayName}
+                size="small"
+              />
             </View>
-          )}
 
-          {/* Add Image Button */}
-          {images.length < MAX_IMAGES && (
-            <TouchableOpacity
-              style={[styles.addImageButton, { borderColor: colors.border }]}
-              onPress={pickImage}
-            >
-              <Ionicons name="image-outline" size={24} color={colors.textSecondary} />
-              <Text style={[styles.addImageText, { color: colors.textSecondary }]}>
-                Add Photo ({images.length}/{MAX_IMAGES})
-              </Text>
-            </TouchableOpacity>
-          )}
+            <View style={styles.contentColumn}>
+              <TextInput
+                style={[styles.contentInput, { color: colors.text }]}
+                placeholder="What's happening?"
+                placeholderTextColor={colors.textTertiary}
+                value={content}
+                onChangeText={setContent}
+                maxLength={MAX_CONTENT_LENGTH}
+                multiline
+                autoFocus
+                textAlignVertical="top"
+              />
 
-          {/* Tips */}
-          <View style={[styles.tipsContainer, { backgroundColor: colors.surfaceAlt }]}>
-            <Text style={[styles.tipsTitle, { color: colors.textSecondary }]}>Tips for a great post:</Text>
-            <Text style={[styles.tipText, { color: colors.textTertiary }]}>
-              • Use a clear, descriptive title
-            </Text>
-            <Text style={[styles.tipText, { color: colors.textTertiary }]}>
-              • Share your analysis or predictions
-            </Text>
-            <Text style={[styles.tipText, { color: colors.textTertiary }]}>
-              • Add images to make your post stand out
-            </Text>
+              {/* Images inline with content */}
+              {images.length > 0 && (
+                <View style={styles.imagesContainer}>
+                  {images.map((image) => (
+                    <View key={image.uri} style={[styles.imageWrapper, { borderColor: colors.border }]}>
+                      <Image source={{ uri: image.uri }} style={styles.imagePreview} />
+
+                      {image.uploading && (
+                        <View style={styles.imageOverlay}>
+                          <ActivityIndicator color="#fff" />
+                        </View>
+                      )}
+
+                      {image.error && (
+                        <View style={[styles.imageOverlay, styles.imageErrorOverlay]}>
+                          <Ionicons name="alert-circle" size={24} color="#fff" />
+                        </View>
+                      )}
+
+                      <TouchableOpacity
+                        style={styles.removeImageButton}
+                        onPress={() => removeImage(image.uri)}
+                        accessibilityLabel="Remove image"
+                      >
+                        <Ionicons name="close" size={16} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
           </View>
         </ScrollView>
+
+        {/* Bottom Toolbar */}
+        <View style={[styles.toolbar, { borderTopColor: colors.border, paddingBottom: insets.bottom > 0 ? insets.bottom : spacing.sm }]}>
+          <TouchableOpacity
+            style={styles.toolbarButton}
+            onPress={pickImage}
+            disabled={images.length >= MAX_IMAGES}
+            accessibilityLabel="Add photo"
+          >
+            <Ionicons
+              name="image-outline"
+              size={22}
+              color={images.length >= MAX_IMAGES ? colors.textTertiary : colors.accent}
+            />
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -349,66 +336,64 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerButton: {
+  closeButton: {
     padding: spacing.xs,
+    marginLeft: -spacing.xs,
   },
-  headerTitle: {
-    ...typography.h3,
+  headerSpacer: {
+    flex: 1,
   },
   postButton: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.full,
-    minWidth: 70,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
+    minWidth: 64,
     alignItems: 'center',
   },
   postButtonText: {
-    ...typography.body,
+    fontSize: 15,
     fontWeight: '600',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
+    flexGrow: 1,
+  },
+  composeRow: {
+    flexDirection: 'row',
     padding: spacing.md,
-    paddingBottom: spacing.xxl,
+    paddingTop: spacing.lg,
   },
-  inputContainer: {
-    marginBottom: spacing.md,
+  avatarColumn: {
+    width: 40,
+    marginRight: spacing.sm,
   },
-  titleInput: {
-    ...typography.h2,
-    padding: 0,
-    minHeight: 40,
+  contentColumn: {
+    flex: 1,
   },
-  bodyInput: {
-    ...typography.body,
-    padding: 0,
-    minHeight: 120,
+  contentInput: {
+    fontSize: 18,
+    fontWeight: '400',
     lineHeight: 24,
-  },
-  charCount: {
-    ...typography.meta,
-    textAlign: 'right',
-    marginTop: spacing.xs,
+    minHeight: 100,
+    padding: 0,
   },
   imagesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    marginTop: spacing.md,
     gap: spacing.sm,
-    marginBottom: spacing.md,
   },
   imageWrapper: {
     position: 'relative',
-    width: '48%',
+    width: '100%',
     aspectRatio: 16 / 9,
     borderRadius: radius.card,
     overflow: 'hidden',
+    borderWidth: 1,
   },
   imagePreview: {
     width: '100%',
@@ -416,43 +401,32 @@ const styles = StyleSheet.create({
   },
   imageOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  imageErrorOverlay: {
+    backgroundColor: 'rgba(220,53,69,0.6)',
   },
   removeImageButton: {
     position: 'absolute',
-    top: spacing.xs,
-    right: spacing.xs,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 12,
-  },
-  addImageButton: {
-    flexDirection: 'row',
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.7)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.lg,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderRadius: radius.card,
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
   },
-  addImageText: {
-    ...typography.body,
-    fontWeight: '500',
+  toolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
-  tipsContainer: {
-    padding: spacing.md,
-    borderRadius: radius.card,
-  },
-  tipsTitle: {
-    ...typography.body,
-    fontWeight: '600',
-    marginBottom: spacing.sm,
-  },
-  tipText: {
-    ...typography.meta,
-    marginBottom: spacing.xs,
+  toolbarButton: {
+    padding: spacing.xs,
   },
 });

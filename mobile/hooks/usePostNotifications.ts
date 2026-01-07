@@ -59,14 +59,22 @@ export function useUnreadNotificationCount() {
   return useQuery({
     queryKey: notificationKeys.count(),
     queryFn: async (): Promise<number> => {
-      const { data, error } = await supabase.rpc('get_post_notification_count');
+      try {
+        const { data, error } = await supabase.rpc('get_post_notification_count');
 
-      if (error) {
-        logger.error('Failed to get notification count', error);
+        if (error) {
+          // Silently return 0 if function doesn't exist (migration not applied)
+          if (error.code === 'PGRST202') {
+            return 0;
+          }
+          logger.error('Failed to get notification count', error);
+          return 0;
+        }
+
+        return data ?? 0;
+      } catch {
         return 0;
       }
-
-      return data ?? 0;
     },
     refetchInterval: 30000, // Refetch every 30 seconds
     staleTime: 10000, // Consider stale after 10 seconds
@@ -82,18 +90,27 @@ export function usePostNotifications(unreadOnly = false) {
     queryFn: async ({ pageParam = 0 }): Promise<PostNotification[]> => {
       logger.breadcrumb('Fetching post notifications', 'notifications', { offset: pageParam });
 
-      const { data, error } = await supabase.rpc('get_post_notifications', {
-        p_limit: 30,
-        p_offset: pageParam,
-        p_unread_only: unreadOnly,
-      });
+      try {
+        const { data, error } = await supabase.rpc('get_post_notifications', {
+          p_limit: 30,
+          p_offset: pageParam,
+          p_unread_only: unreadOnly,
+        });
 
-      if (error) {
-        logger.error('Failed to fetch notifications', error);
-        throw error;
+        if (error) {
+          // Return empty array if function doesn't exist (migration not applied)
+          if (error.code === 'PGRST202') {
+            return [];
+          }
+          logger.error('Failed to fetch notifications', error);
+          throw error;
+        }
+
+        return (data || []) as PostNotification[];
+      } catch (err) {
+        // Gracefully handle missing function
+        return [];
       }
-
-      return (data || []) as PostNotification[];
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {

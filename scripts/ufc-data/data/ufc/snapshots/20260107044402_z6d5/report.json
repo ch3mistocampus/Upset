@@ -1,0 +1,32 @@
+{
+  "success": true,
+  "snapshotId": "20260107044402_z6d5",
+  "counts": {
+    "fighters": {
+      "inserted": 0,
+      "updated": 4451,
+      "errors": 0,
+      "errorMessages": []
+    },
+    "events": {
+      "inserted": 0,
+      "updated": 757,
+      "errors": 0,
+      "errorMessages": []
+    },
+    "fights": {
+      "inserted": 0,
+      "updated": 8494,
+      "errors": 0,
+      "errorMessages": []
+    },
+    "fightStats": {
+      "inserted": 0,
+      "updated": 16941,
+      "errors": 0,
+      "errorMessages": []
+    }
+  },
+  "errors": [],
+  "duration": 15749
+}

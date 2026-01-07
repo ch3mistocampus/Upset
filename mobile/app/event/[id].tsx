@@ -48,13 +48,16 @@ const MIN_COMMUNITY_PICKS = 5;
 
 
 // Fighter Pill Button - horizontal pill with checkmark when selected
+// Supports navigation to fighter info via long press or info button
 const FighterPill: React.FC<{
   name: string;
   corner: 'red' | 'blue';
   isSelected: boolean;
   locked: boolean;
   onPress: () => void;
-}> = ({ name, corner, isSelected, locked, onPress }) => {
+  fighterId?: string;
+  onFighterInfo?: (fighterId: string) => void;
+}> = ({ name, corner, isSelected, locked, onPress, fighterId, onFighterInfo }) => {
   const { colors } = useTheme();
   const cornerColors = useCornerColors();
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -69,6 +72,13 @@ const FighterPill: React.FC<{
     Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 150, friction: 5 }).start();
   };
 
+  const handleLongPress = () => {
+    if (fighterId && onFighterInfo) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      onFighterInfo(fighterId);
+    }
+  };
+
   return (
     <Animated.View style={[pillStyles.wrapper, { transform: [{ scale: scaleAnim }] }]}>
       <TouchableOpacity
@@ -80,10 +90,12 @@ const FighterPill: React.FC<{
           locked && pillStyles.disabled,
         ]}
         onPress={onPress}
+        onLongPress={handleLongPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         disabled={locked}
         activeOpacity={0.85}
+        delayLongPress={300}
       >
         {isSelected && (
           <Ionicons name="checkmark" size={14} color="#fff" style={pillStyles.checkIcon} />
@@ -100,6 +112,18 @@ const FighterPill: React.FC<{
         >
           {name}
         </Text>
+        {fighterId && onFighterInfo && (
+          <TouchableOpacity
+            style={pillStyles.infoButton}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onFighterInfo(fighterId);
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="information-circle-outline" size={16} color={isSelected ? '#fff' : colors.textTertiary} />
+          </TouchableOpacity>
+        )}
       </TouchableOpacity>
     </Animated.View>
   );
@@ -128,6 +152,10 @@ const pillStyles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     flexShrink: 1,
+  },
+  infoButton: {
+    marginLeft: 4,
+    padding: 2,
   },
 });
 
@@ -362,6 +390,11 @@ export default function EventDetail() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       toast.showError('Failed to clear picks');
     }
+  };
+
+  // Navigate to fighter info page
+  const handleFighterInfo = (fighterId: string) => {
+    router.push(`/fighter/${fighterId}`);
   };
 
   // Custom header with back button and sticky progress
@@ -682,6 +715,8 @@ export default function EventDetail() {
                       isSelected={pickedRed}
                       locked={locked || isSubmitted || bout.status !== 'scheduled'}
                       onPress={() => handlePickFighter(bout, 'red')}
+                      fighterId={bout.red_fighter_ufcstats_id}
+                      onFighterInfo={handleFighterInfo}
                     />
 
                     <Text style={[styles.vs, { color: colors.textTertiary }]}>vs</Text>
@@ -692,6 +727,8 @@ export default function EventDetail() {
                       isSelected={pickedBlue}
                       locked={locked || isSubmitted || bout.status !== 'scheduled'}
                       onPress={() => handlePickFighter(bout, 'blue')}
+                      fighterId={bout.blue_fighter_ufcstats_id}
+                      onFighterInfo={handleFighterInfo}
                     />
                   </View>
 

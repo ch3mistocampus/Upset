@@ -21,11 +21,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useTheme } from '../../lib/theme';
-import { useFriends } from '../../hooks/useFriends';
 import { useAuth } from '../../hooks/useAuth';
 import type { ThemeColors } from '../../lib/tokens';
 
 // Tab configuration with outline (inactive) and filled (active) icons
+// Only includes tabs visible in bottom nav (friends/fighters accessible via Discover header)
 const TAB_CONFIG: Record<string, {
   icon: keyof typeof Ionicons.glyphMap;
   iconOutline: keyof typeof Ionicons.glyphMap;
@@ -34,7 +34,6 @@ const TAB_CONFIG: Record<string, {
   home: { icon: 'home', iconOutline: 'home-outline', label: 'Home' },
   pick: { icon: 'calendar', iconOutline: 'calendar-outline', label: 'Events' },
   discover: { icon: 'compass', iconOutline: 'compass-outline', label: 'Discover' },
-  friends: { icon: 'people', iconOutline: 'people-outline', label: 'People' },
   leaderboards: { icon: 'trophy', iconOutline: 'trophy-outline', label: 'Ranks' },
   profile: { icon: 'person', iconOutline: 'person-outline', label: 'Profile' },
 };
@@ -45,8 +44,6 @@ function TabButton({
   iconName,
   label,
   showGuestDot,
-  showBadge,
-  pendingCount,
   colors,
   onPress,
   onLongPress,
@@ -55,8 +52,6 @@ function TabButton({
   iconName: keyof typeof Ionicons.glyphMap;
   label: string;
   showGuestDot: boolean;
-  showBadge: boolean;
-  pendingCount: number;
   colors: ThemeColors;
   onPress: () => void;
   onLongPress: () => void;
@@ -136,13 +131,6 @@ function TabButton({
           {showGuestDot && (
             <View style={[styles.guestDot, { backgroundColor: colors.accent }]} />
           )}
-          {showBadge && (
-            <View style={[styles.badge, { backgroundColor: colors.accent }]}>
-              <Text style={styles.badgeText}>
-                {pendingCount > 9 ? '9+' : pendingCount}
-              </Text>
-            </View>
-          )}
         </View>
         <Text
           style={[
@@ -160,9 +148,7 @@ function TabButton({
 export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
-  const { friendRequests } = useFriends();
   const { isGuest } = useAuth();
-  const pendingCount = friendRequests?.length || 0;
 
   return (
     <View style={[styles.container, { bottom: Math.max(insets.bottom, 16) + 8 }]}>
@@ -176,10 +162,17 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
           },
         ]}
       >
-        {/* Tab buttons */}
+        {/* Tab buttons - only show tabs defined in TAB_CONFIG */}
         <View style={styles.tabsRow}>
-          {state.routes.map((route, index) => {
-            const isFocused = state.index === index;
+          {state.routes
+            .filter((route) => {
+              // Only show tabs that are in TAB_CONFIG (excludes friends/fighters)
+              return route.name in TAB_CONFIG;
+            })
+            .map((route) => {
+            // Find the actual index in the original routes array for focus state
+            const actualIndex = state.routes.findIndex(r => r.key === route.key);
+            const isFocused = state.index === actualIndex;
             const config = TAB_CONFIG[route.name] || { icon: 'ellipse', iconOutline: 'ellipse-outline', label: route.name };
 
             // Handle profile tab guest state
@@ -188,9 +181,6 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
             // Use filled icon when focused, outline when not
             const iconName = (isFocused ? config.icon : config.iconOutline) as keyof typeof Ionicons.glyphMap;
             const label = isProfileTab && isGuest ? 'Guest' : config.label;
-
-            // Handle friends badge
-            const showBadge = route.name === 'friends' && pendingCount > 0;
 
             const handlePress = () => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -221,8 +211,6 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
                 iconName={iconName}
                 label={label}
                 showGuestDot={showGuestDot}
-                showBadge={showBadge}
-                pendingCount={pendingCount}
                 colors={colors}
                 onPress={handlePress}
                 onLongPress={handleLongPress}
@@ -285,21 +273,5 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-  },
-  badge: {
-    position: 'absolute',
-    top: -6,
-    right: -10,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '700',
   },
 });

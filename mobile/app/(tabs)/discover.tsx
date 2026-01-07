@@ -39,7 +39,6 @@ import { useLike } from '../../hooks/useLikes';
 import { useUserSuggestions, getSuggestionReasonText, UserSuggestion } from '../../hooks/useSuggestions';
 import { usePostsFeed, useFollowingPostsFeed } from '../../hooks/usePosts';
 import { useAuth } from '../../hooks/useAuth';
-import { useUnreadNotificationCount } from '../../hooks/usePostNotifications';
 import { PostCard } from '../../components/posts';
 import { Post } from '../../types/posts';
 
@@ -66,7 +65,6 @@ export default function DiscoverScreen() {
   const { data: suggestions } = useUserSuggestions(5);
   const { follow, followLoading } = useFriends();
   const { toggleLike, isToggling } = useLike();
-  const { data: unreadNotifications } = useUnreadNotificationCount();
 
   // Track new posts since last refresh
   const { data: newPostsCount } = useNewActivityCount(lastRefreshTime);
@@ -143,16 +141,6 @@ export default function DiscoverScreen() {
     router.push(`/user/${userId}`);
   };
 
-  const handleSearchPress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/post/search');
-  };
-
-  const handleNotificationsPress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/post/notifications');
-  };
-
   const handleFollow = async (userId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
@@ -185,7 +173,7 @@ export default function DiscoverScreen() {
 
   const renderActivityItem = ({ item }: { item: ActivityItem }) => (
     <TouchableOpacity
-      style={[styles.activityCard, { backgroundColor: colors.card }]}
+      style={[styles.activityCard, { backgroundColor: colors.surface }]}
       onPress={() => handleUserPress(item.user_id)}
       activeOpacity={0.7}
     >
@@ -246,7 +234,7 @@ export default function DiscoverScreen() {
 
   const renderSuggestion = ({ item }: { item: UserSuggestion }) => (
     <TouchableOpacity
-      style={[styles.suggestionCard, { backgroundColor: colors.card }]}
+      style={[styles.suggestionCard, { backgroundColor: colors.surface }]}
       onPress={() => handleUserPress(item.user_id)}
       activeOpacity={0.7}
     >
@@ -266,7 +254,7 @@ export default function DiscoverScreen() {
         </Text>
       </View>
       <TouchableOpacity
-        style={[styles.suggestionFollowButton, { backgroundColor: colors.primary }]}
+        style={[styles.suggestionFollowButton, { backgroundColor: colors.accent }]}
         onPress={() => handleFollow(item.user_id)}
         disabled={followLoading}
       >
@@ -277,7 +265,7 @@ export default function DiscoverScreen() {
 
   const renderTrendingUser = ({ item }: { item: TrendingUser }) => (
     <TouchableOpacity
-      style={[styles.trendingCard, { backgroundColor: colors.card }]}
+      style={[styles.trendingCard, { backgroundColor: colors.surface }]}
       onPress={() => handleUserPress(item.user_id)}
       activeOpacity={0.7}
     >
@@ -296,7 +284,7 @@ export default function DiscoverScreen() {
       </Text>
       {!item.is_following && (
         <TouchableOpacity
-          style={[styles.followButton, { backgroundColor: colors.primary }]}
+          style={[styles.followButton, { backgroundColor: colors.accent }]}
           onPress={() => handleFollow(item.user_id)}
           disabled={followLoading}
         >
@@ -362,17 +350,43 @@ export default function DiscoverScreen() {
       </Text>
       <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
         {activeTab === 'discover'
-          ? 'Be the first to make some picks'
+          ? 'Be the first to make some picks or explore fighters'
           : 'Find and follow people to see their activity here'}
       </Text>
-      {activeTab === 'following' && (
+
+      {/* Primary CTA */}
+      <TouchableOpacity
+        style={[styles.emptyActionButton, { backgroundColor: colors.accent }]}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          if (activeTab === 'discover') {
+            router.push('/(tabs)/pick');
+          } else {
+            setActiveTab('discover');
+          }
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={activeTab === 'discover' ? 'Make picks' : 'Go to Discover tab to find people to follow'}
+      >
+        <Text style={styles.emptyActionText}>
+          {activeTab === 'discover' ? 'Make Picks' : 'Discover People'}
+        </Text>
+      </TouchableOpacity>
+
+      {/* Secondary link - only on Discover tab */}
+      {activeTab === 'discover' && (
         <TouchableOpacity
-          style={[styles.emptyActionButton, { backgroundColor: colors.primary }]}
-          onPress={() => setActiveTab('discover')}
-          accessibilityRole="button"
-          accessibilityLabel="Go to Discover tab to find people to follow"
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push('/(tabs)/fighters');
+          }}
+          style={styles.emptySecondaryLink}
+          accessibilityRole="link"
+          accessibilityLabel="Browse UFC fighters"
         >
-          <Text style={styles.emptyActionText}>Discover People</Text>
+          <Text style={[styles.emptySecondaryText, { color: colors.accent }]}>
+            Browse Fighters
+          </Text>
         </TouchableOpacity>
       )}
     </View>
@@ -383,7 +397,7 @@ export default function DiscoverScreen() {
     if (activeFeed.isError && !activeFeed.isFetchingNextPage) {
       return (
         <TouchableOpacity
-          style={[styles.paginationError, { backgroundColor: colors.card }]}
+          style={[styles.paginationError, { backgroundColor: colors.surface }]}
           onPress={() => activeFeed.fetchNextPage()}
           accessibilityRole="button"
           accessibilityLabel="Failed to load more, tap to retry"
@@ -392,7 +406,7 @@ export default function DiscoverScreen() {
           <Text style={[styles.paginationErrorText, { color: colors.textSecondary }]}>
             Failed to load more
           </Text>
-          <Text style={[styles.paginationRetryText, { color: colors.primary }]}>
+          <Text style={[styles.paginationRetryText, { color: colors.accent }]}>
             Tap to retry
           </Text>
         </TouchableOpacity>
@@ -402,113 +416,61 @@ export default function DiscoverScreen() {
     if (!activeFeed.isFetchingNextPage) return null;
     return (
       <View style={styles.loadingFooter} accessibilityLabel="Loading more activities">
-        <ActivityIndicator color={colors.primary} />
+        <ActivityIndicator color={colors.accent} />
       </View>
     );
   };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header Bar */}
-      <View style={[styles.headerBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Discover</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            onPress={handleSearchPress}
-            style={styles.headerButton}
-            accessibilityRole="button"
-            accessibilityLabel="Search posts"
-          >
-            <Ionicons name="search" size={22} color={colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push('/(tabs)/fighters');
-            }}
-            style={styles.headerButton}
-            accessibilityRole="button"
-            accessibilityLabel="Browse UFC fighters"
-          >
-            <Ionicons name="fitness-outline" size={22} color={colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push('/(tabs)/friends');
-            }}
-            style={styles.headerButton}
-            accessibilityRole="button"
-            accessibilityLabel="Find people to follow"
-          >
-            <Ionicons name="person-add-outline" size={22} color={colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleNotificationsPress}
-            style={styles.headerButton}
-            accessibilityRole="button"
-            accessibilityLabel={`Notifications${unreadNotifications ? `, ${unreadNotifications} unread` : ''}`}
-          >
-            <View>
-              <Ionicons name="notifications-outline" size={22} color={colors.text} />
-              {unreadNotifications && unreadNotifications > 0 && (
-                <View style={[styles.notificationBadge, { backgroundColor: colors.danger }]}>
-                  <Text style={styles.notificationBadgeText}>
-                    {unreadNotifications > 99 ? '99+' : unreadNotifications}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Tab Selector */}
-      <View style={[styles.tabContainer, { backgroundColor: colors.card }]} accessibilityRole="tablist">
+      {/* Tab Selector - "For You" | "Following" */}
+      <View style={[styles.tabContainer, { backgroundColor: colors.surface }]} accessibilityRole="tablist" testID="discover-segment-control">
         <TouchableOpacity
           style={[
             styles.tab,
-            activeTab === 'discover' && [styles.activeTab, { borderBottomColor: colors.primary }],
+            activeTab === 'discover' && [styles.activeTab, { borderBottomColor: colors.accent }],
           ]}
           onPress={() => setActiveTab('discover')}
           accessibilityRole="tab"
           accessibilityState={{ selected: activeTab === 'discover' }}
-          accessibilityLabel="Discover tab - Browse all public activity"
+          accessibilityLabel="For You tab - Browse all public activity"
+          testID="segment-for-you"
         >
           <Ionicons
             name="compass"
-            size={20}
-            color={activeTab === 'discover' ? colors.primary : colors.textSecondary}
+            size={18}
+            color={activeTab === 'discover' ? colors.accent : colors.textSecondary}
           />
           <Text
             style={[
               styles.tabText,
-              { color: activeTab === 'discover' ? colors.primary : colors.textSecondary },
+              { color: activeTab === 'discover' ? colors.accent : colors.textSecondary },
             ]}
           >
-            Discover
+            For You
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[
             styles.tab,
-            activeTab === 'following' && [styles.activeTab, { borderBottomColor: colors.primary }],
+            activeTab === 'following' && [styles.activeTab, { borderBottomColor: colors.accent }],
           ]}
           onPress={() => setActiveTab('following')}
           accessibilityRole="tab"
           accessibilityState={{ selected: activeTab === 'following' }}
           accessibilityLabel="Following tab - Activity from people you follow"
+          testID="segment-following"
         >
           <Ionicons
             name="people"
-            size={20}
-            color={activeTab === 'following' ? colors.primary : colors.textSecondary}
+            size={18}
+            color={activeTab === 'following' ? colors.accent : colors.textSecondary}
           />
           <Text
             style={[
               styles.tabText,
-              { color: activeTab === 'following' ? colors.primary : colors.textSecondary },
+              { color: activeTab === 'following' ? colors.accent : colors.textSecondary },
             ]}
           >
             Following
@@ -522,7 +484,7 @@ export default function DiscoverScreen() {
           style={[
             styles.newPostsBanner,
             {
-              backgroundColor: colors.primary,
+              backgroundColor: colors.accent,
               transform: [
                 {
                   translateY: newPostsAnim.interpolate({
@@ -551,7 +513,7 @@ export default function DiscoverScreen() {
       {/* Content */}
       {(activeFeed.isLoading || activePostsFeed.isLoading) ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={colors.accent} />
         </View>
       ) : (
         <FlatList
@@ -567,7 +529,7 @@ export default function DiscoverScreen() {
             <RefreshControl
               refreshing={activeFeed.isRefetching || activePostsFeed.isRefetching}
               onRefresh={handleRefresh}
-              tintColor={colors.primary}
+              tintColor={colors.accent}
             />
           }
           contentContainerStyle={styles.listContent}
@@ -577,7 +539,7 @@ export default function DiscoverScreen() {
 
       {/* Create Post FAB */}
       <TouchableOpacity
-        style={[styles.fab, { backgroundColor: colors.primary }]}
+        style={[styles.fab, { backgroundColor: colors.accent }]}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           router.push('/post/create');
@@ -608,42 +570,6 @@ function formatTimeAgo(dateString: string): string {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  headerBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-  },
-  headerTitle: {
-    fontSize: typography.sizes.xl,
-    fontWeight: typography.weights.bold as '700',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  headerButton: {
-    padding: spacing.sm,
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  notificationBadgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: typography.weights.bold as '700',
   },
   tabContainer: {
     flexDirection: 'row',
@@ -704,7 +630,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: spacing.sm,
-    borderRadius: radius.lg,
+    borderRadius: radius.card,
     marginRight: spacing.sm,
     minWidth: 200,
   },
@@ -743,7 +669,7 @@ const styles = StyleSheet.create({
   trendingCard: {
     width: 120,
     padding: spacing.md,
-    borderRadius: radius.lg,
+    borderRadius: radius.card,
     alignItems: 'center',
     marginRight: spacing.sm,
   },
@@ -773,7 +699,7 @@ const styles = StyleSheet.create({
   followButton: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    borderRadius: radius.full,
+    borderRadius: radius.pill,
   },
   followButtonText: {
     color: '#FFFFFF',
@@ -789,7 +715,7 @@ const styles = StyleSheet.create({
   // Activity Items
   activityCard: {
     padding: spacing.md,
-    borderRadius: radius.lg,
+    borderRadius: radius.card,
     marginBottom: spacing.sm,
   },
   activityHeader: {
@@ -849,7 +775,7 @@ const styles = StyleSheet.create({
     left: spacing.md,
     right: spacing.md,
     zIndex: 100,
-    borderRadius: radius.full,
+    borderRadius: radius.pill,
     overflow: 'hidden',
   },
   newPostsButton: {
@@ -888,12 +814,20 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
-    borderRadius: radius.full,
+    borderRadius: radius.pill,
   },
   emptyActionText: {
     color: '#FFFFFF',
     fontSize: typography.sizes.md,
     fontWeight: typography.weights.semibold as '600',
+  },
+  emptySecondaryLink: {
+    marginTop: spacing.sm,
+    padding: spacing.xs,
+  },
+  emptySecondaryText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium as '500',
   },
 
   // Like button states
@@ -907,7 +841,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.md,
-    borderRadius: radius.lg,
+    borderRadius: radius.card,
     marginVertical: spacing.md,
     gap: spacing.sm,
   },
@@ -922,7 +856,7 @@ const styles = StyleSheet.create({
   // FAB
   fab: {
     position: 'absolute',
-    bottom: spacing.xl,
+    bottom: 120, // Above floating tab bar
     right: spacing.md,
     width: 56,
     height: 56,

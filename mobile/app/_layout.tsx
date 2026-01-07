@@ -50,6 +50,13 @@ function RootNavigator() {
         <Stack.Screen name="friends/add" options={{ headerShown: false }} />
         <Stack.Screen name="user/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+        <Stack.Screen name="post/notifications" options={{ title: 'Notifications', headerBackTitle: 'Back' }} />
+        <Stack.Screen name="post/search" options={{ title: 'Search', headerBackTitle: 'Back' }} />
+        <Stack.Screen name="post/create" options={{ headerShown: false }} />
+        <Stack.Screen name="post/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="fighter/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="fighters" options={{ headerShown: false }} />
+        <Stack.Screen name="admin" options={{ headerShown: false }} />
       </Stack>
     </>
   );

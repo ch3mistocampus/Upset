@@ -1,6 +1,6 @@
 /**
- * Post Search Screen
- * Search posts by title and content with filtering options
+ * Search Screen
+ * Search for posts and users with tab switching
  */
 
 import {
@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Keyboard,
+  Image,
 } from 'react-native';
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter, Stack } from 'expo-router';
@@ -24,6 +25,8 @@ import { useSearchPosts, useTrendingPosts, SearchSortBy } from '../../hooks/useP
 import { PostCard, PostErrorBoundary } from '../../components/posts';
 import { EmptyState } from '../../components/EmptyState';
 import { Post } from '../../types/posts';
+import { useFriends } from '../../hooks/useFriends';
+import { UserSearchResult } from '../../types/social';
 
 const SORT_OPTIONS: { value: SearchSortBy; label: string }[] = [
   { value: 'relevance', label: 'Relevance' },
@@ -31,13 +34,19 @@ const SORT_OPTIONS: { value: SearchSortBy; label: string }[] = [
   { value: 'popular', label: 'Most Popular' },
 ];
 
-export default function PostSearchScreen() {
+type SearchTab = 'posts' | 'people';
+
+export default function SearchScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const { searchUsers, follow, followLoading } = useFriends();
 
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [sortBy, setSortBy] = useState<SearchSortBy>('relevance');
+  const [searchTab, setSearchTab] = useState<SearchTab>('posts');
+  const [userResults, setUserResults] = useState<UserSearchResult[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
 
   const searchResults = useSearchPosts(debouncedQuery, sortBy);
   const { data: trending } = useTrendingPosts(24);
@@ -54,11 +63,53 @@ export default function PostSearchScreen() {
     return () => clearTimeout(timer);
   }, [query]);
 
+  // Search for users when on people tab
+  useEffect(() => {
+    if (searchTab === 'people' && debouncedQuery.length >= 2) {
+      let cancelled = false;
+      setUsersLoading(true);
+      searchUsers(debouncedQuery)
+        .then((results) => {
+          if (!cancelled) setUserResults(results);
+        })
+        .catch(() => {
+          if (!cancelled) setUserResults([]);
+        })
+        .finally(() => {
+          if (!cancelled) setUsersLoading(false);
+        });
+      return () => { cancelled = true; };
+    } else if (searchTab === 'people') {
+      setUserResults([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedQuery, searchTab]);
+
   const handleLoadMore = useCallback(() => {
-    if (searchResults.hasNextPage && !searchResults.isFetchingNextPage) {
+    if (searchTab === 'posts' && searchResults.hasNextPage && !searchResults.isFetchingNextPage) {
       searchResults.fetchNextPage();
     }
-  }, [searchResults]);
+  }, [searchResults, searchTab]);
+
+  const handleUserPress = (userId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push(`/user/${userId}`);
+  };
+
+  const handleFollow = async (userId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      await follow(userId);
+      // Update local state to reflect follow
+      setUserResults((prev) =>
+        prev.map((u) =>
+          u.user_id === userId ? { ...u, friendship_status: 'accepted' } : u
+        )
+      );
+    } catch {
+      // Error handled in hook
+    }
+  };
 
   const renderPost = useCallback(
     ({ item }: { item: Post }) => (
@@ -69,6 +120,45 @@ export default function PostSearchScreen() {
       </View>
     ),
     []
+  );
+
+  const renderUser = useCallback(
+    ({ item }: { item: UserSearchResult }) => {
+      const isFollowing = item.friendship_status === 'accepted';
+      return (
+        <TouchableOpacity
+          style={[styles.userCard, { backgroundColor: colors.surface }]}
+          onPress={() => handleUserPress(item.user_id)}
+          activeOpacity={0.7}
+        >
+          <View style={[styles.userAvatarPlaceholder, { backgroundColor: colors.border }]}>
+            <Ionicons name="person" size={24} color={colors.textSecondary} />
+          </View>
+          <View style={styles.userInfo}>
+            <Text style={[styles.userName, { color: colors.text }]} numberOfLines={1}>
+              @{item.username}
+            </Text>
+            <Text style={[styles.userStats, { color: colors.textSecondary }]}>
+              {item.total_picks} picks · {item.accuracy}% accuracy
+            </Text>
+          </View>
+          {!isFollowing ? (
+            <TouchableOpacity
+              style={[styles.followButton, { backgroundColor: colors.accent }]}
+              onPress={() => handleFollow(item.user_id)}
+              disabled={followLoading}
+            >
+              <Text style={styles.followButtonText}>Follow</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={[styles.followingBadge, { backgroundColor: colors.surfaceAlt }]}>
+              <Text style={[styles.followingText, { color: colors.textSecondary }]}>Following</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      );
+    },
+    [colors, followLoading]
   );
 
   const renderTrendingPost = useCallback(
@@ -148,7 +238,10 @@ export default function PostSearchScreen() {
   const renderEmpty = useCallback(() => {
     if (!isSearching) return null;
 
-    if (searchResults.isLoading) {
+    const isLoading = searchTab === 'posts' ? searchResults.isLoading : usersLoading;
+    const noResults = searchTab === 'posts' ? posts.length === 0 : userResults.length === 0;
+
+    if (isLoading) {
       return (
         <View style={styles.loadingContainer}>
           <ActivityIndicator color={colors.accent} />
@@ -159,23 +252,27 @@ export default function PostSearchScreen() {
       );
     }
 
+    if (!noResults) return null;
+
     return (
       <EmptyState
         icon="search-outline"
         title="No results found"
-        message={`No posts matching "${debouncedQuery}". Try different keywords.`}
+        message={searchTab === 'posts'
+          ? `No posts matching "${debouncedQuery}". Try different keywords.`
+          : `No users matching "${debouncedQuery}". Try a different username.`}
       />
     );
-  }, [isSearching, searchResults.isLoading, debouncedQuery, colors]);
+  }, [isSearching, searchResults.isLoading, usersLoading, posts.length, userResults.length, debouncedQuery, colors, searchTab]);
 
   const renderFooter = useCallback(() => {
-    if (!searchResults.isFetchingNextPage) return null;
+    if (searchTab !== 'posts' || !searchResults.isFetchingNextPage) return null;
     return (
       <View style={styles.loadingFooter}>
         <ActivityIndicator color={colors.accent} />
       </View>
     );
-  }, [searchResults.isFetchingNextPage, colors]);
+  }, [searchResults.isFetchingNextPage, colors, searchTab]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -195,7 +292,7 @@ export default function PostSearchScreen() {
           <Ionicons name="search" size={20} color={colors.textTertiary} />
           <TextInput
             style={[styles.searchInput, { color: colors.text }]}
-            placeholder="Search posts..."
+            placeholder="Search posts or people..."
             placeholderTextColor={colors.textTertiary}
             value={query}
             onChangeText={setQuery}
@@ -216,8 +313,52 @@ export default function PostSearchScreen() {
         </View>
       </View>
 
-      {/* Sort Options (only when searching) */}
-      {isSearching && posts.length > 0 && (
+      {/* Tab Selector */}
+      {isSearching && (
+        <View style={[styles.tabContainer, { borderBottomColor: colors.border }]}>
+          <TouchableOpacity
+            style={[
+              styles.tab,
+              searchTab === 'posts' && [styles.activeTab, { borderBottomColor: colors.accent }],
+            ]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setSearchTab('posts');
+            }}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                { color: searchTab === 'posts' ? colors.accent : colors.textSecondary },
+              ]}
+            >
+              Posts
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.tab,
+              searchTab === 'people' && [styles.activeTab, { borderBottomColor: colors.accent }],
+            ]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setSearchTab('people');
+            }}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                { color: searchTab === 'people' ? colors.accent : colors.textSecondary },
+              ]}
+            >
+              People
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Sort Options (only when searching posts) */}
+      {isSearching && searchTab === 'posts' && posts.length > 0 && (
         <View style={[styles.sortContainer, { borderBottomColor: colors.border }]}>
           {SORT_OPTIONS.map((option) => (
             <TouchableOpacity
@@ -245,19 +386,31 @@ export default function PostSearchScreen() {
       )}
 
       {/* Results */}
-      <FlatList
-        data={isSearching ? posts : []}
-        renderItem={renderPost}
-        keyExtractor={(item) => item.id}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={renderEmpty}
-        ListFooterComponent={renderFooter}
-        onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.5}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      />
+      {searchTab === 'posts' ? (
+        <FlatList
+          data={isSearching ? posts : []}
+          renderItem={renderPost}
+          keyExtractor={(item) => item.id}
+          ListHeaderComponent={renderHeader}
+          ListEmptyComponent={renderEmpty}
+          ListFooterComponent={renderFooter}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        />
+      ) : (
+        <FlatList
+          data={isSearching ? userResults : []}
+          renderItem={renderUser}
+          keyExtractor={(item) => item.user_id}
+          ListEmptyComponent={renderEmpty}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -372,5 +525,68 @@ const styles = StyleSheet.create({
   loadingFooter: {
     paddingVertical: spacing.lg,
     alignItems: 'center',
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  activeTab: {
+    borderBottomWidth: 2,
+  },
+  tabText: {
+    ...typography.body,
+    fontWeight: '600',
+  },
+  userCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderRadius: radius.card,
+    marginBottom: spacing.sm,
+  },
+  userAvatarPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  userInfo: {
+    flex: 1,
+    marginLeft: spacing.md,
+  },
+  userName: {
+    ...typography.body,
+    fontWeight: '600',
+  },
+  userStats: {
+    ...typography.meta,
+    marginTop: 2,
+  },
+  followButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+  },
+  followButtonText: {
+    color: '#FFFFFF',
+    fontSize: typography.sizes.sm,
+    fontWeight: '600',
+  },
+  followingBadge: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+  },
+  followingText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: '500',
   },
 });

@@ -6,3 +6,5 @@ export { PostErrorBoundary, withPostErrorBoundary } from './PostErrorBoundary';
 export { ReportModal } from './ReportModal';
 export { EditPostModal } from './EditPostModal';
 export { PostActionsMenu } from './PostActionsMenu';
+export { EngagementRow } from './EngagementRow';
+export { PostImageGrid } from './PostImageGrid';

@@ -261,6 +261,42 @@ export const gradients = {
   },
 } as const;
 
+// Animation tokens for consistent transitions
+export const animations = {
+  // Press animations (buttons, cards)
+  press: {
+    scale: 0.985,
+    opacity: 0.94,
+    spring: { tension: 300, friction: 10 },
+    timing: { pressIn: 80, pressOut: 150 },
+  },
+  // Tab/navigation press (more pronounced)
+  tabPress: {
+    scaleUp: 1.2,
+    scaleDown: 1,
+    translateY: -4,
+    springUp: { tension: 400, friction: 8 },
+    springDown: { tension: 200, friction: 12 },
+  },
+  // Pulse animations
+  pulse: {
+    live: { duration: 800 },      // LiveBadge - fast
+    countdown: { duration: 1000 }, // CountdownText - medium
+    border: { duration: 2000 },    // SurfaceCard - slow
+  },
+  // Entrance animations
+  entrance: {
+    fade: { duration: 400 },
+    slideUp: { translateY: 20, spring: { tension: 50, friction: 8 } },
+    toast: { translateY: -100, spring: { tension: 80, friction: 8 }, duration: 250 },
+  },
+  // Progress animations
+  progress: {
+    spring: { tension: 50, friction: 10 },
+    ring: { duration: 1200 },
+  },
+} as const;
+
 export type ThemeColors = typeof colors.light;
 export type ThemeMode = 'system' | 'light' | 'dark';
 export type ResolvedTheme = 'light' | 'dark';

@@ -18,6 +18,7 @@ import {
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useFriends } from '../../hooks/useFriends';
 import { useToast } from '../../hooks/useToast';
@@ -74,6 +75,7 @@ export default function Friends() {
   const router = useRouter();
   const toast = useToast();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { showGate, closeGate, openGate, isGuest, gateContext } = useAuthGate();
   const [refreshing, setRefreshing] = useState(false);
   const [gateDismissed, setGateDismissed] = useState(false);
@@ -197,10 +199,22 @@ export default function Friends() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <Animated.View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border, opacity: headerFadeAnim }]}>
+      <Animated.View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border, opacity: headerFadeAnim, paddingTop: insets.top + spacing.sm }]}>
+        <TouchableOpacity
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.replace('/(tabs)/discover');
+          }}
+          style={styles.backButton}
+          accessibilityLabel="Go back to Discover"
+          accessibilityRole="button"
+        >
+          <Ionicons name="chevron-back" size={28} color={colors.text} />
+        </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>
           Following ({friends.length})
         </Text>
+        <View style={styles.headerSpacer} />
       </Animated.View>
 
       {/* Content */}
@@ -270,12 +284,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderBottomWidth: 1,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
   },
+  backButton: {
+    marginRight: spacing.sm,
+    marginLeft: -spacing.xs,
+    padding: spacing.xs,
+  },
+  headerSpacer: {
+    width: 36,
+  },
   headerTitle: {
     ...typography.body,
+    flex: 1,
     fontWeight: '600',
   },
   scrollView: {

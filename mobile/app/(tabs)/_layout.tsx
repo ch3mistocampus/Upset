@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { FloatingTabBar } from '../../components/navigation/FloatingTabBar';
 import { useTheme } from '../../lib/theme';
+import { DiscoverHeaderRight } from '../../components/navigation/DiscoverHeaderRight';
 
 export default function TabsLayout() {
   const { colors } = useTheme();
@@ -36,6 +37,7 @@ export default function TabsLayout() {
         name="discover"
         options={{
           title: 'Discover',
+          headerRight: () => <DiscoverHeaderRight />,
         }}
       />
       <Tabs.Screen
@@ -49,13 +51,7 @@ export default function TabsLayout() {
         options={{
           title: 'People',
           href: null, // Accessible via Discover header, not main tab bar
-        }}
-      />
-      <Tabs.Screen
-        name="fighters"
-        options={{
-          title: 'Fighters',
-          href: null, // Accessible via Discover or Profile, not main tab bar
+          headerShown: false, // Uses custom header with back button
         }}
       />
       <Tabs.Screen
