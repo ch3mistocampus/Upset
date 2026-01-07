@@ -7,7 +7,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { scrapeEventCard } from "../_shared/ufcstats-scraper.ts";
+import { scrapeEventCard, healthCheck } from "../_shared/ufcstats-scraper.ts";
 import { createLogger } from "../_shared/logger.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -15,8 +15,23 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const logger = createLogger("sync-next-event-card");
 
+// Minimum expected fights per event to detect scraping issues
+const MIN_EXPECTED_FIGHTS = 3;
+
 serve(async (req) => {
   const startTime = Date.now();
+
+  // Parse query params
+  const url = new URL(req.url);
+
+  // Handle health check endpoint
+  if (url.pathname.endsWith('/health') || url.searchParams.get('health') === 'true') {
+    const health = await healthCheck();
+    return new Response(JSON.stringify(health), {
+      status: health.status === 'healthy' ? 200 : health.status === 'degraded' ? 206 : 503,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
   try {
     logger.info("Starting event card sync");
@@ -24,8 +39,6 @@ serve(async (req) => {
     // Create Supabase client with service role
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Parse query params for manual event override
-    const url = new URL(req.url);
     const eventIdOverride = url.searchParams.get("event_id");
 
     let event: any;
@@ -84,10 +97,18 @@ serve(async (req) => {
         JSON.stringify({
           success: false,
           error: "No fights found",
-          message: "Scraper returned 0 fights - possible parsing error",
+          message: "Scraper returned 0 fights - possible parsing error or event canceled",
+          event: { id: event.id, name: event.name },
         }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
+    }
+
+    // Sanity check: warn if unusually few fights
+    if (fights.length < MIN_EXPECTED_FIGHTS) {
+      logger.warn(`Only ${fights.length} fights found (expected at least ${MIN_EXPECTED_FIGHTS})`, {
+        event: event.name,
+      });
     }
 
     logger.info("Scraped fights", { count: fights.length });
