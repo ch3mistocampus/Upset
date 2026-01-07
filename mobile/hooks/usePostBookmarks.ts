@@ -7,7 +7,7 @@
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
-import { Post } from '../types/posts';
+import { Post, PostWithComments } from '../types/posts';
 import { postKeys } from './usePosts';
 
 // Query keys for bookmarks
@@ -80,7 +80,7 @@ export function useToggleBookmark() {
       const previousDetail = queryClient.getQueryData(postKeys.detail(postId));
 
       // Optimistically update detail view
-      queryClient.setQueryData(postKeys.detail(postId), (old: any) => {
+      queryClient.setQueryData(postKeys.detail(postId), (old: PostWithComments | undefined) => {
         if (!old?.post) return old;
         return {
           ...old,

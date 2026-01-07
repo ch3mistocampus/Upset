@@ -88,11 +88,12 @@ export async function migrateGuestDataToUser(
       result.migratedCount++;
       logger.debug('Pick migrated successfully', { boutId: guestPick.bout_id });
 
-    } catch (err: any) {
+    } catch (err) {
       result.failedCount++;
-      const errorMsg = `Failed to migrate pick ${guestPick.id}: ${err.message}`;
+      const errMessage = err instanceof Error ? err.message : 'Unknown error';
+      const errorMsg = `Failed to migrate pick ${guestPick.id}: ${errMessage}`;
       result.errors.push(errorMsg);
-      logger.error('Pick migration failed', err, { boutId: guestPick.bout_id });
+      logger.error('Pick migration failed', err instanceof Error ? err : new Error(errMessage), { boutId: guestPick.bout_id });
     }
   }
 

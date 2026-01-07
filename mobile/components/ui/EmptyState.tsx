@@ -11,6 +11,9 @@ interface EmptyStateProps {
   message?: string;
   actionLabel?: string;
   onAction?: () => void;
+  secondaryActionLabel?: string;
+  secondaryOnAction?: () => void;
+  hint?: string;
 }
 
 export function EmptyState({
@@ -19,6 +22,9 @@ export function EmptyState({
   message,
   actionLabel,
   onAction,
+  secondaryActionLabel,
+  secondaryOnAction,
+  hint,
 }: EmptyStateProps) {
   const { colors } = useTheme();
 
@@ -36,15 +42,31 @@ export function EmptyState({
         </Text>
       )}
 
-      {actionLabel && onAction && (
+      {(actionLabel && onAction) || (secondaryActionLabel && secondaryOnAction) ? (
         <View style={styles.actionContainer}>
-          <Button
-            title={actionLabel}
-            onPress={onAction}
-            variant="primary"
-            fullWidth={false}
-          />
+          {actionLabel && onAction && (
+            <Button
+              title={actionLabel}
+              onPress={onAction}
+              variant="primary"
+              fullWidth={false}
+            />
+          )}
+          {secondaryActionLabel && secondaryOnAction && (
+            <Button
+              title={secondaryActionLabel}
+              onPress={secondaryOnAction}
+              variant="secondary"
+              fullWidth={false}
+            />
+          )}
         </View>
+      ) : null}
+
+      {hint && (
+        <Text style={[styles.hint, { color: colors.textTertiary }]}>
+          {hint}
+        </Text>
       )}
     </View>
   );
@@ -76,5 +98,14 @@ const styles = StyleSheet.create({
   },
   actionContainer: {
     marginTop: spacing.lg,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  hint: {
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: spacing.md,
   },
 });

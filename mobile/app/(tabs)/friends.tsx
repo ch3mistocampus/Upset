@@ -1,5 +1,6 @@
 /**
- * Friends screen - friends list, friend requests, add friends
+ * People screen - following list, follow requests, find users
+ * Uses X-style followers/following model instead of mutual friendships
  * Requires authentication - shows gate for guests
  * Theme-aware design with SurfaceCard and entrance animations
  */
@@ -11,7 +12,6 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  ActivityIndicator,
   Animated,
   Easing,
 } from 'react-native';
@@ -28,9 +28,9 @@ import { ErrorState } from '../../components/ErrorState';
 import { EmptyState, SurfaceCard } from '../../components/ui';
 import { SkeletonCard } from '../../components/SkeletonCard';
 import { AuthPromptModal } from '../../components/AuthPromptModal';
-import type { Friend, FriendRequest } from '../../types/social';
+import type { Friend } from '../../types/social';
 
-type TabType = 'friends' | 'requests';
+// Note: Follow requests tab removed - using X-style instant follow model
 
 // Animated friend card wrapper
 function AnimatedFriendCard({ children, index }: { children: React.ReactNode; index: number }) {
@@ -75,13 +75,11 @@ export default function Friends() {
   const toast = useToast();
   const { colors } = useTheme();
   const { showGate, closeGate, openGate, isGuest, gateContext } = useAuthGate();
-  const [activeTab, setActiveTab] = useState<TabType>('friends');
   const [refreshing, setRefreshing] = useState(false);
   const [gateDismissed, setGateDismissed] = useState(false);
 
   // Entrance animations
   const headerFadeAnim = useRef(new Animated.Value(0)).current;
-  const tabIndicatorPosition = useRef(new Animated.Value(0)).current;
   const fabScaleAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -104,30 +102,12 @@ export default function Friends() {
     }, 300);
   }, [headerFadeAnim, fabScaleAnim]);
 
-  // Animate tab indicator
-  useEffect(() => {
-    Animated.spring(tabIndicatorPosition, {
-      toValue: activeTab === 'friends' ? 0 : 1,
-      tension: 300,
-      friction: 20,
-      useNativeDriver: true,
-    }).start();
-  }, [activeTab, tabIndicatorPosition]);
-
   // All hooks must be called before any conditional returns
   const {
     friends,
-    friendRequests,
     friendsLoading,
-    requestsLoading,
     friendsError,
-    requestsError,
     refetchFriends,
-    refetchRequests,
-    acceptFriendRequest,
-    acceptFriendRequestLoading,
-    declineFriendRequest,
-    declineFriendRequestLoading,
   } = useFriends();
 
   // Show gate immediately for guests
@@ -163,31 +143,8 @@ export default function Friends() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([refetchFriends(), refetchRequests()]);
+    await refetchFriends();
     setRefreshing(false);
-  };
-
-  const handleAcceptRequest = async (requestId: string) => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await acceptFriendRequest(requestId);
-      toast.showSuccess('Friend request accepted!');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error: any) {
-      toast.showError(error.message || 'Failed to accept request');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    }
-  };
-
-  const handleDeclineRequest = async (requestId: string) => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      await declineFriendRequest(requestId);
-      toast.showSuccess('Friend request declined');
-    } catch (error: any) {
-      toast.showError(error.message || 'Failed to decline request');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    }
   };
 
   const handleViewFriend = (friendUserId: string) => {
@@ -200,14 +157,11 @@ export default function Friends() {
     router.push('/friends/add');
   };
 
-  const isLoading = activeTab === 'friends' ? friendsLoading : requestsLoading;
-  const hasError = activeTab === 'friends' ? friendsError : requestsError;
-
-  if (hasError) {
+  if (friendsError) {
     return (
       <ErrorState
-        message={`Failed to load ${activeTab}. Check your connection and try again.`}
-        onRetry={() => (activeTab === 'friends' ? refetchFriends() : refetchRequests())}
+        message="Failed to load following list. Check your connection and try again."
+        onRetry={refetchFriends}
       />
     );
   }
@@ -240,104 +194,13 @@ export default function Friends() {
     </AnimatedFriendCard>
   );
 
-  const renderRequestItem = (request: FriendRequest, index: number) => (
-    <AnimatedFriendCard key={request.request_id} index={index}>
-      <SurfaceCard weakWash>
-        <View style={styles.requestCardRow}>
-          <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
-            <Text style={styles.avatarText}>
-              {request.username.charAt(0).toUpperCase()}
-            </Text>
-          </View>
-
-          <View style={styles.requestInfo}>
-            <Text style={[styles.friendName, { color: colors.text }]}>@{request.username}</Text>
-            <Text style={[styles.friendStats, { color: colors.textSecondary }]}>
-              {request.accuracy.toFixed(1)}% accuracy • {request.total_picks} picks
-            </Text>
-          </View>
-
-          <View style={styles.requestActions}>
-            <TouchableOpacity
-              style={[styles.acceptButton, { backgroundColor: colors.success }]}
-              onPress={() => handleAcceptRequest(request.request_id)}
-              disabled={acceptFriendRequestLoading}
-            >
-              {acceptFriendRequestLoading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Ionicons name="checkmark" size={20} color="#fff" />
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.declineButton, { backgroundColor: colors.surfaceAlt }]}
-              onPress={() => handleDeclineRequest(request.request_id)}
-              disabled={declineFriendRequestLoading}
-            >
-              {declineFriendRequestLoading ? (
-                <ActivityIndicator size="small" color={colors.textTertiary} />
-              ) : (
-                <Ionicons name="close" size={20} color={colors.textTertiary} />
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </SurfaceCard>
-    </AnimatedFriendCard>
-  );
-
-  const handleTabPress = (tab: TabType) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setActiveTab(tab);
-  };
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Tabs */}
-      <Animated.View style={[styles.tabContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border, opacity: headerFadeAnim }]}>
-        <View style={styles.tabsRow}>
-          <TouchableOpacity
-            style={styles.tab}
-            onPress={() => handleTabPress('friends')}
-          >
-            <Text style={[styles.tabText, { color: activeTab === 'friends' ? colors.text : colors.textTertiary }]}>
-              Following ({friends.length})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.tab}
-            onPress={() => handleTabPress('requests')}
-          >
-            <Text style={[styles.tabText, { color: activeTab === 'requests' ? colors.text : colors.textTertiary }]}>
-              Requests
-            </Text>
-            {friendRequests.length > 0 && (
-              <View style={[styles.badge, { backgroundColor: colors.accent }]}>
-                <Text style={styles.badgeText}>{friendRequests.length}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Animated tab indicator */}
-        <Animated.View
-          style={[
-            styles.tabIndicator,
-            { backgroundColor: colors.accent },
-            {
-              transform: [
-                {
-                  translateX: tabIndicatorPosition.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, 180], // Approximate half-width
-                  }),
-                },
-              ],
-            },
-          ]}
-        />
+      {/* Header */}
+      <Animated.View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border, opacity: headerFadeAnim }]}>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>
+          Following ({friends.length})
+        </Text>
       </Animated.View>
 
       {/* Content */}
@@ -353,32 +216,24 @@ export default function Friends() {
           />
         }
       >
-        {isLoading ? (
+        {friendsLoading ? (
           <>
             <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
           </>
-        ) : activeTab === 'friends' ? (
-          friends.length === 0 ? (
-            <EmptyState
-              icon="people-outline"
-              title="Not Following Anyone"
-              message="Follow users to see their picks and compete on the leaderboard!"
-              actionLabel="Find Users"
-              onAction={handleAddFriend}
-            />
-          ) : (
-            friends.map((friend, index) => renderFriendItem(friend, index))
-          )
-        ) : friendRequests.length === 0 ? (
+        ) : friends.length === 0 ? (
           <EmptyState
-            icon="mail-outline"
-            title="No Pending Requests"
-            message="When someone follows you, it will appear here."
+            icon="people-outline"
+            title="Not Following Anyone"
+            message="Follow users to see their picks and compete on the leaderboard!"
+            actionLabel="Find Users"
+            onAction={handleAddFriend}
+            secondaryActionLabel="View Leaderboard"
+            secondaryOnAction={() => router.push('/(tabs)/leaderboards')}
           />
         ) : (
-          friendRequests.map((request, index) => renderRequestItem(request, index))
+          friends.map((friend, index) => renderFriendItem(friend, index))
         )}
       </ScrollView>
 
@@ -414,43 +269,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  tabContainer: {
+  header: {
     borderBottomWidth: 1,
-  },
-  tabsRow: {
-    flexDirection: 'row',
-  },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     paddingVertical: spacing.md,
-    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
   },
-  tabText: {
+  headerTitle: {
     ...typography.body,
     fontWeight: '600',
-  },
-  tabIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    width: '50%',
-    height: 2,
-    borderRadius: 1,
-  },
-  badge: {
-    borderRadius: 10,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    minWidth: 20,
-    alignItems: 'center',
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#fff',
   },
   scrollView: {
     flex: 1,
@@ -461,10 +287,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   friendCardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  requestCardRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -484,9 +306,6 @@ const styles = StyleSheet.create({
   friendInfo: {
     flex: 1,
   },
-  requestInfo: {
-    flex: 1,
-  },
   friendName: {
     ...typography.body,
     fontWeight: '600',
@@ -494,24 +313,6 @@ const styles = StyleSheet.create({
   },
   friendStats: {
     ...typography.meta,
-  },
-  requestActions: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  acceptButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  declineButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   fab: {
     position: 'absolute',

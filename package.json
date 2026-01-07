@@ -4,9 +4,16 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "test-scraper": "node test-ufcstats-scraper.js"
+    "test-scraper": "node test-ufcstats-scraper.js",
+    "ufc:data:pull": "cd scripts/ufc-data && deno run --allow-net --allow-read --allow-write main.ts pull",
+    "ufc:data:import": "cd scripts/ufc-data && deno run --allow-net --allow-env --allow-read --allow-write main.ts import",
+    "ufc:data:pull-and-import": "cd scripts/ufc-data && deno run --allow-net --allow-env --allow-read --allow-write main.ts pull-and-import",
+    "ufc:data:list": "cd scripts/ufc-data && deno run --allow-read main.ts list",
+    "ufc:seed:fighters": "cd scripts && deno run --allow-net --allow-env seed-fighter-stats.ts",
+    "ufc:import:all": "node scripts/import-all-fighters.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.89.0",
     "cheerio": "^1.0.0-rc.12"
   }
 }

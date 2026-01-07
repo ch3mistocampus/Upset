@@ -12,12 +12,13 @@ import { useToast } from '../hooks/useToast';
 import { useTheme } from '../lib/theme';
 import { spacing, radius, typography } from '../lib/tokens';
 import { SettingsRow } from '../components/SettingsRow';
-import { SurfaceCard } from '../components/ui';
+import { SurfaceCard, SegmentedControl } from '../components/ui';
+import type { ThemeMode } from '../lib/tokens';
 
 export default function Settings() {
-  const { colors } = useTheme();
+  const { colors, themeMode, setThemeMode } = useTheme();
   const router = useRouter();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const toast = useToast();
 
   // Settings state (these would be persisted in a real app)
@@ -82,10 +83,33 @@ export default function Settings() {
           transform: [{ translateY: translateAnim }],
         }}
       >
+        {/* Appearance Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>APPEARANCE</Text>
+          <SurfaceCard>
+            <Text style={[styles.themeLabel, { color: colors.textSecondary }]}>Theme</Text>
+            <SegmentedControl<ThemeMode>
+              options={[
+                { value: 'system', label: 'System' },
+                { value: 'light', label: 'Light' },
+                { value: 'dark', label: 'Dark' },
+              ]}
+              selectedValue={themeMode}
+              onChange={setThemeMode}
+            />
+          </SurfaceCard>
+        </View>
+
         {/* Account Section */}
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>ACCOUNT</Text>
           <SurfaceCard noPadding>
+            <SettingsRow
+              icon="eye-outline"
+              label="View Public Profile"
+              type="link"
+              onPress={() => router.push(`/user/${user?.id}`)}
+            />
             <SettingsRow
               icon="person-outline"
               label="Account Settings"
@@ -93,19 +117,40 @@ export default function Settings() {
               subtitle="Manage your account and data"
               onPress={handleAccountSettings}
             />
+          </SurfaceCard>
+        </View>
+
+        {/* Content Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>CONTENT</Text>
+          <SurfaceCard noPadding>
             <SettingsRow
-              icon="log-out-outline"
-              label="Sign Out"
-              type="button"
-              onPress={handleSignOut}
+              icon="bookmark-outline"
+              label="Saved Posts"
+              type="link"
+              onPress={() => router.push('/post/bookmarks')}
+            />
+            <SettingsRow
+              icon="chatbubble-ellipses-outline"
+              label="Post Activity"
+              type="link"
+              subtitle="Comments and replies on your posts"
+              onPress={() => router.push('/post/notifications')}
             />
           </SurfaceCard>
         </View>
 
-        {/* Preferences Section */}
+        {/* Privacy & Notifications Section */}
         <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>PREFERENCES</Text>
+          <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>PRIVACY & NOTIFICATIONS</Text>
           <SurfaceCard noPadding>
+            <SettingsRow
+              icon="notifications-outline"
+              label="Push Notifications"
+              type="link"
+              subtitle="Configure notification preferences"
+              onPress={() => router.push('/settings/notifications')}
+            />
             <SettingsRow
               icon="shield-outline"
               label="Privacy Settings"
@@ -113,13 +158,17 @@ export default function Settings() {
               subtitle="Control who can see your picks and stats"
               onPress={() => router.push('/settings/privacy')}
             />
+          </SurfaceCard>
+        </View>
+
+        {/* Sign Out Section */}
+        <View style={styles.section}>
+          <SurfaceCard noPadding>
             <SettingsRow
-              icon="notifications-outline"
-              label="Push Notifications"
-              type="toggle"
-              subtitle="Get notified about upcoming events"
-              value={notificationsEnabled}
-              onToggle={setNotificationsEnabled}
+              icon="log-out-outline"
+              label="Sign Out"
+              type="button"
+              onPress={handleSignOut}
             />
           </SurfaceCard>
         </View>
@@ -176,6 +225,11 @@ const styles = StyleSheet.create({
     ...typography.caption,
     marginBottom: spacing.xs,
     paddingHorizontal: spacing.xs,
+  },
+  themeLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: spacing.sm,
   },
   versionContainer: {
     alignItems: 'center',

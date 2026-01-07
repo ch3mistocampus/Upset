@@ -1,6 +1,10 @@
 /**
  * useFriends Hook Tests
- * Tests social features: friends list, friend requests, and user search
+ * Tests social features: following list and user search
+ *
+ * Note: Uses X-style follow model (one-way relationships)
+ * - No friend requests (direct follow)
+ * - Legacy acceptFriendRequest/declineFriendRequest are no-ops
  */
 
 import { renderHook, waitFor, act } from '@testing-library/react-native';
@@ -36,8 +40,8 @@ describe('useFriends', () => {
   describe('friends list', () => {
     it('should fetch friends list', async () => {
       const mockFriends = [
-        { user_id: 'friend-1', username: 'alice', accuracy_pct: 75, total_picks: 100 },
-        { user_id: 'friend-2', username: 'bob', accuracy_pct: 68, total_picks: 50 },
+        { friend_user_id: 'friend-1', username: 'alice', accuracy: 75, total_picks: 100, correct_picks: 75, became_friends_at: '2025-01-01' },
+        { friend_user_id: 'friend-2', username: 'bob', accuracy: 68, total_picks: 50, correct_picks: 34, became_friends_at: '2025-01-02' },
       ];
 
       mockSupabase.rpc.mockResolvedValueOnce({
@@ -61,7 +65,7 @@ describe('useFriends', () => {
 
       expect(result.current.friends).toHaveLength(2);
       expect(result.current.friends[0].username).toBe('alice');
-      expect(result.current.friends[1].accuracy_pct).toBe(68);
+      expect(result.current.friends[1].accuracy).toBe(68);
     });
 
     it('should return empty array when no friends', async () => {
@@ -107,111 +111,8 @@ describe('useFriends', () => {
     });
   });
 
-  describe('friend requests', () => {
-    it('should fetch friend requests', async () => {
-      const mockRequests = [
-        { id: 'req-1', user_id: 'sender-1', username: 'charlie', created_at: '2025-01-01T00:00:00Z' },
-      ];
-
-      // Mock get_friends first
-      mockSupabase.rpc.mockResolvedValueOnce({
-        data: [],
-        error: null,
-      } as any);
-
-      mockSupabase.rpc.mockResolvedValueOnce({
-        data: mockRequests,
-        error: null,
-      } as any);
-
-      const { result } = renderHook(() => useFriends(), {
-        wrapper: createWrapper(),
-      });
-
-      await waitFor(() => {
-        expect(result.current.requestsLoading).toBe(false);
-      });
-
-      expect(result.current.friendRequests).toHaveLength(1);
-      expect(result.current.friendRequests[0].username).toBe('charlie');
-    });
-
-    it('should handle accepting friend request', async () => {
-      // Initial data fetches
-      mockSupabase.rpc.mockResolvedValueOnce({
-        data: [],
-        error: null,
-      } as any);
-      mockSupabase.rpc.mockResolvedValueOnce({
-        data: [{ id: 'req-1', user_id: 'sender-1', username: 'charlie' }],
-        error: null,
-      } as any);
-
-      // Mock the update call for accepting
-      mockSupabase.from.mockReturnValueOnce({
-        update: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockResolvedValueOnce({
-          data: null,
-          error: null,
-        }),
-      } as any);
-
-      const { result } = renderHook(() => useFriends(), {
-        wrapper: createWrapper(),
-      });
-
-      await waitFor(() => {
-        expect(result.current.requestsLoading).toBe(false);
-      });
-
-      // Accept request
-      await act(async () => {
-        await result.current.acceptFriendRequest('req-1');
-      });
-
-      // Verify from().update() was called
-      expect(mockSupabase.from).toHaveBeenCalledWith('friendships');
-    });
-
-    it('should handle declining friend request', async () => {
-      // Initial data fetches
-      mockSupabase.rpc.mockResolvedValueOnce({
-        data: [],
-        error: null,
-      } as any);
-      mockSupabase.rpc.mockResolvedValueOnce({
-        data: [{ id: 'req-1', user_id: 'sender-1', username: 'charlie' }],
-        error: null,
-      } as any);
-
-      // Mock the update call for declining
-      mockSupabase.from.mockReturnValueOnce({
-        update: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockResolvedValueOnce({
-          data: null,
-          error: null,
-        }),
-      } as any);
-
-      const { result } = renderHook(() => useFriends(), {
-        wrapper: createWrapper(),
-      });
-
-      await waitFor(() => {
-        expect(result.current.requestsLoading).toBe(false);
-      });
-
-      // Decline request
-      await act(async () => {
-        await result.current.declineFriendRequest('req-1');
-      });
-
-      expect(mockSupabase.from).toHaveBeenCalledWith('friendships');
-    });
-  });
-
-  describe('send friend request', () => {
-    it('should send friend request successfully', async () => {
+  describe('follow/unfollow', () => {
+    it('should follow a user successfully', async () => {
       // Initial data fetches
       mockSupabase.rpc.mockResolvedValueOnce({
         data: [],
@@ -228,7 +129,7 @@ describe('useFriends', () => {
         error: null,
       } as any);
 
-      // Mock insert
+      // Mock insert for follow
       mockSupabase.from.mockReturnValueOnce({
         insert: jest.fn().mockResolvedValueOnce({
           data: null,
@@ -245,13 +146,13 @@ describe('useFriends', () => {
       });
 
       await act(async () => {
-        await result.current.sendFriendRequest('friend-id');
+        await result.current.follow('friend-id');
       });
 
       expect(mockSupabase.from).toHaveBeenCalledWith('friendships');
     });
 
-    it('should throw error when not authenticated', async () => {
+    it('should throw error when not authenticated for follow', async () => {
       // Initial data fetches
       mockSupabase.rpc.mockResolvedValueOnce({
         data: [],
@@ -278,14 +179,12 @@ describe('useFriends', () => {
 
       await expect(
         act(async () => {
-          await result.current.sendFriendRequest('friend-id');
+          await result.current.follow('friend-id');
         })
       ).rejects.toThrow('Not authenticated');
     });
-  });
 
-  describe('remove friend', () => {
-    it('should remove friend successfully', async () => {
+    it('should unfollow a user successfully', async () => {
       // Initial data fetches
       mockSupabase.rpc.mockResolvedValueOnce({
         data: [{ user_id: 'friend-1', username: 'alice' }],
@@ -302,13 +201,16 @@ describe('useFriends', () => {
         error: null,
       } as any);
 
-      // Mock delete
+      // Mock delete chain for unfollow
+      const mockEq2 = jest.fn().mockResolvedValueOnce({
+        data: null,
+        error: null,
+      });
+      const mockEq1 = jest.fn().mockReturnValue({ eq: mockEq2 });
+      const mockDelete = jest.fn().mockReturnValue({ eq: mockEq1 });
+
       mockSupabase.from.mockReturnValueOnce({
-        delete: jest.fn().mockReturnThis(),
-        or: jest.fn().mockResolvedValueOnce({
-          data: null,
-          error: null,
-        }),
+        delete: mockDelete,
       } as any);
 
       const { result } = renderHook(() => useFriends(), {
@@ -320,10 +222,72 @@ describe('useFriends', () => {
       });
 
       await act(async () => {
-        await result.current.removeFriend('friend-1');
+        await result.current.unfollow('friend-1');
       });
 
       expect(mockSupabase.from).toHaveBeenCalledWith('friendships');
+    });
+  });
+
+  describe('legacy no-op functions', () => {
+    it('acceptFriendRequest should be a no-op', async () => {
+      // Initial data fetches
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: [],
+        error: null,
+      } as any);
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: [],
+        error: null,
+      } as any);
+
+      const { result } = renderHook(() => useFriends(), {
+        wrapper: createWrapper(),
+      });
+
+      await waitFor(() => {
+        expect(result.current.friendsLoading).toBe(false);
+      });
+
+      // Should not throw and should not call any supabase methods
+      const fromCallsBefore = mockSupabase.from.mock.calls.length;
+
+      await act(async () => {
+        await result.current.acceptFriendRequest('req-1');
+      });
+
+      // No additional calls should have been made
+      expect(mockSupabase.from.mock.calls.length).toBe(fromCallsBefore);
+    });
+
+    it('declineFriendRequest should be a no-op', async () => {
+      // Initial data fetches
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: [],
+        error: null,
+      } as any);
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: [],
+        error: null,
+      } as any);
+
+      const { result } = renderHook(() => useFriends(), {
+        wrapper: createWrapper(),
+      });
+
+      await waitFor(() => {
+        expect(result.current.friendsLoading).toBe(false);
+      });
+
+      // Should not throw and should not call any supabase methods
+      const fromCallsBefore = mockSupabase.from.mock.calls.length;
+
+      await act(async () => {
+        await result.current.declineFriendRequest('req-1');
+      });
+
+      // No additional calls should have been made
+      expect(mockSupabase.from.mock.calls.length).toBe(fromCallsBefore);
     });
   });
 

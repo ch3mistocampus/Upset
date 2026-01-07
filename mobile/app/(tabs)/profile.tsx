@@ -30,7 +30,6 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { useGuestPicks } from '../../hooks/useGuestPicks';
-import { useIsAdmin } from '../../hooks/useAdmin';
 import {
   useUserStats,
   useRecentPicksSummary,
@@ -70,11 +69,9 @@ export default function Profile() {
     5
   );
   const { data: upcomingEvents, refetch: refetchUpcoming } = useUpcomingEvents();
-  const { data: isAdmin } = useIsAdmin();
 
   const [refreshing, setRefreshing] = useState(false);
   const [showBioModal, setShowBioModal] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [bioText, setBioText] = useState(profile?.bio || '');
   const [savingBio, setSavingBio] = useState(false);
@@ -82,16 +79,6 @@ export default function Profile() {
   const [followingCount, setFollowingCount] = useState(0);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
-
-  // Debug: log recent summary
-  useEffect(() => {
-    console.log('[DEBUG] recentSummary updated:', {
-      isLoading: summaryLoading,
-      length: recentSummary?.length,
-      showSettings,
-      data: recentSummary?.map(s => ({ eventName: s.event?.name, total: s.total, correct: s.correct }))
-    });
-  }, [recentSummary, summaryLoading, showSettings]);
 
   // Animations
   const headerScale = useRef(new Animated.Value(0.95)).current;
@@ -657,14 +644,17 @@ export default function Profile() {
             </View>
           </TouchableOpacity>
 
-          {/* Settings Button - In banner corner */}
+          {/* Settings Button - Navigate to Settings screen */}
           <TouchableOpacity
             style={[styles.settingsButton, { backgroundColor: colors.surface + 'CC' }]}
-            onPress={() => setShowSettings(!showSettings)}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/settings');
+            }}
             activeOpacity={0.7}
           >
             <Ionicons
-              name={showSettings ? 'close' : 'settings-outline'}
+              name="settings-outline"
               size={18}
               color={colors.text}
             />
@@ -721,12 +711,20 @@ export default function Profile() {
 
           {/* Main Stats Row - Large & Prominent */}
           <View style={styles.mainStatsRow}>
-            <View style={styles.mainStatItem}>
+            <TouchableOpacity
+              style={styles.mainStatItem}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/(tabs)/leaderboards');
+              }}
+              activeOpacity={0.7}
+            >
               <Text style={[styles.mainStatValue, { color: colors.accent }]}>
                 {accuracy.toFixed(1)}%
               </Text>
               <Text style={[styles.mainStatLabel, { color: colors.textSecondary }]}>ACCURACY</Text>
-            </View>
+              <Text style={[styles.mainStatHint, { color: colors.textTertiary }]}>View rank</Text>
+            </TouchableOpacity>
             <View style={[styles.mainStatDivider, { backgroundColor: colors.border }]} />
             <View style={styles.mainStatItem}>
               <Text style={[styles.mainStatValue, { color: colors.text }]}>
@@ -768,120 +766,52 @@ export default function Profile() {
             </TouchableOpacity>
           </View>
 
+          {/* Quick Actions Row */}
+          <View style={styles.quickActionsRow}>
+            <TouchableOpacity
+              style={[styles.quickAction, { backgroundColor: colors.surfaceAlt }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push(`/user/${user?.id}`);
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="eye-outline" size={16} color={colors.text} />
+              <Text style={[styles.quickActionText, { color: colors.text }]}>View Profile</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.quickAction, { backgroundColor: colors.surfaceAlt }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/post/bookmarks');
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="bookmark-outline" size={16} color={colors.text} />
+              <Text style={[styles.quickActionText, { color: colors.text }]}>Saved</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.quickAction, { backgroundColor: colors.surfaceAlt }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowBioModal(true);
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="pencil-outline" size={16} color={colors.text} />
+              <Text style={[styles.quickActionText, { color: colors.text }]}>Edit Bio</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* Divider */}
           <View style={[styles.sectionDivider, { backgroundColor: colors.danger }]} />
         </Animated.View>
 
-        {/* Content Area */}
+        {/* Content Area - Always shows picks */}
         <Animated.View style={[styles.contentArea, { opacity: contentOpacity }]}>
-          {showSettings ? (
-            /* Settings Panel */
-            <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>APPEARANCE</Text>
-              <SurfaceCard weakWash>
-                <SegmentedControl<ThemeMode>
-                  options={[
-                    { value: 'system', label: 'System' },
-                    { value: 'light', label: 'Light' },
-                    { value: 'dark', label: 'Dark' },
-                  ]}
-                  selectedValue={themeMode}
-                  onChange={setThemeMode}
-                />
-              </SurfaceCard>
-
-              <View style={{ height: spacing.lg }} />
-
-              <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>ACCOUNT</Text>
-              <TouchableOpacity
-                style={[styles.menuRow, { backgroundColor: colors.surface }]}
-                onPress={() => router.push(`/user/${user?.id}`)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="eye-outline" size={20} color={colors.textSecondary} />
-                <Text style={[styles.menuText, { color: colors.text }]}>View Public Profile</Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.menuRow, { backgroundColor: colors.surface }]}
-                onPress={() => router.push('/post/bookmarks')}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="bookmark-outline" size={20} color={colors.textSecondary} />
-                <Text style={[styles.menuText, { color: colors.text }]}>Saved Posts</Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.menuRow, { backgroundColor: colors.surface }]}
-                onPress={() => router.push('/post/notifications')}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="chatbubble-ellipses-outline" size={20} color={colors.textSecondary} />
-                <Text style={[styles.menuText, { color: colors.text }]}>Post Activity</Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.menuRow, { backgroundColor: colors.surface }]}
-                onPress={() => router.push('/settings/notifications')}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="notifications-outline" size={20} color={colors.textSecondary} />
-                <Text style={[styles.menuText, { color: colors.text }]}>Notifications</Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.menuRow, { backgroundColor: colors.surface }]}
-                onPress={() => router.push('/settings/privacy')}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />
-                <Text style={[styles.menuText, { color: colors.text }]}>Privacy</Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.menuRow, { backgroundColor: colors.surface }]}
-                onPress={() => router.push('/settings/account')}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="person-circle-outline" size={20} color={colors.textSecondary} />
-                <Text style={[styles.menuText, { color: colors.text }]}>Account</Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
-              </TouchableOpacity>
-
-              {isAdmin && (
-                <TouchableOpacity
-                  style={[styles.menuRow, { backgroundColor: colors.surface }]}
-                  onPress={() => router.push('/admin')}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="shield-outline" size={20} color={colors.primary} />
-                  <Text style={[styles.menuText, { color: colors.primary }]}>Admin Dashboard</Text>
-                  <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                style={[styles.menuRow, { backgroundColor: colors.surface }]}
-                onPress={handleSignOut}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="log-out-outline" size={20} color={colors.danger} />
-                <Text style={[styles.menuText, { color: colors.danger }]}>Sign Out</Text>
-                <View style={{ width: 16 }} />
-              </TouchableOpacity>
-
-              <Text style={[styles.appVersion, { color: colors.textTertiary }]}>
-                UFC Picks Tracker v1.0.0
-              </Text>
-            </View>
-          ) : (
-            /* Picks Content */
-            <>
+          <>
               {/* Upcoming Events */}
               {upcomingEvents && upcomingEvents.length > 0 && (
                 <View style={styles.section}>
@@ -926,10 +856,12 @@ export default function Profile() {
                   icon="stats-chart-outline"
                   title="No Picks Yet"
                   message="Make picks on upcoming events to see your history here."
+                  actionLabel="Browse Events"
+                  onAction={() => router.push('/(tabs)/pick')}
+                  hint="Your accuracy and stats will appear once you make picks"
                 />
               )}
             </>
-          )}
         </Animated.View>
       </ScrollView>
 
@@ -1201,6 +1133,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginTop: 2,
   },
+  mainStatHint: {
+    fontSize: 9,
+    marginTop: 2,
+  },
   mainStatDivider: {
     width: 1,
     height: 32,
@@ -1227,6 +1163,28 @@ const styles = StyleSheet.create({
   },
   socialLabel: {
     fontSize: 14,
+  },
+
+  // Quick Actions Row
+  quickActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
+  quickAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.button,
+  },
+  quickActionText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 
   // Section Divider
