@@ -11,11 +11,13 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-// Friendship status type
-export type FriendshipStatus = 'pending' | 'accepted' | 'declined';
+// Follow status type
+export type FollowStatus = 'pending' | 'accepted' | 'declined';
+// Alias for backwards compatibility
+export type FriendshipStatus = FollowStatus;
 
 // Visibility level type
-export type VisibilityLevel = 'public' | 'friends' | 'private';
+export type VisibilityLevel = 'public' | 'followers' | 'private';
 
 // Database types
 export interface Database {
@@ -51,10 +53,16 @@ export interface Database {
         Insert: UserStatsInsert;
         Update: UserStatsUpdate;
       };
+      follows: {
+        Row: Follow;
+        Insert: FollowInsert;
+        Update: FollowUpdate;
+      };
+      // Alias for backwards compatibility
       friendships: {
-        Row: Friendship;
-        Insert: FriendshipInsert;
-        Update: FriendshipUpdate;
+        Row: Follow;
+        Insert: FollowInsert;
+        Update: FollowUpdate;
       };
       privacy_settings: {
         Row: PrivacySettingsRow;
@@ -304,29 +312,34 @@ export interface EventWithBouts extends Event {
   bouts: BoutWithPick[];
 }
 
-// Friendship
-export interface Friendship {
+// Follow
+export interface Follow {
   id: string;
   user_id: string;
-  friend_id: string;
-  status: FriendshipStatus;
+  following_id: string;
+  status: FollowStatus;
   created_at: string;
   updated_at: string;
 }
 
-export interface FriendshipInsert {
+export interface FollowInsert {
   id?: string;
   user_id: string;
-  friend_id: string;
-  status: FriendshipStatus;
+  following_id: string;
+  status: FollowStatus;
   created_at?: string;
   updated_at?: string;
 }
 
-export interface FriendshipUpdate {
-  status?: FriendshipStatus;
+export interface FollowUpdate {
+  status?: FollowStatus;
   updated_at?: string;
 }
+
+// Aliases for backwards compatibility
+export type Friendship = Follow;
+export type FriendshipInsert = FollowInsert;
+export type FriendshipUpdate = FollowUpdate;
 
 // Privacy Settings
 export interface PrivacySettingsRow {

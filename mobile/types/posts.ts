@@ -37,7 +37,6 @@ export interface Post {
   fighter_b_name: string | null;
   images: PostImage[];
   user_has_liked: boolean;
-  user_has_bookmarked: boolean;
 }
 
 // Comment Types

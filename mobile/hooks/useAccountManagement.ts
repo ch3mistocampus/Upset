@@ -14,7 +14,7 @@ export interface DeleteAccountResult {
   deleted: {
     picks_deleted: number;
     activities_deleted: number;
-    friendships_deleted: number;
+    follows_deleted: number;
   };
 }
 

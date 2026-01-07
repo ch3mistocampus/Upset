@@ -5,12 +5,11 @@
 -- 1. Post Notifications (likes, comments, replies)
 -- 2. Push Notification Log (picks graded, followers, reminders)
 -- 3. Notification Preferences for test users
--- 4. Bookmarks for testing
--- 5. Additional posts with varied engagement
--- 6. Privacy settings variations
--- 7. Blocked/muted users for testing
--- 8. Additional friend requests (pending/declined)
--- 9. More detailed activities
+-- 4. Additional posts with varied engagement
+-- 5. Privacy settings variations
+-- 6. Blocked/muted users for testing
+-- 7. Additional follow records
+-- 8. More detailed activities
 -- =============================================================================
 
 -- =============================================================================
@@ -266,65 +265,7 @@ BEGIN
 END $$;
 
 -- =============================================================================
--- 4. SEED BOOKMARKS
--- =============================================================================
-
-DO $$
-DECLARE
-  v_alice UUID;
-  v_bob UUID;
-  v_jack UUID;
-  v_post_ids UUID[];
-BEGIN
-  SELECT user_id INTO v_alice FROM public.profiles WHERE username = 'alice_ufc';
-  SELECT user_id INTO v_bob FROM public.profiles WHERE username = 'bob_fighter';
-  SELECT user_id INTO v_jack FROM public.profiles WHERE username = 'jack_judge';
-
-  IF v_alice IS NULL THEN
-    RAISE NOTICE 'Test users not found. Skipping bookmarks.';
-    RETURN;
-  END IF;
-
-  -- Check if bookmarks table exists
-  IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'post_bookmarks') THEN
-    RAISE NOTICE 'post_bookmarks table not found. Skipping.';
-    RETURN;
-  END IF;
-
-  -- Get posts to bookmark
-  SELECT ARRAY_AGG(id ORDER BY created_at DESC) INTO v_post_ids
-  FROM public.posts LIMIT 5;
-
-  IF v_post_ids IS NULL OR array_length(v_post_ids, 1) = 0 THEN
-    RAISE NOTICE 'No posts found for bookmarking.';
-    RETURN;
-  END IF;
-
-  -- Alice bookmarks Jack's analysis
-  INSERT INTO public.post_bookmarks (user_id, post_id, created_at)
-  VALUES
-    (v_alice, v_post_ids[1], NOW() - INTERVAL '5 days'),
-    (v_alice, v_post_ids[2], NOW() - INTERVAL '3 days')
-  ON CONFLICT DO NOTHING;
-
-  -- Bob bookmarks posts for later
-  INSERT INTO public.post_bookmarks (user_id, post_id, created_at)
-  VALUES
-    (v_bob, v_post_ids[1], NOW() - INTERVAL '4 days'),
-    (v_bob, v_post_ids[3], NOW() - INTERVAL '2 days')
-  ON CONFLICT DO NOTHING;
-
-  -- Jack bookmarks his own post (for reference)
-  INSERT INTO public.post_bookmarks (user_id, post_id, created_at)
-  VALUES
-    (v_jack, v_post_ids[2], NOW() - INTERVAL '1 day')
-  ON CONFLICT DO NOTHING;
-
-  RAISE NOTICE 'Created bookmarks for test users';
-END $$;
-
--- =============================================================================
--- 5. SEED ADDITIONAL POSTS WITH VARIED ENGAGEMENT
+-- 4. SEED ADDITIONAL POSTS WITH VARIED ENGAGEMENT
 -- =============================================================================
 
 DO $$
@@ -438,7 +379,7 @@ BEGIN
 END $$;
 
 -- =============================================================================
--- 6. SEED VARIED PRIVACY SETTINGS
+-- 5. SEED VARIED PRIVACY SETTINGS
 -- =============================================================================
 
 DO $$
@@ -451,32 +392,32 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Henry: Friends only (testing privacy)
+  -- Henry: Followers only (testing privacy)
   SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'henry_heavyweight';
   IF v_user_id IS NOT NULL THEN
-    INSERT INTO public.privacy_settings (user_id, show_picks, show_record, show_friends)
-    VALUES (v_user_id, 'friends', 'friends', 'public')
+    INSERT INTO public.privacy_settings (user_id, picks_visibility, stats_visibility, profile_visibility)
+    VALUES (v_user_id, 'followers', 'followers', 'public')
     ON CONFLICT (user_id) DO UPDATE SET
-      show_picks = EXCLUDED.show_picks,
-      show_record = EXCLUDED.show_record;
+      picks_visibility = EXCLUDED.picks_visibility,
+      stats_visibility = EXCLUDED.stats_visibility;
   END IF;
 
   -- Iris: Private (the contrarian hides her picks)
   SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'iris_insider';
   IF v_user_id IS NOT NULL THEN
-    INSERT INTO public.privacy_settings (user_id, show_picks, show_record, show_friends)
-    VALUES (v_user_id, 'private', 'friends', 'friends')
+    INSERT INTO public.privacy_settings (user_id, picks_visibility, stats_visibility, profile_visibility)
+    VALUES (v_user_id, 'private', 'followers', 'followers')
     ON CONFLICT (user_id) DO UPDATE SET
-      show_picks = EXCLUDED.show_picks,
-      show_record = EXCLUDED.show_record,
-      show_friends = EXCLUDED.show_friends;
+      picks_visibility = EXCLUDED.picks_visibility,
+      stats_visibility = EXCLUDED.stats_visibility,
+      profile_visibility = EXCLUDED.profile_visibility;
   END IF;
 
   RAISE NOTICE 'Created varied privacy settings';
 END $$;
 
 -- =============================================================================
--- 7. SEED BLOCKED/MUTED USERS
+-- 6. SEED BLOCKED/MUTED USERS
 -- =============================================================================
 
 DO $$
@@ -517,7 +458,7 @@ BEGIN
 END $$;
 
 -- =============================================================================
--- 8. SEED ADDITIONAL FRIEND REQUESTS
+-- 7. SEED ADDITIONAL FOLLOWS
 -- =============================================================================
 
 DO $$
@@ -537,29 +478,29 @@ BEGIN
   SELECT user_id INTO v_charlie FROM public.profiles WHERE username = 'charlie_picks';
 
   IF v_alice IS NULL THEN
-    RAISE NOTICE 'Test users not found. Skipping friend request seeds.';
+    RAISE NOTICE 'Test users not found. Skipping follow seeds.';
     RETURN;
   END IF;
 
-  -- More pending requests to Alice (she's popular)
-  INSERT INTO public.friendships (user_id, friend_id, status, created_at)
+  -- More users following Alice (she's popular)
+  INSERT INTO public.follows (user_id, following_id, status, created_at)
   VALUES
-    (v_kate, v_alice, 'pending', NOW() - INTERVAL '3 days'),
-    (v_henry, v_alice, 'pending', NOW() - INTERVAL '5 days'),
-    (v_grace, v_alice, 'pending', NOW() - INTERVAL '1 day')
+    (v_kate, v_alice, 'accepted', NOW() - INTERVAL '3 days'),
+    (v_henry, v_alice, 'accepted', NOW() - INTERVAL '5 days'),
+    (v_grace, v_alice, 'accepted', NOW() - INTERVAL '1 day')
   ON CONFLICT DO NOTHING;
 
-  -- Some declined requests for testing
-  INSERT INTO public.friendships (user_id, friend_id, status, created_at)
+  -- Emma follows Charlie
+  INSERT INTO public.follows (user_id, following_id, status, created_at)
   VALUES
-    (v_henry, v_charlie, 'declined', NOW() - INTERVAL '15 days')
+    (v_emma, v_charlie, 'accepted', NOW() - INTERVAL '10 days')
   ON CONFLICT DO NOTHING;
 
-  RAISE NOTICE 'Created additional friend requests';
+  RAISE NOTICE 'Created additional follow relationships';
 END $$;
 
 -- =============================================================================
--- 9. SEED MORE ACTIVITIES FOR FEEDS
+-- 8. SEED MORE ACTIVITIES FOR FEEDS
 -- =============================================================================
 
 DO $$
@@ -637,7 +578,7 @@ BEGIN
 END $$;
 
 -- =============================================================================
--- 10. SEED COMMENT LIKES
+-- 9. SEED COMMENT LIKES
 -- =============================================================================
 
 DO $$
@@ -692,13 +633,12 @@ END $$;
 -- 1. 20+ post notifications (likes, comments, replies)
 -- 2. Notification preferences for all 13 test users
 -- 3. 15+ push notification history entries
--- 4. 5+ bookmarks across users
--- 5. 4 new posts with varied engagement
--- 6. Privacy settings variations (friends-only, private)
--- 7. Block/mute relationships for testing
--- 8. 5+ additional friend requests (pending, declined)
--- 9. 5+ additional activity records
--- 10. Comment likes for engagement
+-- 4. 4 new posts with varied engagement
+-- 5. Privacy settings variations (followers-only, private)
+-- 6. Block/mute relationships for testing
+-- 7. Additional follow relationships
+-- 8. 5+ additional activity records
+-- 9. Comment likes for engagement
 --
 -- This should make the app fully testable with realistic data!
 -- =============================================================================

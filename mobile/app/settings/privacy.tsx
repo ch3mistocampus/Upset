@@ -41,9 +41,9 @@ const VISIBILITY_OPTIONS: VisibilityOption[] = [
     icon: 'globe-outline',
   },
   {
-    value: 'friends',
-    label: 'Friends Only',
-    description: 'Only friends can see',
+    value: 'followers',
+    label: 'Followers Only',
+    description: 'Only followers can see',
     icon: 'people-outline',
   },
   {
@@ -280,7 +280,7 @@ export default function PrivacySettings() {
             <View style={styles.helpItem}>
               <Ionicons name="people-outline" size={18} color={colors.textTertiary} />
               <Text style={[styles.helpText, { color: colors.textSecondary }]}>
-                <Text style={[styles.helpBold, { color: colors.text }]}>Friends Only:</Text> Only users you've added as friends can view
+                <Text style={[styles.helpBold, { color: colors.text }]}>Followers Only:</Text> Only users who follow you can view
               </Text>
             </View>
             <View style={styles.helpItem}>
