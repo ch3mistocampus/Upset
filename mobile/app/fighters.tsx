@@ -26,20 +26,20 @@ import { EmptyState } from '../components/ui';
 import { SkeletonCard } from '../components/SkeletonCard';
 import { UFCFighter, UFCFighterSearchResult } from '../types/database';
 
-type SortOption = 'name' | 'wins' | 'weight';
+type SortOption = 'ranking' | 'wins' | 'name' | 'weight';
 type DisplayFighter = UFCFighter | UFCFighterSearchResult;
 
 const WEIGHT_CLASSES = [
-  { label: 'All', value: null },
-  { label: 'HW', value: 265 },
-  { label: 'LHW', value: 205 },
-  { label: 'MW', value: 185 },
-  { label: 'WW', value: 170 },
-  { label: 'LW', value: 155 },
-  { label: 'FW', value: 145 },
-  { label: 'BW', value: 135 },
-  { label: 'FLW', value: 125 },
-  { label: 'SW', value: 115 },
+  { label: 'All', value: null, name: null },
+  { label: 'HW', value: 265, name: 'Heavyweight' },
+  { label: 'LHW', value: 205, name: 'Light Heavyweight' },
+  { label: 'MW', value: 185, name: 'Middleweight' },
+  { label: 'WW', value: 170, name: 'Welterweight' },
+  { label: 'LW', value: 155, name: 'Lightweight' },
+  { label: 'FW', value: 145, name: 'Featherweight' },
+  { label: 'BW', value: 135, name: 'Bantamweight' },
+  { label: 'FLW', value: 125, name: 'Flyweight' },
+  { label: 'SW', value: 115, name: 'Strawweight' },
 ];
 
 export default function FightersScreen() {
@@ -49,9 +49,15 @@ export default function FightersScreen() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [sortBy, setSortBy] = useState<SortOption>('wins');
+  const [sortBy, setSortBy] = useState<SortOption>('ranking');
   const [selectedWeight, setSelectedWeight] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Get selected weight class name for ranking queries
+  const selectedWeightClass = useMemo(() => {
+    const wc = WEIGHT_CLASSES.find(w => w.value === selectedWeight);
+    return wc?.name || null;
+  }, [selectedWeight]);
 
   // Queries
   // Load all fighters - TODO: implement infinite scroll for better perf
@@ -63,17 +69,40 @@ export default function FightersScreen() {
 
   const searchQuery_ = useSearchFighters(searchQuery, 30);
 
-  // Filter fighters by weight class
+  // Filter and sort fighters
   const filteredFighters = useMemo(() => {
     const fighters = fightersQuery.data || [];
-    if (!selectedWeight) return fighters;
 
-    const tolerance = selectedWeight >= 206 ? 50 : 10; // Heavyweight has larger range
-    return fighters.filter(f => {
-      if (!f.weight_lbs) return false;
-      return Math.abs(f.weight_lbs - selectedWeight) <= tolerance;
-    });
-  }, [fightersQuery.data, selectedWeight]);
+    // First filter by weight class
+    let filtered = fighters;
+    if (selectedWeight) {
+      const tolerance = selectedWeight >= 206 ? 50 : 10; // Heavyweight has larger range
+      filtered = fighters.filter(f => {
+        if (!f.weight_lbs) return false;
+        return Math.abs(f.weight_lbs - selectedWeight) <= tolerance;
+      });
+    }
+
+    // Sort by ranking if selected
+    if (sortBy === 'ranking') {
+      return [...filtered].sort((a, b) => {
+        // Ranked fighters come first
+        const aRank = (a as UFCFighter).ranking;
+        const bRank = (b as UFCFighter).ranking;
+
+        if (aRank !== null && bRank !== null) {
+          return aRank - bRank; // Lower rank is better (0 = champ, 1 = #1, etc)
+        }
+        if (aRank !== null) return -1; // a is ranked, b is not
+        if (bRank !== null) return 1; // b is ranked, a is not
+
+        // Both unranked - sort by wins
+        return b.record_wins - a.record_wins;
+      });
+    }
+
+    return filtered;
+  }, [fightersQuery.data, selectedWeight, sortBy]);
 
   // Use search results when searching, otherwise filtered list
   const displayFighters = searchQuery.trim().length >= 2
@@ -122,9 +151,9 @@ export default function FightersScreen() {
             <Text style={[styles.sortLabel, { color: colors.textSecondary }]}>Sort by:</Text>
             <View style={styles.sortOptions}>
               {[
+                { key: 'ranking' as SortOption, label: 'Rankings' },
                 { key: 'wins' as SortOption, label: 'Top Wins' },
                 { key: 'name' as SortOption, label: 'A-Z' },
-                { key: 'weight' as SortOption, label: 'Weight' },
               ].map(option => (
                 <TouchableOpacity
                   key={option.key}

@@ -142,6 +142,41 @@ export function useFightersByWeightClass(weightLbs: number | null, tolerance = 1
 }
 
 /**
+ * Get ranked fighters by weight class (sorted by ranking, then wins)
+ */
+export function useRankedFighters(weightClass: string | null) {
+  return useQuery({
+    queryKey: ['ufc_fighters', 'ranked', weightClass],
+    queryFn: async (): Promise<UFCFighter[]> => {
+      if (!weightClass) {
+        // Get all ranked fighters across all weight classes
+        const { data, error } = await supabase
+          .from('ufc_fighters')
+          .select('*')
+          .not('ranking', 'is', null)
+          .order('weight_class')
+          .order('ranking', { ascending: true });
+
+        if (error) throw error;
+        return data || [];
+      }
+
+      // Get ranked fighters for specific weight class
+      const { data, error } = await supabase
+        .from('ufc_fighters')
+        .select('*')
+        .eq('weight_class', weightClass)
+        .not('ranking', 'is', null)
+        .order('ranking', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 1000 * 60 * 10,
+  });
+}
+
+/**
  * Get top fighters by wins
  */
 export function useTopFighters(limit = 20) {

@@ -424,6 +424,8 @@ export interface UFCFighter {
   source_snapshot_id: string;
   created_at: string;
   updated_at: string;
+  ranking: number | null;
+  weight_class: string | null;
 }
 
 export interface UFCFighterSearchResult {

@@ -41,6 +41,13 @@ export function FighterCard({ fighter, compact = false }: FighterCardProps) {
 
   const weightClass = getWeightClassName(weightLbs);
 
+  // Get ranking if available
+  const ranking = 'ranking' in fighter ? fighter.ranking : null;
+  const getRankingLabel = (rank: number) => {
+    if (rank === 0) return 'C'; // Champion
+    return `#${rank}`;
+  };
+
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push(`/fighter/${fighterId}`);
@@ -102,6 +109,13 @@ export function FighterCard({ fighter, compact = false }: FighterCardProps) {
             </Text>
           )}
           <View style={styles.badges}>
+            {ranking !== null && (
+              <View style={[styles.rankBadge, { backgroundColor: ranking === 0 ? colors.gold : colors.accent }]}>
+                <Text style={styles.rankBadgeText}>
+                  {getRankingLabel(ranking)}
+                </Text>
+              </View>
+            )}
             <View style={[styles.badge, { backgroundColor: colors.accentSoft }]}>
               <Text style={[styles.badgeText, { color: colors.accent }]}>
                 {weightClass}
@@ -197,6 +211,18 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  rankBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    minWidth: 28,
+    alignItems: 'center',
+  },
+  rankBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
   },
   divider: {
     height: 1,
