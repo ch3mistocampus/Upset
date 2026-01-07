@@ -465,6 +465,9 @@ export interface FighterProfile {
   weight_lbs: number | null;
   reach_inches: number | null;
   stance: string | null;
+  ranking: number | null;
+  weight_class: string | null;
+  ufcstats_url: string | null;
   record: FighterRecord;
   career_stats: FighterCareerStats;
 }

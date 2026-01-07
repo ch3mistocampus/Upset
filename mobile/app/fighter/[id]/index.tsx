@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
@@ -29,8 +30,8 @@ import {
   formatPercentage,
   formatStat,
   formatControlTime,
-  getWeightClassName,
   calculateAge,
+  getWeightClassName,
 } from '../../../hooks/useFighterStats';
 import { Card, SurfaceCard, EmptyState } from '../../../components/ui';
 import { StatRing } from '../../../components/ui/StatRing';
@@ -94,7 +95,8 @@ export default function FighterDetailScreen() {
 
   const { fighter, history } = data;
   const age = calculateAge(fighter.dob);
-  const weightClass = getWeightClassName(fighter.weight_lbs);
+  // Use database weight_class if available, otherwise calculate from weight
+  const weightClass = fighter.weight_class || getWeightClassName(fighter.weight_lbs);
   const record = formatRecord(
     fighter.record.wins,
     fighter.record.losses,
@@ -282,11 +284,23 @@ export default function FighterDetailScreen() {
               </Text>
             )}
 
-            {/* Weight class badge */}
-            <View style={[styles.weightBadge, { backgroundColor: colors.accentSoft }]}>
-              <Text style={[styles.weightBadgeText, { color: colors.accent }]}>
-                {weightClass}
-              </Text>
+            {/* Ranking and Weight class badges */}
+            <View style={styles.badgeRow}>
+              {fighter.ranking !== null && fighter.ranking !== undefined && (
+                <View style={[
+                  styles.rankBadge,
+                  { backgroundColor: fighter.ranking === 0 ? colors.gold : colors.danger }
+                ]}>
+                  <Text style={styles.rankBadgeText}>
+                    {fighter.ranking === 0 ? 'C' : `#${fighter.ranking}`}
+                  </Text>
+                </View>
+              )}
+              <View style={[styles.weightBadge, { backgroundColor: colors.accentSoft }]}>
+                <Text style={[styles.weightBadgeText, { color: colors.accent }]}>
+                  {weightClass}
+                </Text>
+              </View>
             </View>
 
             {/* Record */}
@@ -313,6 +327,23 @@ export default function FighterDetailScreen() {
                   </View>
                 ))}
               </View>
+            )}
+
+            {/* UFCStats Link */}
+            {fighter.ufcstats_url && (
+              <TouchableOpacity
+                style={[styles.ufcStatsButton, { borderColor: colors.border }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  Linking.openURL(fighter.ufcstats_url!);
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="open-outline" size={16} color={colors.accent} />
+                <Text style={[styles.ufcStatsButtonText, { color: colors.accent }]}>
+                  View on UFCStats
+                </Text>
+              </TouchableOpacity>
             )}
           </View>
         </SurfaceCard>
@@ -467,11 +498,29 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginBottom: spacing.sm,
   },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: spacing.sm,
+  },
+  rankBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    minWidth: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rankBadgeText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
+  },
   weightBadge: {
     paddingHorizontal: spacing.md,
     paddingVertical: 6,
     borderRadius: radius.pill,
-    marginBottom: spacing.sm,
   },
   weightBadgeText: {
     fontSize: 13,
@@ -501,6 +550,21 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: '#fff',
+  },
+  ufcStatsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: spacing.md,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+  },
+  ufcStatsButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 
   // Bio Card
