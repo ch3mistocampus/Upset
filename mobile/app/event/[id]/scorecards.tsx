@@ -21,7 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/theme';
 import { spacing, radius, typography } from '../../../lib/tokens';
 import { useEvent, useBoutsForEvent } from '../../../hooks/useQueries';
-import { useEventScorecards, useEventLiveStatus, getScorecardPollingInterval } from '../../../hooks/useScorecard';
+import { useEventScorecards, useEventLiveStatus, getEventPollingInterval } from '../../../hooks/useScorecard';
 import { useAuth } from '../../../hooks/useAuth';
 import { SurfaceCard, EmptyState, LiveBadge, ScoreBucketBar } from '../../../components/ui';
 import { ErrorState } from '../../../components/ErrorState';
@@ -52,12 +52,15 @@ const FightScorecardCard: React.FC<{
   const cornerColors = useCornerColors();
 
   const isLive = liveStatus?.isLive || liveStatus?.isScoring;
-  const hasScores = scorecard.total_submissions > 0;
 
-  // Calculate totals from rounds
-  const redTotal = scorecard.rounds.reduce((sum, r) => sum + (r.mean_red || 0), 0);
-  const blueTotal = scorecard.rounds.reduce((sum, r) => sum + (r.mean_blue || 0), 0);
-  const roundsScored = scorecard.rounds.filter((r) => r.submission_count > 0).length;
+  // Safe access to rounds array (now properly returned from RPC)
+  const rounds = scorecard.rounds || [];
+  const hasScores = scorecard.total_submissions > 0 || rounds.some(r => r.submission_count > 0);
+
+  // Calculate totals from rounds with safe access
+  const redTotal = rounds.reduce((sum, r) => sum + (r.mean_red || 0), 0);
+  const blueTotal = rounds.reduce((sum, r) => sum + (r.mean_blue || 0), 0);
+  const totalSubmissions = scorecard.total_submissions || rounds.reduce((sum, r) => sum + r.submission_count, 0);
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.85}>
@@ -96,7 +99,7 @@ const FightScorecardCard: React.FC<{
                   Global Score
                 </Text>
                 <Text style={[styles.submissionCount, { color: colors.textSecondary }]}>
-                  {scorecard.total_submissions} votes
+                  {totalSubmissions} vote{totalSubmissions !== 1 ? 's' : ''}
                 </Text>
               </View>
               <View style={[styles.scoreBadge, { backgroundColor: cornerColors.blue }]}>
@@ -106,13 +109,13 @@ const FightScorecardCard: React.FC<{
 
             {/* Round indicators */}
             <View style={styles.roundIndicators}>
-              {Array.from({ length: liveStatus?.scheduledRounds || 3 }, (_, i) => {
-                const round = scorecard.rounds.find((r) => r.round_number === i + 1);
+              {Array.from({ length: liveStatus?.scheduledRounds || scorecard.round_state?.scheduled_rounds || 3 }, (_, i) => {
+                const round = rounds.find((r) => r.round_number === i + 1);
                 const hasRoundData = round && round.submission_count > 0;
-                const isCurrentRound = liveStatus?.currentRound === i + 1;
+                const isCurrentRound = (liveStatus?.currentRound || scorecard.round_state?.current_round) === i + 1;
 
                 let winner: 'red' | 'blue' | 'even' | null = null;
-                if (hasRoundData && round.mean_red && round.mean_blue) {
+                if (hasRoundData && round.mean_red !== null && round.mean_blue !== null) {
                   if (round.mean_red > round.mean_blue) winner = 'red';
                   else if (round.mean_blue > round.mean_red) winner = 'blue';
                   else winner = 'even';
@@ -182,9 +185,10 @@ export default function EventScorecardsScreen() {
   const boutIds = bouts?.map((b) => b.id) || [];
   const { data: liveStatusMap, refetch: refetchLiveStatus } = useEventLiveStatus(boutIds);
 
-  // Determine if any fights are live for polling
-  const hasLiveFights = Array.from(liveStatusMap?.values() || []).some((s) => s.isLive || s.isScoring);
-  const pollingInterval = hasLiveFights ? 10000 : false;
+  // Determine optimal polling interval based on fight phases
+  const liveStatuses = Array.from(liveStatusMap?.values() || []);
+  const phases = liveStatuses.map(s => s.phase);
+  const pollingInterval = getEventPollingInterval(phases);
 
   const { data: scorecards, isLoading: scorecardsLoading, isError: scorecardsError, refetch: refetchScorecards } =
     useEventScorecards(id || undefined, { refetchInterval: pollingInterval });
