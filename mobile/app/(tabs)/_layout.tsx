@@ -52,6 +52,13 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="fighters"
+        options={{
+          title: 'Fighters',
+          href: null, // Accessible via Discover or Profile, not main tab bar
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',

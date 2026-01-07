@@ -424,6 +424,17 @@ export default function DiscoverScreen() {
           <TouchableOpacity
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/(tabs)/fighters');
+            }}
+            style={styles.headerButton}
+            accessibilityRole="button"
+            accessibilityLabel="Browse UFC fighters"
+          >
+            <Ionicons name="fitness-outline" size={22} color={colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               router.push('/(tabs)/friends');
             }}
             style={styles.headerButton}

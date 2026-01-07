@@ -392,3 +392,113 @@ export interface CommunityPercentagesRow {
   fighter_a_percentage: number;
   fighter_b_percentage: number;
 }
+
+// ============================================================================
+// UFC Fighter Stats Types (from ufc_fighters table)
+// ============================================================================
+
+export interface UFCFighter {
+  fighter_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string;
+  nickname: string | null;
+  dob: string | null;
+  height_inches: number | null;
+  weight_lbs: number | null;
+  reach_inches: number | null;
+  stance: string | null;
+  record_wins: number;
+  record_losses: number;
+  record_draws: number;
+  record_nc: number;
+  slpm: number | null;
+  sapm: number | null;
+  str_acc: number | null;
+  str_def: number | null;
+  td_avg: number | null;
+  td_acc: number | null;
+  td_def: number | null;
+  sub_avg: number | null;
+  ufcstats_url: string | null;
+  source_snapshot_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UFCFighterSearchResult {
+  fighter_id: string;
+  full_name: string;
+  nickname: string | null;
+  record: string;
+  weight_lbs: number | null;
+}
+
+export interface FighterRecord {
+  wins: number;
+  losses: number;
+  draws: number;
+  nc: number;
+}
+
+export interface FighterCareerStats {
+  slpm: number | null;
+  sapm: number | null;
+  str_acc: number | null;
+  str_def: number | null;
+  td_avg: number | null;
+  td_acc: number | null;
+  td_def: number | null;
+  sub_avg: number | null;
+}
+
+export interface FighterProfile {
+  fighter_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string;
+  nickname: string | null;
+  dob: string | null;
+  height_inches: number | null;
+  weight_lbs: number | null;
+  reach_inches: number | null;
+  stance: string | null;
+  record: FighterRecord;
+  career_stats: FighterCareerStats;
+}
+
+export interface FightTotals {
+  knockdowns: number;
+  sig_str_landed: number;
+  sig_str_attempted: number;
+  total_str_landed: number;
+  total_str_attempted: number;
+  td_landed: number;
+  td_attempted: number;
+  sub_attempts: number;
+  reversals: number;
+  ctrl_time_seconds: number;
+}
+
+export interface FightHistoryItem {
+  fight_id: string;
+  event_id: string;
+  event_name: string;
+  event_date: string | null;
+  weight_class: string | null;
+  result_method: string | null;
+  result_method_details: string | null;
+  result_round: number | null;
+  result_time_seconds: number | null;
+  referee: string | null;
+  opponent_id: string | null;
+  opponent_name: string | null;
+  result: 'Win' | 'Loss' | 'Draw' | 'NC' | 'Unknown';
+  corner: 'red' | 'blue';
+  totals: FightTotals | null;
+}
+
+export interface FighterProfileAndHistory {
+  fighter: FighterProfile;
+  history: FightHistoryItem[];
+}
