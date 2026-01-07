@@ -439,6 +439,7 @@ export interface UFCFighter {
   updated_at: string;
   ranking: number | null;
   weight_class: string | null;
+  espn_fighter_id: string | null;  // ESPN ID for MMA API integration
 }
 
 export interface UFCFighterSearchResult {
