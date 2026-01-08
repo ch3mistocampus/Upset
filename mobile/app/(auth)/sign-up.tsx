@@ -1,5 +1,5 @@
 /**
- * Sign up screen with email + password
+ * Sign up screen with email + password and OAuth options
  */
 
 import { useState } from 'react';
@@ -18,6 +18,7 @@ import { useToast } from '../../hooks/useToast';
 import { useTheme } from '../../lib/theme';
 import { spacing, typography } from '../../lib/tokens';
 import { Button, Input } from '../../components/ui';
+import { SocialAuthButtons } from '../../components/auth';
 import { validateEmail, validatePassword, getAuthErrorMessage } from '../../lib/validation';
 
 export default function SignUp() {
@@ -117,6 +118,9 @@ export default function SignUp() {
             loading={loading}
             disabled={loading}
           />
+
+          {/* OAuth Sign-Up Options */}
+          <SocialAuthButtons action="Sign up" disabled={loading} />
 
           <TouchableOpacity
             style={styles.linkButton}

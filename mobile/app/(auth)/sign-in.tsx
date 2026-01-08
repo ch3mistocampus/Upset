@@ -1,5 +1,5 @@
 /**
- * Sign in screen with password and email OTP options
+ * Sign in screen with password, email OTP, and OAuth options
  */
 
 import { useState } from 'react';
@@ -18,6 +18,7 @@ import { useToast } from '../../hooks/useToast';
 import { useTheme } from '../../lib/theme';
 import { spacing, radius, typography } from '../../lib/tokens';
 import { Button, LinkButton, Input } from '../../components/ui';
+import { SocialAuthButtons } from '../../components/auth';
 import { validateEmail, isEmail, getAuthErrorMessage } from '../../lib/validation';
 
 type AuthTab = 'password' | 'otp';
@@ -260,6 +261,9 @@ export default function SignIn() {
           <View style={styles.tabContent}>
             {activeTab === 'password' ? renderPasswordTab() : renderOTPTab()}
           </View>
+
+          {/* OAuth Sign-In Options */}
+          <SocialAuthButtons action="Sign in" disabled={loading} />
 
           {/* Sign Up Link */}
           <TouchableOpacity
