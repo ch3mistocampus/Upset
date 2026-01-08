@@ -1,6 +1,7 @@
 /**
  * Authentication hooks with guest mode support
  * Includes guest pick migration on sign-in
+ * Supports email/password, OTP, Apple, and Google authentication
  */
 
 import { useEffect, useState, useCallback, useRef } from 'react';
@@ -11,6 +12,8 @@ import { Profile } from '../types/database';
 import { logger } from '../lib/logger';
 import { migrateGuestDataToUser } from '../lib/guestMigration';
 import { GuestPick } from './useGuestPicks';
+import { useAppleAuth } from './useAppleAuth';
+import { useGoogleAuth } from './useGoogleAuth';
 
 const GUEST_PICKS_KEY = '@ufc_guest_picks';
 
@@ -37,6 +40,10 @@ export function useAuth() {
     migratedCount: number;
   } | null>(null);
   const migrationAttemptedRef = useRef(false);
+
+  // OAuth hooks
+  const appleAuth = useAppleAuth();
+  const googleAuth = useGoogleAuth();
 
   // Check and migrate guest picks when user signs in
   const checkAndMigrateGuestPicks = useCallback(async (userId: string) => {
@@ -396,6 +403,13 @@ export function useAuth() {
     signInWithUsername,
     resetPassword,
     updatePassword,
+    // OAuth methods
+    signInWithApple: appleAuth.signInWithApple,
+    isAppleAvailable: appleAuth.isAvailable,
+    appleLoading: appleAuth.loading,
+    signInWithGoogle: googleAuth.signInWithGoogle,
+    isGoogleAvailable: googleAuth.isAvailable,
+    googleLoading: googleAuth.loading,
     // Profile
     createProfile,
     updateProfile,
