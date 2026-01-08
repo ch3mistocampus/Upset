@@ -32,8 +32,9 @@ import {
   useFightScorecard,
   useSubmitScore,
   getScorecardPollingInterval,
+  useScorecardRealtime,
 } from '../../../hooks/useScorecard';
-import { SurfaceCard, EmptyState } from '../../../components/ui';
+import { SurfaceCard, EmptyState, GracePeriodTimer, ScoreConfirmationModal, ScorecardSkeleton, ShareScorecard } from '../../../components/ui';
 import { ErrorState } from '../../../components/ErrorState';
 import type {
   RoundAggregate,
@@ -298,6 +299,7 @@ export default function FightScorecardScreen() {
   const [expandedRound, setExpandedRound] = useState<number | null>(null);
   const [selectedScore, setSelectedScore] = useState<ScoreOption | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Animation refs
   const headerOpacity = useRef(new Animated.Value(0)).current;
@@ -315,6 +317,19 @@ export default function FightScorecardScreen() {
   });
 
   const submitScore = useSubmitScore();
+
+  // Subscribe to realtime updates for this fight
+  useScorecardRealtime(id, {
+    onRoundStateChange: (payload) => {
+      // Provide haptic feedback on phase changes
+      if (payload.phase === 'ROUND_BREAK') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        toast.showNeutral(`Round ${payload.current_round} ended - Score now!`);
+      } else if (payload.phase === 'ROUND_LIVE') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    },
+  });
 
   // Entrance animation
   useEffect(() => {
@@ -341,11 +356,16 @@ export default function FightScorecardScreen() {
     setRefreshing(false);
   }, [refetch]);
 
-  // Score submission handler
-  const handleSubmitScore = useCallback(async () => {
+  // Open confirmation modal
+  const handleSubmitScore = useCallback(() => {
     if (!selectedScore || !id || !scorecard) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowConfirmModal(true);
+  }, [selectedScore, id, scorecard]);
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  // Actual score submission (called from modal)
+  const handleConfirmSubmit = useCallback(async () => {
+    if (!selectedScore || !id || !scorecard) return;
 
     try {
       const result = await submitScore.mutateAsync({
@@ -356,11 +376,14 @@ export default function FightScorecardScreen() {
       });
 
       if (result.success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         toast.showNeutral(result.idempotent ? 'Score already submitted' : 'Score submitted!');
         setSelectedScore(null);
         setExpandedRound(null);
+        setShowConfirmModal(false);
       } else {
         toast.showError(result.message || 'Failed to submit score');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
     } catch (err: any) {
       toast.showError(err.message || 'Failed to submit score');
@@ -380,12 +403,7 @@ export default function FightScorecardScreen() {
             headerTintColor: colors.text,
           }}
         />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.accent} />
-          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-            Loading scorecard...
-          </Text>
-        </View>
+        <ScorecardSkeleton />
       </View>
     );
   }
@@ -510,6 +528,20 @@ export default function FightScorecardScreen() {
                 </Text>
               </View>
             )}
+
+            {/* Share Button */}
+            {(aggregates.length > 0 || user_scores.length > 0) && (
+              <View style={[styles.shareRow, { borderTopColor: colors.border }]}>
+                <ShareScorecard
+                  redName={bout.red_name}
+                  blueName={bout.blue_name}
+                  userScores={user_scores}
+                  aggregates={aggregates}
+                  variant="button"
+                  label="Share"
+                />
+              </View>
+            )}
           </SurfaceCard>
         </Animated.View>
 
@@ -580,12 +612,27 @@ export default function FightScorecardScreen() {
         {canScore && (
           <Animated.View style={[styles.scoringSection, { opacity: contentOpacity }]}>
             <SurfaceCard weakWash>
-              <Text style={[styles.scoringSectionTitle, { color: colors.text }]}>
-                Score Round {round_state.current_round}
-              </Text>
-              <Text style={[styles.scoringSectionSubtitle, { color: colors.textSecondary }]}>
-                Select your score for this round
-              </Text>
+              <View style={styles.scoringSectionHeader}>
+                <View>
+                  <Text style={[styles.scoringSectionTitle, { color: colors.text }]}>
+                    Score Round {round_state.current_round}
+                  </Text>
+                  <Text style={[styles.scoringSectionSubtitle, { color: colors.textSecondary }]}>
+                    Select your score for this round
+                  </Text>
+                </View>
+                {round_state.round_ends_at && (
+                  <GracePeriodTimer
+                    endTime={new Date(round_state.round_ends_at)}
+                    onExpire={() => {
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                      toast.showNeutral('Scoring window closed');
+                      refetch();
+                    }}
+                    variant="compact"
+                  />
+                )}
+              </View>
 
               <View style={styles.scoreOptionsGrid}>
                 {SCORE_OPTIONS.map((option) => (
@@ -633,15 +680,29 @@ export default function FightScorecardScreen() {
           <Animated.View style={[styles.alreadyScoredSection, { opacity: contentOpacity }]}>
             <SurfaceCard weakWash>
               <View style={styles.alreadyScoredContent}>
-                <Ionicons name="checkmark-circle" size={24} color={colors.success} />
+                <View style={[styles.alreadyScoredIcon, { backgroundColor: colors.successSoft }]}>
+                  <Ionicons name="checkmark-circle" size={28} color={colors.success} />
+                </View>
                 <View style={styles.alreadyScoredText}>
                   <Text style={[styles.alreadyScoredTitle, { color: colors.text }]}>
-                    Round {round_state.current_round} Scored
+                    Round {round_state.current_round} Scored ✓
                   </Text>
-                  <Text style={[styles.alreadyScoredValue, { color: colors.textSecondary }]}>
-                    You scored: {currentRoundUserScore.score_red}-{currentRoundUserScore.score_blue}
-                  </Text>
+                  <View style={styles.alreadyScoredScoreRow}>
+                    <Text style={[styles.alreadyScoredScoreValue, { color: cornerColors.red }]}>
+                      {currentRoundUserScore.score_red}
+                    </Text>
+                    <Text style={[styles.alreadyScoredScoreDash, { color: colors.textTertiary }]}>-</Text>
+                    <Text style={[styles.alreadyScoredScoreValue, { color: cornerColors.blue }]}>
+                      {currentRoundUserScore.score_blue}
+                    </Text>
+                  </View>
                 </View>
+              </View>
+              <View style={[styles.alreadyScoredInfo, { borderTopColor: colors.border }]}>
+                <Ionicons name="lock-closed" size={14} color={colors.textTertiary} />
+                <Text style={[styles.alreadyScoredInfoText, { color: colors.textTertiary }]}>
+                  Scores cannot be changed after submission
+                </Text>
               </View>
             </SurfaceCard>
           </Animated.View>
@@ -667,6 +728,18 @@ export default function FightScorecardScreen() {
           </Animated.View>
         )}
       </ScrollView>
+
+      {/* Score Confirmation Modal */}
+      <ScoreConfirmationModal
+        visible={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={handleConfirmSubmit}
+        selectedScore={selectedScore}
+        roundNumber={round_state.current_round}
+        redName={bout.red_name}
+        blueName={bout.blue_name}
+        isSubmitting={submitScore.isPending}
+      />
     </View>
   );
 }
@@ -773,6 +846,12 @@ const styles = StyleSheet.create({
   userTotalValue: {
     fontSize: 15,
     fontWeight: '700',
+  },
+  shareRow: {
+    paddingTop: spacing.md,
+    marginTop: spacing.md,
+    borderTopWidth: 1,
+    alignItems: 'center',
   },
 
   // Phase Badge
@@ -902,6 +981,12 @@ const styles = StyleSheet.create({
 
   // Scoring Section
   scoringSection: {},
+  scoringSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
+  },
   scoringSectionTitle: {
     fontSize: 18,
     fontWeight: '700',
@@ -909,7 +994,6 @@ const styles = StyleSheet.create({
   },
   scoringSectionSubtitle: {
     fontSize: 13,
-    marginBottom: spacing.md,
   },
   scoreOptionsGrid: {
     flexDirection: 'row',
@@ -960,16 +1044,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
   },
+  alreadyScoredIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   alreadyScoredText: {
     flex: 1,
   },
   alreadyScoredTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: spacing.xs,
   },
-  alreadyScoredValue: {
-    fontSize: 13,
-    marginTop: 2,
+  alreadyScoredScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  alreadyScoredScoreValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  alreadyScoredScoreDash: {
+    fontSize: 16,
+    fontWeight: '300',
+  },
+  alreadyScoredInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+  },
+  alreadyScoredInfoText: {
+    fontSize: 12,
   },
 
   // Sign In

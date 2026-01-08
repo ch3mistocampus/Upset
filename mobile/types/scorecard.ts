@@ -104,6 +104,16 @@ export interface FightScorecard {
 // EVENT SCORECARDS OVERVIEW
 // =============================================================================
 
+// Round aggregate for event scorecard summary
+export interface EventRoundAggregate {
+  round_number: number;
+  submission_count: number;
+  mean_red: number | null;
+  mean_blue: number | null;
+  consensus_index: number | null;
+  buckets: ScoreBuckets;
+}
+
 export interface EventScorecardSummary {
   bout_id: string;
   red_name: string;
@@ -116,6 +126,11 @@ export interface EventScorecardSummary {
     scheduled_rounds: number;
     is_scoring_open: boolean;
   } | null;
+  // Round-by-round aggregates
+  rounds: EventRoundAggregate[];
+  // Total submission count across all rounds
+  total_submissions: number;
+  // Legacy total scores (sum of means)
   total_scores: {
     red: number;
     blue: number;

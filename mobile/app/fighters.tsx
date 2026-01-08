@@ -1,5 +1,6 @@
 /**
  * Fighters Screen - Browse and search UFC fighters
+ * Features infinite scroll for efficient loading of 4000+ fighters
  */
 
 import {
@@ -21,7 +22,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from 'react-native-reanimated';
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -33,14 +34,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../lib/theme';
 import { spacing, radius, typography } from '../lib/tokens';
-import { useFighters, useSearchFighters } from '../hooks/useFighterStats';
+import { useInfiniteFighters, useSearchFighters, getWeightClassName } from '../hooks/useFighterStats';
 import { FighterCard } from '../components/FighterCard';
 import { EmptyState } from '../components/ui';
 import { SkeletonCard } from '../components/SkeletonCard';
 import { UFCFighter, UFCFighterSearchResult } from '../types/database';
 import { GlobalTabBar } from '../components/navigation/GlobalTabBar';
 
-type SortOption = 'ranking' | 'wins' | 'name' | 'weight';
+type SortOption = 'ranking' | 'wins' | 'name';
 type DisplayFighter = UFCFighter | UFCFighterSearchResult;
 
 const WEIGHT_CLASSES = [
@@ -71,50 +72,61 @@ export default function FightersScreen() {
   const listOpacity = useSharedValue(1);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
-  // Queries
-  // Filter by weight class on server for performance
-  const fightersQuery = useFighters({
-    limit: 1000,
-    sortBy: sortBy === 'name' ? 'full_name' : sortBy === 'wins' ? 'record_wins' : 'weight_lbs',
+  // Track if we're currently loading more to prevent duplicate calls
+  const isLoadingMoreRef = useRef(false);
+
+  // Infinite scroll query for fighters
+  const fightersQuery = useInfiniteFighters({
+    pageSize: 50,
+    sortBy: sortBy === 'name' ? 'full_name' : sortBy === 'wins' ? 'record_wins' : 'ranking',
     sortOrder: sortBy === 'name' ? 'asc' : 'desc',
     weightClass: selectedWeight,
   });
 
   const searchQuery_ = useSearchFighters(searchQuery, 30);
 
-  // Sort fighters (filtering is done server-side)
-  const filteredFighters = useMemo(() => {
-    const fighters = fightersQuery.data || [];
-
-    // Sort by ranking if selected
-    if (sortBy === 'ranking') {
-      return [...fighters].sort((a, b) => {
-        // Ranked fighters come first
-        const aRank = (a as UFCFighter).ranking;
-        const bRank = (b as UFCFighter).ranking;
-
-        if (aRank !== null && bRank !== null) {
-          return aRank - bRank; // Lower rank is better (0 = champ, 1 = #1, etc)
-        }
-        if (aRank !== null) return -1; // a is ranked, b is not
-        if (bRank !== null) return 1; // b is ranked, a is not
-
-        // Both unranked - sort by wins
-        return b.record_wins - a.record_wins;
-      });
+  // Flatten all pages into a single array
+  const displayFighters = useMemo(() => {
+    if (searchQuery.trim().length >= 2) {
+      return searchQuery_.data || [];
     }
 
-    return fighters;
-  }, [fightersQuery.data, sortBy]);
+    if (!fightersQuery.data?.pages) return [];
 
-  // Use search results when searching, otherwise filtered list
-  const displayFighters = searchQuery.trim().length >= 2
-    ? searchQuery_.data || []
-    : filteredFighters;
+    return fightersQuery.data.pages.flatMap(page => page.fighters);
+  }, [fightersQuery.data, searchQuery, searchQuery_.data]);
+
+  // Get total count from first page (if available)
+  const totalCount = useMemo(() => {
+    if (searchQuery.trim().length >= 2) {
+      return searchQuery_.data?.length || 0;
+    }
+    return displayFighters.length;
+  }, [searchQuery, searchQuery_.data, displayFighters.length]);
 
   const isLoading = searchQuery.trim().length >= 2
     ? searchQuery_.isLoading
     : fightersQuery.isLoading;
+
+  const isFetchingMore = fightersQuery.isFetchingNextPage;
+  const hasMore = fightersQuery.hasNextPage;
+
+  // Handle loading more fighters
+  const loadMore = useCallback(() => {
+    if (
+      searchQuery.trim().length >= 2 || // Don't load more when searching
+      isLoadingMoreRef.current ||
+      isFetchingMore ||
+      !hasMore
+    ) {
+      return;
+    }
+
+    isLoadingMoreRef.current = true;
+    fightersQuery.fetchNextPage().finally(() => {
+      isLoadingMoreRef.current = false;
+    });
+  }, [searchQuery, isFetchingMore, hasMore, fightersQuery]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -137,9 +149,7 @@ export default function FightersScreen() {
 
     // Animate transition
     setIsTransitioning(true);
-    listOpacity.value = withTiming(0, { duration: 150 }, () => {
-      // This runs on UI thread, we need to update state on JS thread
-    });
+    listOpacity.value = withTiming(0, { duration: 150 });
 
     // Update state after fade out
     setTimeout(() => {
@@ -181,6 +191,20 @@ export default function FightersScreen() {
 
   // Header is now rendered outside FlatList, so this is empty
   const renderHeader = () => null;
+
+  // Footer component for loading indicator
+  const renderFooter = () => {
+    if (!isFetchingMore) return null;
+
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color={colors.accent} />
+        <Text style={[styles.footerText, { color: colors.textSecondary }]}>
+          Loading more fighters...
+        </Text>
+      </View>
+    );
+  };
 
   // Animated style for list opacity
   const listAnimatedStyle = useAnimatedStyle(() => ({
@@ -308,8 +332,9 @@ export default function FightersScreen() {
       {/* Results count */}
       <View style={styles.resultsRow}>
         <Text style={[styles.resultsCount, { color: colors.textTertiary }]}>
-          {displayFighters.length} fighter{displayFighters.length !== 1 ? 's' : ''}
-          {selectedWeight && !searchQuery.trim() && ` in ${selectedWeight}`}
+          {totalCount} fighter{totalCount !== 1 ? 's' : ''}
+          {selectedWeight && !searchQuery.trim() && ` in ${getWeightClassName(selectedWeight) || selectedWeight}`}
+          {hasMore && !searchQuery.trim() && ' (scroll for more)'}
         </Text>
       </View>
 
@@ -349,6 +374,7 @@ export default function FightersScreen() {
             keyExtractor={(item) => item.fighter_id}
             renderItem={renderFighter}
             ListHeaderComponent={renderHeader}
+            ListFooterComponent={renderFooter}
             contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 100 }]}
             refreshControl={
               <RefreshControl
@@ -360,6 +386,12 @@ export default function FightersScreen() {
             }
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            onEndReached={loadMore}
+            onEndReachedThreshold={0.5}
+            initialNumToRender={15}
+            maxToRenderPerBatch={10}
+            windowSize={10}
+            removeClippedSubviews={true}
           />
         )}
       </Animated.View>
@@ -492,5 +524,15 @@ const styles = StyleSheet.create({
   loadingContainer: {
     padding: spacing.md,
     gap: spacing.sm,
+  },
+  footerLoader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.lg,
+    gap: spacing.sm,
+  },
+  footerText: {
+    fontSize: 13,
   },
 });

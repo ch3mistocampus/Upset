@@ -35,7 +35,7 @@ export interface FriendRequest {
 }
 
 // Privacy Types
-export type VisibilityLevel = 'public' | 'friends' | 'private';
+export type VisibilityLevel = 'public' | 'followers' | 'private';
 
 export interface PrivacySettings {
   id: string;

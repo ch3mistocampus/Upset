@@ -2,11 +2,17 @@
  * Global Scorecard Hooks
  *
  * React Query hooks for scorecard data fetching and mutations
+ * Includes idempotency handling, retry logic, and optimized polling
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useCallback, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
+import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './useAuth';
+import { logger } from '../lib/logger';
 import type {
   FightScorecard,
   EventScorecards,
@@ -14,7 +20,104 @@ import type {
   UpdateRoundStateResponse,
   LiveFight,
   AdminAction,
+  RoundPhase,
 } from '../types/scorecard';
+
+// =============================================================================
+// CONSTANTS
+// =============================================================================
+
+const PENDING_SCORES_KEY = '@scorecard_pending_scores';
+const MAX_RETRIES = 3;
+const RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff
+
+// =============================================================================
+// PENDING SCORE STORAGE (for offline resilience)
+// =============================================================================
+
+interface PendingScore {
+  submissionId: string;
+  boutId: string;
+  roundNumber: number;
+  scoreRed: number;
+  scoreBlue: number;
+  createdAt: string;
+  retryCount: number;
+}
+
+/**
+ * Store a pending score for retry
+ */
+async function storePendingScore(score: PendingScore): Promise<void> {
+  try {
+    const existing = await AsyncStorage.getItem(PENDING_SCORES_KEY);
+    const pending: PendingScore[] = existing ? JSON.parse(existing) : [];
+    pending.push(score);
+    await AsyncStorage.setItem(PENDING_SCORES_KEY, JSON.stringify(pending));
+    logger.info('Stored pending score for retry', { submissionId: score.submissionId });
+  } catch (error) {
+    logger.error('Failed to store pending score', { error });
+  }
+}
+
+/**
+ * Remove a pending score after successful submission
+ */
+async function removePendingScore(submissionId: string): Promise<void> {
+  try {
+    const existing = await AsyncStorage.getItem(PENDING_SCORES_KEY);
+    if (!existing) return;
+    const pending: PendingScore[] = JSON.parse(existing);
+    const filtered = pending.filter(s => s.submissionId !== submissionId);
+    await AsyncStorage.setItem(PENDING_SCORES_KEY, JSON.stringify(filtered));
+  } catch (error) {
+    logger.error('Failed to remove pending score', { error });
+  }
+}
+
+/**
+ * Get all pending scores for retry
+ */
+export async function getPendingScores(): Promise<PendingScore[]> {
+  try {
+    const existing = await AsyncStorage.getItem(PENDING_SCORES_KEY);
+    return existing ? JSON.parse(existing) : [];
+  } catch (error) {
+    logger.error('Failed to get pending scores', { error });
+    return [];
+  }
+}
+
+/**
+ * Retry submitting a pending score with exponential backoff
+ */
+async function retrySubmitScore(
+  score: PendingScore,
+  attempt: number = 0
+): Promise<SubmitScoreResponse> {
+  try {
+    const { data, error } = await supabase.rpc('submit_round_score', {
+      p_submission_id: score.submissionId,
+      p_bout_id: score.boutId,
+      p_round_number: score.roundNumber,
+      p_score_red: score.scoreRed,
+      p_score_blue: score.scoreBlue,
+    });
+
+    if (error) throw error;
+
+    // Success - remove from pending
+    await removePendingScore(score.submissionId);
+    return data as SubmitScoreResponse;
+  } catch (error) {
+    if (attempt < MAX_RETRIES - 1) {
+      // Wait and retry
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAYS[attempt]));
+      return retrySubmitScore(score, attempt + 1);
+    }
+    throw error;
+  }
+}
 
 // =============================================================================
 // QUERY KEYS
@@ -98,30 +201,95 @@ interface SubmitScoreParams {
   roundNumber: number;
   scoreRed: number;
   scoreBlue: number;
+  /** Optional: reuse a submission ID for retry scenarios */
+  submissionId?: string;
 }
 
 /**
- * Submit a round score
- * Handles idempotency via client-generated submission_id
+ * Submit a round score with robust idempotency and offline support
+ *
+ * Features:
+ * - Persistent submission ID for network failure recovery
+ * - Automatic retry with exponential backoff
+ * - Offline queue for later sync
+ * - Optimistic updates
  */
 export function useSubmitScore() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (params: SubmitScoreParams): Promise<SubmitScoreResponse> => {
-      // Generate idempotent submission ID
-      const submissionId = crypto.randomUUID();
+      // Check network connectivity
+      const netState = await NetInfo.fetch();
+      if (!netState.isConnected) {
+        // Store for later and return optimistic response
+        const submissionId = params.submissionId || crypto.randomUUID();
+        await storePendingScore({
+          submissionId,
+          boutId: params.boutId,
+          roundNumber: params.roundNumber,
+          scoreRed: params.scoreRed,
+          scoreBlue: params.scoreBlue,
+          createdAt: new Date().toISOString(),
+          retryCount: 0,
+        });
+        return {
+          success: true,
+          message: 'Score saved offline. Will sync when connected.',
+          score: {
+            round_number: params.roundNumber,
+            score_red: params.scoreRed,
+            score_blue: params.scoreBlue,
+            submitted_at: new Date().toISOString(),
+          },
+        };
+      }
 
-      const { data, error } = await supabase.rpc('submit_round_score', {
-        p_submission_id: submissionId,
-        p_bout_id: params.boutId,
-        p_round_number: params.roundNumber,
-        p_score_red: params.scoreRed,
-        p_score_blue: params.scoreBlue,
-      });
+      // Generate or reuse submission ID for idempotency
+      const submissionId = params.submissionId || crypto.randomUUID();
 
-      if (error) throw error;
-      return data as SubmitScoreResponse;
+      // Store pending score BEFORE making request (for crash recovery)
+      const pendingScore: PendingScore = {
+        submissionId,
+        boutId: params.boutId,
+        roundNumber: params.roundNumber,
+        scoreRed: params.scoreRed,
+        scoreBlue: params.scoreBlue,
+        createdAt: new Date().toISOString(),
+        retryCount: 0,
+      };
+      await storePendingScore(pendingScore);
+
+      try {
+        const { data, error } = await supabase.rpc('submit_round_score', {
+          p_submission_id: submissionId,
+          p_bout_id: params.boutId,
+          p_round_number: params.roundNumber,
+          p_score_red: params.scoreRed,
+          p_score_blue: params.scoreBlue,
+        });
+
+        if (error) throw error;
+
+        // Success - remove from pending storage
+        await removePendingScore(submissionId);
+
+        const response = data as SubmitScoreResponse;
+        logger.info('Score submitted successfully', {
+          boutId: params.boutId,
+          round: params.roundNumber,
+          idempotent: response.idempotent,
+        });
+
+        return response;
+      } catch (error) {
+        // Don't remove from pending - will be retried
+        logger.error('Score submission failed, will retry', {
+          submissionId,
+          error,
+        });
+        throw error;
+      }
     },
     onSuccess: (data, variables) => {
       if (data.success) {
@@ -129,7 +297,46 @@ export function useSubmitScore() {
         queryClient.invalidateQueries({
           queryKey: scorecardKeys.fight(variables.boutId),
         });
+        // Also invalidate event scorecards if available
+        queryClient.invalidateQueries({
+          queryKey: scorecardKeys.all,
+        });
       }
+    },
+    retry: 2, // React Query built-in retry
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
+  });
+}
+
+/**
+ * Hook to sync pending scores when coming back online
+ */
+export function useSyncPendingScores() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (): Promise<{ synced: number; failed: number }> => {
+      const pending = await getPendingScores();
+      if (pending.length === 0) return { synced: 0, failed: 0 };
+
+      let synced = 0;
+      let failed = 0;
+
+      for (const score of pending) {
+        try {
+          await retrySubmitScore(score);
+          synced++;
+        } catch (error) {
+          failed++;
+          logger.error('Failed to sync pending score', { submissionId: score.submissionId, error });
+        }
+      }
+
+      return { synced, failed };
+    },
+    onSuccess: () => {
+      // Invalidate all scorecard queries to refresh
+      queryClient.invalidateQueries({ queryKey: scorecardKeys.all });
     },
   });
 }
@@ -235,15 +442,16 @@ export function useAdminRecomputeAggregates() {
 
 /**
  * Determine the appropriate polling interval based on fight phase
+ * More aggressive polling during active scoring windows
  */
 export function getScorecardPollingInterval(phase: string | undefined): number | false {
   if (!phase) return false;
 
   switch (phase) {
     case 'ROUND_BREAK':
-      return 5000; // 5 seconds during scoring window
+      return 3000; // 3 seconds during scoring window (most critical)
     case 'ROUND_LIVE':
-      return 10000; // 10 seconds during round
+      return 8000; // 8 seconds during round
     case 'PRE_FIGHT':
       return 30000; // 30 seconds before fight
     case 'FIGHT_ENDED':
@@ -251,6 +459,82 @@ export function getScorecardPollingInterval(phase: string | undefined): number |
       return false; // No polling needed
     default:
       return 15000; // 15 seconds default
+  }
+}
+
+/**
+ * Calculate optimal polling interval for event view
+ * Uses the most aggressive interval among all active bouts
+ */
+export function getEventPollingInterval(
+  phases: (string | undefined)[]
+): number | false {
+  if (phases.length === 0) return false;
+
+  const intervals = phases.map(getScorecardPollingInterval);
+  const activeIntervals = intervals.filter((i): i is number => typeof i === 'number');
+
+  if (activeIntervals.length === 0) return false;
+
+  // Return the smallest (most frequent) interval
+  return Math.min(...activeIntervals);
+}
+
+/**
+ * Error types for better error handling
+ */
+export type ScorecardError =
+  | 'network_error'
+  | 'authentication_required'
+  | 'scoring_closed'
+  | 'already_submitted'
+  | 'invalid_score'
+  | 'grace_period_expired'
+  | 'unknown';
+
+/**
+ * Parse error from submit score response
+ */
+export function parseScorecardError(response: SubmitScoreResponse): ScorecardError | null {
+  if (response.success) return null;
+
+  switch (response.error) {
+    case 'authentication_required':
+      return 'authentication_required';
+    case 'scoring_closed':
+    case 'scoring_not_available':
+    case 'wrong_round':
+      return 'scoring_closed';
+    case 'already_submitted':
+      return 'already_submitted';
+    case 'invalid_score':
+      return 'invalid_score';
+    case 'grace_period_expired':
+      return 'grace_period_expired';
+    default:
+      return 'unknown';
+  }
+}
+
+/**
+ * Get user-friendly error message
+ */
+export function getScorecardErrorMessage(error: ScorecardError): string {
+  switch (error) {
+    case 'network_error':
+      return 'Network error. Your score has been saved and will sync when connected.';
+    case 'authentication_required':
+      return 'Please sign in to submit scores.';
+    case 'scoring_closed':
+      return 'Scoring is currently closed for this round.';
+    case 'already_submitted':
+      return 'You have already submitted a score for this round.';
+    case 'invalid_score':
+      return 'Invalid score. Please select a valid score option.';
+    case 'grace_period_expired':
+      return 'The scoring window has closed.';
+    default:
+      return 'An unexpected error occurred. Please try again.';
   }
 }
 
@@ -372,5 +656,221 @@ export function createOptimisticScore(
   return {
     ...currentData,
     user_scores: newUserScores,
+  };
+}
+
+// =============================================================================
+// REALTIME SUBSCRIPTIONS
+// =============================================================================
+
+interface RealtimeOptions {
+  /** Called when round state changes (phase transitions, round changes) */
+  onRoundStateChange?: (payload: { phase: string; current_round: number }) => void;
+  /** Called when aggregates are updated (new scores) */
+  onAggregatesUpdate?: () => void;
+  /** Whether to automatically refetch on changes */
+  autoRefetch?: boolean;
+}
+
+/**
+ * Subscribe to realtime updates for a specific fight's scorecard
+ *
+ * Subscribes to:
+ * - round_state table changes for phase transitions
+ * - round_aggregates table changes for score updates
+ *
+ * @param boutId - The bout ID to subscribe to
+ * @param options - Configuration options
+ */
+export function useScorecardRealtime(
+  boutId: string | undefined,
+  options: RealtimeOptions = {}
+) {
+  const queryClient = useQueryClient();
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const { autoRefetch = true, onRoundStateChange, onAggregatesUpdate } = options;
+
+  const invalidateScorecard = useCallback(() => {
+    if (!boutId) return;
+    queryClient.invalidateQueries({
+      queryKey: scorecardKeys.fight(boutId),
+    });
+  }, [boutId, queryClient]);
+
+  useEffect(() => {
+    if (!boutId) return;
+
+    // Create unique channel name for this bout
+    const channelName = `scorecard:${boutId}`;
+
+    // Subscribe to realtime changes
+    const channel = supabase
+      .channel(channelName)
+      // Listen for round_state changes
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'round_state',
+          filter: `bout_id=eq.${boutId}`,
+        },
+        (payload: RealtimePostgresChangesPayload<{ phase: string; current_round: number }>) => {
+          logger.info('Realtime: round_state change', { boutId, event: payload.eventType });
+
+          if (payload.new && typeof payload.new === 'object') {
+            onRoundStateChange?.({
+              phase: (payload.new as any).phase,
+              current_round: (payload.new as any).current_round,
+            });
+          }
+
+          if (autoRefetch) {
+            invalidateScorecard();
+          }
+        }
+      )
+      // Listen for round_aggregates changes
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'round_aggregates',
+          filter: `bout_id=eq.${boutId}`,
+        },
+        (payload) => {
+          logger.info('Realtime: round_aggregates change', { boutId, event: payload.eventType });
+
+          onAggregatesUpdate?.();
+
+          if (autoRefetch) {
+            invalidateScorecard();
+          }
+        }
+      )
+      .subscribe((status) => {
+        logger.info('Realtime subscription status', { boutId, status });
+      });
+
+    channelRef.current = channel;
+
+    // Cleanup on unmount
+    return () => {
+      logger.info('Unsubscribing from realtime channel', { boutId });
+      channel.unsubscribe();
+      channelRef.current = null;
+    };
+  }, [boutId, autoRefetch, invalidateScorecard, onRoundStateChange, onAggregatesUpdate]);
+
+  // Return method to manually trigger refetch
+  return {
+    refetch: invalidateScorecard,
+  };
+}
+
+/**
+ * Subscribe to realtime updates for all fights in an event
+ * Useful for event scorecard overview screens
+ */
+export function useEventScorecardRealtime(
+  eventId: string | undefined,
+  boutIds: string[],
+  options: { autoRefetch?: boolean } = {}
+) {
+  const queryClient = useQueryClient();
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const { autoRefetch = true } = options;
+
+  useEffect(() => {
+    if (!eventId || boutIds.length === 0) return;
+
+    const channelName = `event-scorecards:${eventId}`;
+
+    // Subscribe to changes for all bouts in the event
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'round_state',
+        },
+        (payload) => {
+          // Check if this change is for one of our bouts
+          const changedBoutId = (payload.new as any)?.bout_id;
+          if (changedBoutId && boutIds.includes(changedBoutId)) {
+            logger.info('Realtime: event round_state change', { eventId, boutId: changedBoutId });
+
+            if (autoRefetch) {
+              queryClient.invalidateQueries({
+                queryKey: scorecardKeys.event(eventId),
+              });
+              queryClient.invalidateQueries({
+                queryKey: ['scorecard', 'event-status'],
+              });
+            }
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'round_aggregates',
+        },
+        (payload) => {
+          const changedBoutId = (payload.new as any)?.bout_id;
+          if (changedBoutId && boutIds.includes(changedBoutId)) {
+            logger.info('Realtime: event round_aggregates change', { eventId, boutId: changedBoutId });
+
+            if (autoRefetch) {
+              queryClient.invalidateQueries({
+                queryKey: scorecardKeys.event(eventId),
+              });
+            }
+          }
+        }
+      )
+      .subscribe((status) => {
+        logger.info('Event realtime subscription status', { eventId, status });
+      });
+
+    channelRef.current = channel;
+
+    return () => {
+      channel.unsubscribe();
+      channelRef.current = null;
+    };
+  }, [eventId, boutIds.join(','), autoRefetch, queryClient]);
+}
+
+/**
+ * Hook to check if realtime is connected and working
+ */
+export function useRealtimeStatus() {
+  const channelRef = useRef<RealtimeChannel | null>(null);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('realtime-status-check')
+      .on('presence', { event: 'sync' }, () => {
+        logger.info('Realtime presence sync');
+      })
+      .subscribe((status) => {
+        logger.info('Realtime connection status', { status });
+      });
+
+    channelRef.current = channel;
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, []);
+
+  return {
+    isConnected: channelRef.current?.state === 'joined',
   };
 }

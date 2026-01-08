@@ -1,21 +1,38 @@
 /**
  * sync-events Edge Function
- * Syncs UFC events from UFCStats into the events table
- * Runs daily via scheduled job
+ * Syncs UFC events from configured data source (UFCStats or MMA API)
+ * Respects cache settings to minimize API calls
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { scrapeEventsList, parseUFCStatsDate } from "../_shared/ufcstats-scraper.ts";
-import { createLogger, measureTime } from "../_shared/logger.ts";
+import { createProvider } from "../_shared/data-provider-factory.ts";
+import { createMMAApiProvider } from "../_shared/mma-api-provider.ts";
+import { createUFCStatsProvider } from "../_shared/ufcstats-provider.ts";
+import { healthCheck as scraperHealthCheck, parseUFCStatsDate } from "../_shared/ufcstats-scraper.ts";
+import { createLogger } from "../_shared/logger.ts";
+import type { DataProvider, DataProviderType } from "../_shared/data-provider-types.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const logger = createLogger("sync-events");
 
+// Minimum expected events to prevent accidental data wipe
+const MIN_EXPECTED_EVENTS = 5;
+
 serve(async (req) => {
   const startTime = Date.now();
+  const url = new URL(req.url);
+
+  // Handle health check endpoint
+  if (url.pathname.endsWith('/health') || url.searchParams.get('health') === 'true') {
+    const health = await scraperHealthCheck();
+    return new Response(JSON.stringify(health), {
+      status: health.status === 'healthy' ? 200 : health.status === 'degraded' ? 206 : 503,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
   try {
     logger.info("Starting events sync");
@@ -23,50 +40,127 @@ serve(async (req) => {
     // Create Supabase client with service role (bypasses RLS)
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Scrape events from UFCStats
-    logger.info("Fetching events from UFCStats");
-    const events = await scrapeEventsList();
+    // Check if sync is needed (unless force=true)
+    const force = url.searchParams.get('force') === 'true';
+    if (!force) {
+      const { data: shouldSync } = await supabase.rpc('should_sync', { p_sync_type: 'events' });
+
+      if (shouldSync === false) {
+        logger.info("Cache still valid, skipping sync");
+        return new Response(
+          JSON.stringify({
+            success: true,
+            skipped: true,
+            message: "Cache still valid, sync not needed",
+          }),
+          { headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // Get data source settings
+    const { data: settings } = await supabase.rpc('get_data_source_settings');
+    const dataSource: DataProviderType = settings?.primary_data_source || 'ufcstats';
+
+    logger.info(`Using data source: ${dataSource}`);
+
+    // Create usage tracker for MMA API
+    const trackUsage = async (endpoint: string, count: number) => {
+      await supabase.rpc('track_api_usage', {
+        p_provider: 'mma-api',
+        p_endpoint: endpoint,
+        p_count: count,
+      });
+    };
+
+    // Create provider based on settings
+    let provider: DataProvider;
+    if (dataSource === 'mma-api') {
+      provider = createMMAApiProvider({
+        apiKey: Deno.env.get("MMA_API_KEY"),
+        usageTracker: trackUsage,
+      });
+    } else {
+      provider = createUFCStatsProvider();
+    }
+
+    // Run health check first
+    logger.info("Running provider health check");
+    const health = await provider.healthCheck();
+    if (health.status === 'unhealthy') {
+      logger.error("Provider health check failed", new Error(health.error || 'Unknown error'));
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Provider unhealthy",
+          health,
+          provider: provider.name,
+          message: `${provider.name} is not responding correctly`,
+        }),
+        { status: 503, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Fetch events
+    logger.info("Fetching events from provider");
+    const [upcomingEvents, completedEvents] = await Promise.all([
+      provider.getUpcomingEvents(),
+      provider.getCompletedEvents(50), // Limit completed events
+    ]);
+
+    // Merge events
+    const eventMap = new Map<string, any>();
+    for (const event of upcomingEvents) {
+      eventMap.set(event.externalId, { ...event, status: 'upcoming' });
+    }
+    for (const event of completedEvents) {
+      if (!eventMap.has(event.externalId)) {
+        eventMap.set(event.externalId, { ...event, status: 'completed' });
+      }
+    }
+
+    const events = Array.from(eventMap.values());
 
     if (events.length === 0) {
-      logger.warn("No events returned from scraper - skipping to avoid data loss");
+      logger.warn("No events returned from provider - skipping to avoid data loss");
       return new Response(
         JSON.stringify({
           success: false,
           error: "No events found",
-          message: "Scraper returned 0 events - possible parsing error",
+          message: "Provider returned 0 events - possible API issue",
+          provider: provider.name,
         }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    logger.info("Scraped events, upserting to database", { count: events.length });
+    // Sanity check: ensure we have at least a few events
+    if (events.length < MIN_EXPECTED_EVENTS) {
+      logger.warn(`Only ${events.length} events found (expected at least ${MIN_EXPECTED_EVENTS})`);
+    }
+
+    logger.info("Fetched events, upserting to database", { count: events.length });
 
     // Process events and upsert
     let inserted = 0;
     let updated = 0;
     const errors: any[] = [];
 
+    // Determine which ID field to use based on provider
+    const idField = dataSource === 'mma-api' ? 'espn_event_id' : 'ufcstats_event_id';
+
     for (const event of events) {
       try {
-        // Parse date
-        const eventDate = parseUFCStatsDate(event.date_text);
-        if (!eventDate) {
-          logger.warn("Could not parse date for event", { name: event.name, date: event.date_text });
+        if (!event.date) {
+          logger.warn("Event has no date, skipping", { name: event.name });
           continue;
         }
 
-        // Determine status based on event date
-        // If event is more than 1 day in the past, mark as completed (heuristic)
-        // Otherwise, keep as upcoming (will be refined by results sync)
-        const oneDayAgo = new Date();
-        oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-        const status = eventDate < oneDayAgo ? "completed" : "upcoming";
-
-        // Check if event exists
+        // Check if event exists by external ID
         const { data: existing } = await supabase
           .from("events")
           .select("id")
-          .eq("ufcstats_event_id", event.ufcstats_event_id)
+          .eq(idField, event.externalId)
           .single();
 
         if (existing) {
@@ -75,27 +169,29 @@ serve(async (req) => {
             .from("events")
             .update({
               name: event.name,
-              event_date: eventDate.toISOString(),
+              event_date: event.date.toISOString(),
               location: event.location,
-              status,
+              status: event.status,
               last_synced_at: new Date().toISOString(),
             })
-            .eq("ufcstats_event_id", event.ufcstats_event_id);
+            .eq(idField, event.externalId);
 
           if (error) throw error;
           updated++;
         } else {
           // Insert new event
+          const insertData: any = {
+            name: event.name,
+            event_date: event.date.toISOString(),
+            location: event.location,
+            status: event.status,
+            last_synced_at: new Date().toISOString(),
+          };
+          insertData[idField] = event.externalId;
+
           const { error } = await supabase
             .from("events")
-            .insert({
-              ufcstats_event_id: event.ufcstats_event_id,
-              name: event.name,
-              event_date: eventDate.toISOString(),
-              location: event.location,
-              status,
-              last_synced_at: new Date().toISOString(),
-            });
+            .insert(insertData);
 
           if (error) throw error;
           inserted++;
@@ -104,15 +200,19 @@ serve(async (req) => {
         logger.error("Error processing event", error, { event: event.name });
         errors.push({
           event: event.name,
-          error: error.message,
+          error: (error as Error).message,
         });
       }
     }
+
+    // Update sync timestamp
+    await supabase.rpc('update_sync_timestamp', { p_sync_type: 'events' });
 
     const duration = Date.now() - startTime;
 
     const result = {
       success: true,
+      provider: provider.name,
       inserted,
       updated,
       total: events.length,
@@ -120,7 +220,13 @@ serve(async (req) => {
       duration_ms: duration,
     };
 
-    logger.success("Events sync complete", duration, { inserted, updated, total: events.length, errors: errors.length });
+    logger.success("Events sync complete", duration, {
+      provider: provider.name,
+      inserted,
+      updated,
+      total: events.length,
+      errors: errors.length
+    });
 
     return new Response(JSON.stringify(result), {
       headers: { "Content-Type": "application/json" },
@@ -131,8 +237,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
-        stack: error.stack,
+        error: (error as Error).message,
+        stack: (error as Error).stack,
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );

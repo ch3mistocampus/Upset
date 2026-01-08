@@ -87,10 +87,10 @@ export function useBlocking() {
 
       // Also unfollow the user if following
       await supabase
-        .from('friendships')
+        .from('follows')
         .delete()
-        .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
-        .or(`user_id.eq.${userId},friend_id.eq.${userId}`);
+        .or(`user_id.eq.${user.id},following_id.eq.${user.id}`)
+        .or(`user_id.eq.${userId},following_id.eq.${userId}`);
 
       logger.info('User blocked', { userId });
     },

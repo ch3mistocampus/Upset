@@ -78,6 +78,13 @@ export default function AdminLayout() {
           headerBackTitle: 'Dashboard',
         }}
       />
+      <Stack.Screen
+        name="scorecards"
+        options={{
+          title: 'Live Scorecards',
+          headerBackTitle: 'Dashboard',
+        }}
+      />
     </Stack>
   );
 }

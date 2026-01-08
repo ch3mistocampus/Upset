@@ -24,6 +24,7 @@ import { ErrorState } from '../../components/ErrorState';
 import { SkeletonFightCard } from '../../components/SkeletonFightCard';
 import { LockExplainerModal } from '../../components/LockExplainerModal';
 import { AuthPromptModal } from '../../components/AuthPromptModal';
+import { MethodPredictionModal } from '../../components/MethodPredictionModal';
 import { useEventLiveStatus } from '../../hooks/useScorecard';
 import { BoutWithPick, PickInsert } from '../../types/database';
 import type { CommunityPickPercentages } from '../../types/social';
@@ -173,6 +174,11 @@ export default function EventDetail() {
   const [showLockExplainer, setShowLockExplainer] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [showMethodModal, setShowMethodModal] = useState(false);
+  const [pendingPick, setPendingPick] = useState<{
+    bout: BoutWithPick;
+    corner: 'red' | 'blue';
+  } | null>(null);
   const submitModalScale = useRef(new Animated.Value(0.9)).current;
   const submitModalOpacity = useRef(new Animated.Value(0)).current;
 
@@ -332,28 +338,54 @@ export default function EventDetail() {
     // Soft haptic on tap
     Haptics.selectionAsync();
 
-    try {
-      if (isUnselecting) {
-        // Delete the pick by bout_id + user_id
+    if (isUnselecting) {
+      // Delete the pick by bout_id + user_id
+      try {
         await deletePick.mutateAsync({
           boutId: bout.id,
           eventId: event.id,
           userId: user?.id || null,
           isGuest,
         });
-      } else {
-        // Create or update pick
-        const pick: PickInsert = {
-          user_id: user?.id || 'guest',
-          event_id: event.id,
-          bout_id: bout.id,
-          picked_corner: corner,
-        };
+      } catch (error: any) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        toast.showError('Failed to remove pick. Please try again.');
+      }
+    } else {
+      // Show method prediction modal
+      setPendingPick({ bout, corner });
+      setShowMethodModal(true);
+    }
+  };
 
-        await upsertPick.mutateAsync({ pick, isGuest });
+  // Save pick with method and round prediction
+  const savePick = async (method: string | null, round: number | null) => {
+    if (!pendingPick || !event) return;
+
+    const { bout, corner } = pendingPick;
+
+    // Validate user_id for authenticated users
+    if (!isGuest && !user?.id) {
+      toast.showError('Authentication error. Please sign in again.');
+      return;
+    }
+
+    try {
+      const pick: PickInsert = {
+        user_id: isGuest ? 'guest' : user!.id,
+        event_id: event.id,
+        bout_id: bout.id,
+        picked_corner: corner,
+        picked_method: method,
+        picked_round: round,
+      };
+
+      await upsertPick.mutateAsync({ pick, isGuest });
+
+      if (method) {
+        toast.showNeutral(`${corner === 'red' ? bout.red_name : bout.blue_name} by ${method}${round ? ` R${round}` : ''}`);
       }
     } catch (error: any) {
-      // Only use haptic on error
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
       if (error.message?.includes('locked')) {
@@ -361,6 +393,8 @@ export default function EventDetail() {
       } else {
         toast.showError('Failed to save pick. Please try again.');
       }
+    } finally {
+      setPendingPick(null);
     }
   };
 
@@ -732,14 +766,22 @@ export default function EventDetail() {
                     />
                   </View>
 
-                  {/* Labels Row - Your pick + percentages under each fighter */}
+                  {/* Labels Row - Your pick + prediction + percentages under each fighter */}
                   {userHasPicked && (
                     <View style={styles.labelsRow}>
                       <View style={styles.labelColumn}>
                         {pickedRed && (
-                          <Text style={[styles.pickLabel, { color: colors.textTertiary }]}>
-                            Your pick
-                          </Text>
+                          <>
+                            <Text style={[styles.pickLabel, { color: colors.textTertiary }]}>
+                              Your pick
+                            </Text>
+                            {bout.pick?.picked_method && (
+                              <Text style={[styles.predictionLabel, { color: colors.accent }]} numberOfLines={1}>
+                                {bout.pick.picked_method.replace('Decision - ', '').replace('Submission - ', '')}
+                                {bout.pick.picked_round ? ` R${bout.pick.picked_round}` : ''}
+                              </Text>
+                            )}
+                          </>
                         )}
                         {showCommunity && (
                           <Text style={[styles.pctLabel, { color: colors.textSecondary }]}>
@@ -750,9 +792,17 @@ export default function EventDetail() {
                       <View style={styles.labelSpacer} />
                       <View style={styles.labelColumn}>
                         {pickedBlue && (
-                          <Text style={[styles.pickLabel, { color: colors.textTertiary }]}>
-                            Your pick
-                          </Text>
+                          <>
+                            <Text style={[styles.pickLabel, { color: colors.textTertiary }]}>
+                              Your pick
+                            </Text>
+                            {bout.pick?.picked_method && (
+                              <Text style={[styles.predictionLabel, { color: colors.accent }]} numberOfLines={1}>
+                                {bout.pick.picked_method.replace('Decision - ', '').replace('Submission - ', '')}
+                                {bout.pick.picked_round ? ` R${bout.pick.picked_round}` : ''}
+                              </Text>
+                            )}
+                          </>
                         )}
                         {showCommunity && (
                           <Text style={[styles.pctLabel, { color: colors.textSecondary }]}>
@@ -887,6 +937,21 @@ export default function EventDetail() {
           closeGate();
         }}
         context={gateContext || 'history'}
+      />
+
+      {/* Method Prediction Modal - shown when user picks a fighter */}
+      <MethodPredictionModal
+        visible={showMethodModal}
+        onClose={() => {
+          setShowMethodModal(false);
+          setPendingPick(null);
+        }}
+        onConfirm={savePick}
+        fighterName={pendingPick?.corner === 'red' ? pendingPick.bout.red_name : pendingPick?.bout.blue_name || ''}
+        corner={pendingPick?.corner || 'red'}
+        currentMethod={pendingPick?.bout.pick?.picked_method}
+        currentRound={pendingPick?.bout.pick?.picked_round}
+        isMainEvent={bouts?.findIndex(b => b.id === pendingPick?.bout.id) === 0}
       />
 
       {/* Submit Button - Fixed at bottom (only when not submitted) */}
@@ -1242,6 +1307,11 @@ const styles = StyleSheet.create({
   pickLabel: {
     fontSize: 10,
     fontWeight: '500',
+  },
+  predictionLabel: {
+    fontSize: 9,
+    fontWeight: '600',
+    marginTop: 1,
   },
   pctLabel: {
     fontSize: 10,

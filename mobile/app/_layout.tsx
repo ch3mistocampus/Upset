@@ -3,6 +3,7 @@
  */
 
 import { useEffect } from 'react';
+import { View } from 'react-native';
 import { Stack } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
@@ -13,6 +14,7 @@ import { ThemeProvider, useTheme } from '../lib/theme';
 import { DrawerProvider } from '../lib/DrawerContext';
 import { AppDrawer } from '../components/navigation/AppDrawer';
 import { initSentry } from '../lib/sentry';
+import { NetworkStatusBanner } from '../components/ui';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,7 +30,8 @@ function RootNavigator() {
   const { colors, isDark } = useTheme();
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
+      <NetworkStatusBanner />
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
@@ -82,7 +85,7 @@ function RootNavigator() {
         <Stack.Screen name="admin" options={{ headerShown: false }} />
       </Stack>
       <AppDrawer />
-    </>
+    </View>
   );
 }
 

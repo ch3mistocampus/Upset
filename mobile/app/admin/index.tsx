@@ -137,6 +137,26 @@ export default function AdminDashboard() {
         colors={colors}
       />
 
+      <Text style={[styles.sectionTitle, { color: colors.text, marginTop: spacing.lg }]}>Live Operations</Text>
+
+      <QuickAction
+        title="Live Scorecards"
+        subtitle="Control round state for live fights"
+        icon="stats-chart"
+        onPress={() => router.push('/admin/scorecards')}
+        colors={colors}
+      />
+
+      <Text style={[styles.sectionTitle, { color: colors.text, marginTop: spacing.lg }]}>System</Text>
+
+      <QuickAction
+        title="Data Sources"
+        subtitle="Toggle between API and scraper"
+        icon="cloud-outline"
+        onPress={() => router.push('/admin/data-sources')}
+        colors={colors}
+      />
+
       {/* Info */}
       <View style={[styles.infoCard, { backgroundColor: colors.card }]}>
         <Ionicons name="information-circle" size={20} color={colors.textSecondary} />

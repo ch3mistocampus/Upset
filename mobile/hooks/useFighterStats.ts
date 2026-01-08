@@ -2,13 +2,16 @@
  * React Query hooks for UFC Fighter Stats
  */
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import {
   UFCFighter,
   UFCFighterSearchResult,
   FighterProfileAndHistory,
 } from '../types/database';
+
+// Default page size for infinite scroll
+const PAGE_SIZE = 50;
 
 // ============================================================================
 // FIGHTER QUERIES
@@ -44,7 +47,7 @@ export function useSearchFighters(query: string, limit = 20) {
 const FIGHTERS_CACHE_VERSION = 4;
 
 /**
- * Get all fighters (paginated)
+ * Get all fighters (paginated) - legacy version
  */
 export function useFighters(options: {
   limit?: number;
@@ -76,6 +79,76 @@ export function useFighters(options: {
       return data || [];
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+}
+
+interface InfiniteFightersOptions {
+  pageSize?: number;
+  sortBy?: 'full_name' | 'record_wins' | 'weight_lbs' | 'ranking';
+  sortOrder?: 'asc' | 'desc';
+  weightClass?: number | null;
+  weightTolerance?: number;
+}
+
+interface InfiniteFightersPage {
+  fighters: UFCFighter[];
+  nextCursor: number | null;
+  hasMore: boolean;
+}
+
+/**
+ * Get fighters with infinite scroll support
+ * Efficiently fetches pages of fighters on demand
+ */
+export function useInfiniteFighters(options: InfiniteFightersOptions = {}) {
+  const {
+    pageSize = PAGE_SIZE,
+    sortBy = 'full_name',
+    sortOrder = 'asc',
+    weightClass = null,
+    weightTolerance = 10,
+  } = options;
+
+  return useInfiniteQuery({
+    queryKey: ['ufc_fighters', 'infinite', pageSize, sortBy, sortOrder, weightClass, weightTolerance],
+    queryFn: async ({ pageParam = 0 }): Promise<InfiniteFightersPage> => {
+      let query = supabase
+        .from('ufc_fighters')
+        .select('*', { count: 'exact' });
+
+      // Apply weight class filter
+      if (weightClass !== null) {
+        const minWeight = weightClass >= 206 ? weightClass - 50 : weightClass - weightTolerance;
+        const maxWeight = weightClass >= 206 ? 400 : weightClass + weightTolerance;
+        query = query.gte('weight_lbs', minWeight).lte('weight_lbs', maxWeight);
+      }
+
+      // Apply sorting
+      if (sortBy === 'ranking') {
+        // Custom sort: ranked fighters first (by ranking), then unranked (by wins)
+        query = query
+          .order('ranking', { ascending: true, nullsFirst: false })
+          .order('record_wins', { ascending: false });
+      } else {
+        query = query.order(sortBy, { ascending: sortOrder === 'asc' });
+      }
+
+      // Apply pagination
+      query = query.range(pageParam, pageParam + pageSize - 1);
+
+      const { data, error, count } = await query;
+
+      if (error) throw error;
+
+      const fighters = data || [];
+      const nextCursor = fighters.length === pageSize ? pageParam + pageSize : null;
+      const hasMore = nextCursor !== null && (count === null || pageParam + pageSize < count);
+
+      return { fighters, nextCursor, hasMore };
+    },
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    initialPageParam: 0,
+    staleTime: 1000 * 60 * 10, // 10 minutes
   });
 }
 

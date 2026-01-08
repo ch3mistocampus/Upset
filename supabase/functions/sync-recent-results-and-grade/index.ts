@@ -1,13 +1,16 @@
 /**
  * sync-recent-results-and-grade Edge Function
  * Syncs fight results and grades user picks
- * Runs every 6 hours to catch completed events
+ * Supports both UFCStats and MMA API data sources
+ * Uses smart caching to minimize API calls
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { scrapeFightDetails } from "../_shared/ufcstats-scraper.ts";
+import { createMMAApiProvider } from "../_shared/mma-api-provider.ts";
+import { createUFCStatsProvider } from "../_shared/ufcstats-provider.ts";
 import { createLogger } from "../_shared/logger.ts";
+import type { DataProvider, DataProviderType } from "../_shared/data-provider-types.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -23,9 +26,53 @@ serve(async (req) => {
     // Create Supabase client with service role
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Parse query params for manual event override
+    // Parse query params
     const url = new URL(req.url);
     const eventIdOverride = url.searchParams.get("event_id");
+    const force = url.searchParams.get("force") === "true";
+
+    // Check if sync is needed (unless force=true or specific event)
+    if (!force && !eventIdOverride) {
+      const { data: shouldSync } = await supabase.rpc('should_sync', { p_sync_type: 'results' });
+
+      if (shouldSync === false) {
+        logger.info("Cache still valid, skipping sync");
+        return new Response(
+          JSON.stringify({
+            success: true,
+            skipped: true,
+            message: "Cache still valid, sync not needed",
+          }),
+          { headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // Get data source settings
+    const { data: settings } = await supabase.rpc('get_data_source_settings');
+    const dataSource: DataProviderType = settings?.primary_data_source || 'ufcstats';
+
+    logger.info(`Using data source: ${dataSource}`);
+
+    // Create usage tracker for MMA API
+    const trackUsage = async (endpoint: string, count: number) => {
+      await supabase.rpc('track_api_usage', {
+        p_provider: 'mma-api',
+        p_endpoint: endpoint,
+        p_count: count,
+      });
+    };
+
+    // Create provider based on settings
+    let provider: DataProvider;
+    if (dataSource === 'mma-api') {
+      provider = createMMAApiProvider({
+        apiKey: Deno.env.get("MMA_API_KEY"),
+        usageTracker: trackUsage,
+      });
+    } else {
+      provider = createUFCStatsProvider();
+    }
 
     let eventsToProcess: any[];
 
@@ -63,6 +110,10 @@ serve(async (req) => {
 
     if (eventsToProcess.length === 0) {
       logger.info("No events to process");
+
+      // Update sync timestamp even if no events
+      await supabase.rpc('update_sync_timestamp', { p_sync_type: 'results' });
+
       return new Response(
         JSON.stringify({
           success: true,
@@ -80,6 +131,9 @@ serve(async (req) => {
     let eventsCompleted = 0;
     const errors: any[] = [];
     const affectedUsers = new Set<string>();
+
+    // Determine which ID field to use based on provider
+    const fightIdField = provider.idType === 'espn' ? 'espn_fight_id' : 'ufcstats_fight_id';
 
     for (const event of eventsToProcess) {
       logger.info("Processing event", { name: event.name, id: event.id });
@@ -105,6 +159,18 @@ serve(async (req) => {
         // Process each bout
         for (const bout of bouts) {
           try {
+            // Get the external fight ID based on provider
+            const fightExternalId = bout[fightIdField];
+
+            if (!fightExternalId) {
+              logger.debug("Bout missing external ID, skipping", {
+                boutId: bout.id,
+                redName: bout.red_name,
+                blueName: bout.blue_name,
+              });
+              continue;
+            }
+
             // Check if result already exists
             const { data: existingResult } = await supabase
               .from("results")
@@ -112,31 +178,32 @@ serve(async (req) => {
               .eq("bout_id", bout.id)
               .single();
 
-            // Build fight URL
-            const fightUrl = `http://ufcstats.com/fight-details/${bout.ufcstats_fight_id}`;
+            // Fetch result from provider
+            logger.debug("Fetching result", { fight: `${bout.red_name} vs ${bout.blue_name}` });
+            const result = await provider.getFightResult(fightExternalId);
 
-            // Scrape fight details
-            logger.debug("Scraping result", { fight: `${bout.red_name} vs ${bout.blue_name}` });
-            const result = await scrapeFightDetails(fightUrl);
-
-            if (result.winner_corner) {
+            if (result && result.winnerCorner) {
               // We have a result!
               logger.info("Result found", {
                 fight: `${bout.red_name} vs ${bout.blue_name}`,
-                winner: result.winner_corner,
+                winner: result.winnerCorner,
                 method: result.method,
               });
+
+              // Map provider winner format to database format
+              const winnerCorner = result.winnerCorner === 'red' ? 'red' :
+                                   result.winnerCorner === 'blue' ? 'blue' :
+                                   result.winnerCorner === 'draw' ? 'draw' : 'nc';
 
               // Upsert result
               if (existingResult) {
                 await supabase
                   .from("results")
                   .update({
-                    winner_corner: result.winner_corner,
+                    winner_corner: winnerCorner,
                     method: result.method,
                     round: result.round,
                     time: result.time,
-                    details: result.details,
                     synced_at: new Date().toISOString(),
                   })
                   .eq("bout_id", bout.id);
@@ -145,11 +212,10 @@ serve(async (req) => {
                   .from("results")
                   .insert({
                     bout_id: bout.id,
-                    winner_corner: result.winner_corner,
+                    winner_corner: winnerCorner,
                     method: result.method,
                     round: result.round,
                     time: result.time,
-                    details: result.details,
                   });
 
                 resultsSynced++;
@@ -171,14 +237,14 @@ serve(async (req) => {
                   let newStatus: string;
                   let score: number | null;
 
-                  if (result.winner_corner === "draw" || result.winner_corner === "nc") {
+                  if (winnerCorner === "draw" || winnerCorner === "nc") {
                     // Void picks for draws and no contests
                     newStatus = "voided";
                     score = null;
                   } else {
                     // Grade as correct (1) or incorrect (0)
                     newStatus = "graded";
-                    score = pick.picked_corner === result.winner_corner ? 1 : 0;
+                    score = pick.picked_corner === winnerCorner ? 1 : 0;
                   }
 
                   await supabase
@@ -210,7 +276,7 @@ serve(async (req) => {
             });
             errors.push({
               bout: `${bout.red_name} vs ${bout.blue_name}`,
-              error: error.message,
+              error: (error as Error).message,
             });
           }
         }
@@ -247,7 +313,7 @@ serve(async (req) => {
         logger.error("Error processing event", error, { name: event.name });
         errors.push({
           event: event.name,
-          error: error.message,
+          error: (error as Error).message,
         });
       }
     }
@@ -274,10 +340,14 @@ serve(async (req) => {
       }
     }
 
+    // Update sync timestamp
+    await supabase.rpc('update_sync_timestamp', { p_sync_type: 'results' });
+
     const duration = Date.now() - startTime;
 
     const result = {
       success: true,
+      provider: provider.name,
       events_processed: eventsToProcess.length,
       events_completed: eventsCompleted,
       results_synced: totalResultsSynced,
@@ -288,6 +358,7 @@ serve(async (req) => {
     };
 
     logger.success("Results sync and grading complete", duration, {
+      provider: provider.name,
       eventsProcessed: eventsToProcess.length,
       eventsCompleted,
       resultsSynced: totalResultsSynced,
@@ -304,8 +375,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
-        stack: error.stack,
+        error: (error as Error).message,
+        stack: (error as Error).stack,
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );

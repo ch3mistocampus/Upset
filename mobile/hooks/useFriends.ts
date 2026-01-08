@@ -6,7 +6,7 @@
  * - Following/unfollowing users
  * - Searching for users
  *
- * Note: Uses 'friendships' table with 'accepted' status for follows
+ * Uses 'follows' table with 'accepted' status for follows
  * (one-way relationship - you follow someone, they don't auto-follow back)
  */
 
@@ -77,10 +77,10 @@ export function useFriends() {
         throw new Error('Not authenticated');
       }
 
-      // For follow model, we create an accepted friendship directly
-      const { error } = await supabase.from('friendships').insert({
+      // For follow model, we create an accepted follow directly
+      const { error } = await supabase.from('follows').insert({
         user_id: user.id,
-        friend_id: targetUserId,
+        following_id: targetUserId,
         status: 'accepted', // Direct follow, no pending state
       });
 
@@ -113,10 +113,10 @@ export function useFriends() {
 
       // Delete the follow relationship where current user is the follower
       const { error } = await supabase
-        .from('friendships')
+        .from('follows')
         .delete()
         .eq('user_id', user.id)
-        .eq('friend_id', targetUserId);
+        .eq('following_id', targetUserId);
 
       if (error) {
         logger.error('Failed to unfollow user', error, { targetUserId });
@@ -181,20 +181,20 @@ export function useFriends() {
     }
 
     // Get existing follow relationships
-    const { data: friendships, error: friendshipError } = await supabase
-      .from('friendships')
-      .select('user_id, friend_id, status')
+    const { data: followRecords, error: followError } = await supabase
+      .from('follows')
+      .select('user_id, following_id, status')
       .eq('user_id', user.id)
-      .in('friend_id', profiles.map((p) => p.user_id));
+      .in('following_id', profiles.map((p) => p.user_id));
 
-    if (friendshipError) {
-      logger.warn('Failed to fetch follow status for search', friendshipError);
+    if (followError) {
+      logger.warn('Failed to fetch follow status for search', followError);
     }
 
     // Combine data
     const results: UserSearchResult[] = profiles.map((profile) => {
       const userStats = stats?.find((s) => s.user_id === profile.user_id);
-      const friendship = friendships?.find((f) => f.friend_id === profile.user_id);
+      const followRecord = followRecords?.find((f) => f.following_id === profile.user_id);
 
       const totalPicks = userStats?.total_picks || 0;
       const correctPicks = userStats?.correct_winner || 0;
@@ -206,7 +206,7 @@ export function useFriends() {
         total_picks: totalPicks,
         correct_picks: correctPicks,
         accuracy,
-        friendship_status: friendship?.status || null,
+        friendship_status: followRecord?.status || null,
       };
     });
 
@@ -223,10 +223,10 @@ export function useFriends() {
     if (!user) return false;
 
     const { data } = await supabase
-      .from('friendships')
+      .from('follows')
       .select('id')
       .eq('user_id', user.id)
-      .eq('friend_id', targetUserId)
+      .eq('following_id', targetUserId)
       .eq('status', 'accepted')
       .maybeSingle();
 
@@ -235,29 +235,29 @@ export function useFriends() {
 
   // Get followers for a specific user (people who follow them)
   const getFollowers = async (userId: string): Promise<UserSearchResult[]> => {
-    logger.breadcrumb('Fetching followers', 'friends', { userId });
+    logger.breadcrumb('Fetching followers', 'follows', { userId });
 
     const {
       data: { user: currentUser },
     } = await supabase.auth.getUser();
 
-    // Get all friendships where this user is the friend_id (being followed)
-    const { data: friendships, error: friendshipError } = await supabase
-      .from('friendships')
+    // Get all follows where this user is the following_id (being followed)
+    const { data: followRecords, error: followError } = await supabase
+      .from('follows')
       .select('user_id')
-      .eq('friend_id', userId)
+      .eq('following_id', userId)
       .eq('status', 'accepted');
 
-    if (friendshipError) {
-      logger.error('Failed to fetch followers', friendshipError);
-      throw friendshipError;
+    if (followError) {
+      logger.error('Failed to fetch followers', followError);
+      throw followError;
     }
 
-    if (!friendships || friendships.length === 0) {
+    if (!followRecords || followRecords.length === 0) {
       return [];
     }
 
-    const followerIds = friendships.map((f) => f.user_id);
+    const followerIds = followRecords.map((f) => f.user_id);
 
     // Get profiles for these followers
     const { data: profiles, error: profileError } = await supabase
@@ -280,12 +280,12 @@ export function useFriends() {
     let currentUserFollowing: string[] = [];
     if (currentUser) {
       const { data: following } = await supabase
-        .from('friendships')
-        .select('friend_id')
+        .from('follows')
+        .select('following_id')
         .eq('user_id', currentUser.id)
         .eq('status', 'accepted')
-        .in('friend_id', followerIds);
-      currentUserFollowing = following?.map((f) => f.friend_id) || [];
+        .in('following_id', followerIds);
+      currentUserFollowing = following?.map((f) => f.following_id) || [];
     }
 
     return (profiles || []).map((profile) => {
@@ -307,29 +307,29 @@ export function useFriends() {
 
   // Get following for a specific user (people they follow)
   const getFollowing = async (userId: string): Promise<UserSearchResult[]> => {
-    logger.breadcrumb('Fetching following', 'friends', { userId });
+    logger.breadcrumb('Fetching following', 'follows', { userId });
 
     const {
       data: { user: currentUser },
     } = await supabase.auth.getUser();
 
-    // Get all friendships where this user is the user_id (follower)
-    const { data: friendships, error: friendshipError } = await supabase
-      .from('friendships')
-      .select('friend_id')
+    // Get all follows where this user is the user_id (follower)
+    const { data: followRecords, error: followError } = await supabase
+      .from('follows')
+      .select('following_id')
       .eq('user_id', userId)
       .eq('status', 'accepted');
 
-    if (friendshipError) {
-      logger.error('Failed to fetch following', friendshipError);
-      throw friendshipError;
+    if (followError) {
+      logger.error('Failed to fetch following', followError);
+      throw followError;
     }
 
-    if (!friendships || friendships.length === 0) {
+    if (!followRecords || followRecords.length === 0) {
       return [];
     }
 
-    const followingIds = friendships.map((f) => f.friend_id);
+    const followingIds = followRecords.map((f) => f.following_id);
 
     // Get profiles for these users
     const { data: profiles, error: profileError } = await supabase
@@ -352,12 +352,12 @@ export function useFriends() {
     let currentUserFollowing: string[] = [];
     if (currentUser) {
       const { data: following } = await supabase
-        .from('friendships')
-        .select('friend_id')
+        .from('follows')
+        .select('following_id')
         .eq('user_id', currentUser.id)
         .eq('status', 'accepted')
-        .in('friend_id', followingIds);
-      currentUserFollowing = following?.map((f) => f.friend_id) || [];
+        .in('following_id', followingIds);
+      currentUserFollowing = following?.map((f) => f.following_id) || [];
     }
 
     return (profiles || []).map((profile) => {
