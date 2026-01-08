@@ -56,7 +56,7 @@ function TabButton({
 }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const translateYAnim = useRef(new Animated.Value(0)).current;
-  const wasFocused = useRef(isFocused);
+  const wasFocused = useRef(false);
 
   useEffect(() => {
     // Only animate when becoming focused (not on initial render or unfocus)

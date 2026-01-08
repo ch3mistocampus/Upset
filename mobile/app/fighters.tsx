@@ -225,7 +225,7 @@ export default function FightersScreen() {
             accessibilityLabel="Go back to Discover"
             accessibilityRole="button"
           >
-            <Ionicons name="chevron-back" size={28} color={colors.text} />
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={[styles.title, { color: colors.text }]}>Fighters</Text>
           <View style={styles.headerSpacer} />

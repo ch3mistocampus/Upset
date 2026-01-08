@@ -209,7 +209,7 @@ export default function Friends() {
           accessibilityLabel="Go back to Discover"
           accessibilityRole="button"
         >
-          <Ionicons name="chevron-back" size={28} color={colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>
           Following ({friends.length})
