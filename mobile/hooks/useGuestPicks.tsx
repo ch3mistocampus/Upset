@@ -15,6 +15,8 @@ export interface GuestPick {
   event_id: string;
   bout_id: string;
   picked_corner: 'red' | 'blue';
+  picked_method?: string | null;
+  picked_round?: number | null;
   created_at: string;
   updated_at: string;
 }

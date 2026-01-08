@@ -24,7 +24,7 @@ import { ErrorState } from '../../components/ErrorState';
 import { SkeletonFightCard } from '../../components/SkeletonFightCard';
 import { LockExplainerModal } from '../../components/LockExplainerModal';
 import { AuthPromptModal } from '../../components/AuthPromptModal';
-import { MethodPredictionModal } from '../../components/MethodPredictionModal';
+import { MethodPickerModal } from '../../components/MethodPickerModal';
 import { useEventLiveStatus } from '../../hooks/useScorecard';
 import { BoutWithPick, PickInsert } from '../../types/database';
 import type { CommunityPickPercentages } from '../../types/social';
@@ -939,19 +939,20 @@ export default function EventDetail() {
         context={gateContext || 'history'}
       />
 
-      {/* Method Prediction Modal - shown when user picks a fighter */}
-      <MethodPredictionModal
+      {/* Method Picker Modal - shown when user picks a fighter */}
+      <MethodPickerModal
         visible={showMethodModal}
         onClose={() => {
           setShowMethodModal(false);
           setPendingPick(null);
         }}
         onConfirm={savePick}
-        fighterName={pendingPick?.corner === 'red' ? pendingPick.bout.red_name : pendingPick?.bout.blue_name || ''}
-        corner={pendingPick?.corner || 'red'}
+        redFighter={pendingPick?.bout.red_name || ''}
+        blueFighter={pendingPick?.bout.blue_name || ''}
+        selectedCorner={pendingPick?.corner || 'red'}
         currentMethod={pendingPick?.bout.pick?.picked_method}
         currentRound={pendingPick?.bout.pick?.picked_round}
-        isMainEvent={bouts?.findIndex(b => b.id === pendingPick?.bout.id) === 0}
+        orderIndex={bouts?.findIndex(b => b.id === pendingPick?.bout.id)}
       />
 
       {/* Submit Button - Fixed at bottom (only when not submitted) */}
