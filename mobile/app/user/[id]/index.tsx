@@ -38,7 +38,7 @@ import { SkeletonCard } from '../../../components/SkeletonCard';
 import { EmptyState, SurfaceCard } from '../../../components/ui';
 import { AccuracyRing } from '../../../components/AccuracyRing';
 import { MiniChart } from '../../../components/MiniChart';
-import { PostCard, PostErrorBoundary } from '../../../components/posts';
+import { FeedPostRow, PostErrorBoundary } from '../../../components/posts';
 import { useUserPosts } from '../../../hooks/usePosts';
 import type { FriendshipStatus } from '../../../types/social';
 import type { Post } from '../../../types/posts';
@@ -839,11 +839,14 @@ export default function UserProfile() {
             />
           ) : (
             <View style={styles.postsList}>
-              {posts.map((post: Post) => (
-                <View key={post.id} style={styles.postWrapper}>
+              {posts.map((post: Post, index: number) => (
+                <View key={post.id}>
                   <PostErrorBoundary>
-                    <PostCard post={post} />
+                    <FeedPostRow post={post} />
                   </PostErrorBoundary>
+                  {index < posts.length - 1 && (
+                    <View style={[styles.postDivider, { backgroundColor: colors.divider }]} />
+                  )}
                 </View>
               ))}
               {userPosts.hasNextPage && (
@@ -1517,10 +1520,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   postsList: {
-    gap: spacing.md,
+    marginHorizontal: -spacing.md, // Offset content padding for full-width rows
   },
-  postWrapper: {
-    marginBottom: 0,
+  postDivider: {
+    height: 1,
+    marginLeft: spacing.md + 40 + spacing.sm, // Align with post content
   },
   loadMoreButton: {
     paddingVertical: spacing.md,

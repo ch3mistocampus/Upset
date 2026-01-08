@@ -22,6 +22,8 @@ interface EngagementRowProps {
     title?: string;
   };
   disabled?: boolean;
+  /** Compact mode for X/Twitter-style feed rows */
+  compact?: boolean;
 }
 
 export function EngagementRow({
@@ -32,8 +34,10 @@ export function EngagementRow({
   onLikePress,
   shareContent,
   disabled = false,
+  compact = false,
 }: EngagementRowProps) {
   const { colors } = useTheme();
+  const iconSize = compact ? 16 : 18;
 
   const handleCommentPress = () => {
     if (disabled) return;
@@ -68,10 +72,10 @@ export function EngagementRow({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, compact && styles.containerCompact]}>
       {/* Comment */}
       <TouchableOpacity
-        style={styles.actionButton}
+        style={[styles.actionButton, compact && styles.actionButtonCompact]}
         onPress={handleCommentPress}
         disabled={disabled}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -80,11 +84,11 @@ export function EngagementRow({
       >
         <Ionicons
           name="chatbubble-outline"
-          size={18}
+          size={iconSize}
           color={colors.textTertiary}
         />
         {commentCount > 0 && (
-          <Text style={[styles.countText, { color: colors.textTertiary }]}>
+          <Text style={[styles.countText, compact && styles.countTextCompact, { color: colors.textTertiary }]}>
             {formatCount(commentCount)}
           </Text>
         )}
@@ -92,7 +96,7 @@ export function EngagementRow({
 
       {/* Like */}
       <TouchableOpacity
-        style={styles.actionButton}
+        style={[styles.actionButton, compact && styles.actionButtonCompact]}
         onPress={handleLikePress}
         disabled={disabled}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -102,13 +106,14 @@ export function EngagementRow({
       >
         <Ionicons
           name={userHasLiked ? 'heart' : 'heart-outline'}
-          size={18}
+          size={iconSize}
           color={userHasLiked ? colors.accent : colors.textTertiary}
         />
         {likeCount > 0 && (
           <Text
             style={[
               styles.countText,
+              compact && styles.countTextCompact,
               { color: userHasLiked ? colors.accent : colors.textTertiary },
             ]}
           >
@@ -119,7 +124,7 @@ export function EngagementRow({
 
       {/* Share */}
       <TouchableOpacity
-        style={styles.actionButton}
+        style={[styles.actionButton, compact && styles.actionButtonCompact]}
         onPress={handleSharePress}
         disabled={disabled || !shareContent}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -128,7 +133,7 @@ export function EngagementRow({
       >
         <Ionicons
           name="share-outline"
-          size={18}
+          size={iconSize}
           color={colors.textTertiary}
         />
       </TouchableOpacity>
@@ -144,15 +149,26 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     paddingRight: spacing.xl,
   },
+  containerCompact: {
+    marginTop: spacing.xs,
+    paddingRight: spacing.lg,
+  },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: 32,
     minWidth: 44,
   },
+  actionButtonCompact: {
+    minHeight: 28,
+    minWidth: 40,
+  },
   countText: {
     marginLeft: 4,
     fontSize: typography.meta.fontSize,
     fontWeight: typography.meta.fontWeight,
+  },
+  countTextCompact: {
+    fontSize: 12,
   },
 });

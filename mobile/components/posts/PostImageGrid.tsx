@@ -19,9 +19,11 @@ const GRID_GAP = 4;
 interface PostImageGridProps {
   images: PostImage[];
   onImagePress?: (index: number) => void;
+  /** Compact mode for X/Twitter-style feed with clamped heights */
+  compact?: boolean;
 }
 
-export function PostImageGrid({ images, onImagePress }: PostImageGridProps) {
+export function PostImageGrid({ images, onImagePress, compact = false }: PostImageGridProps) {
   const { colors } = useTheme();
 
   if (!images || images.length === 0) return null;
@@ -34,10 +36,18 @@ export function PostImageGrid({ images, onImagePress }: PostImageGridProps) {
     onImagePress?.(index);
   };
 
+  // Clamped heights for compact mode (feed density optimization)
+  const singleHeight = compact ? 160 : 200;
+  const twoImageHeight = compact ? 140 : 180;
+  const threeImageHeight = compact ? 160 : 200;
+  const fourImageRowHeight = compact ? 80 : 100;
+
+  const containerStyle = compact ? styles.containerCompact : styles.container;
+
   // Single image - full width
   if (count === 1) {
     return (
-      <View style={[styles.container, { borderColor: colors.border }]}>
+      <View style={[containerStyle, { borderColor: colors.border }]}>
         <TouchableOpacity
           onPress={() => handlePress(0)}
           activeOpacity={0.9}
@@ -47,7 +57,7 @@ export function PostImageGrid({ images, onImagePress }: PostImageGridProps) {
         >
           <Image
             source={{ uri: sortedImages[0].image_url }}
-            style={[styles.singleImage, { backgroundColor: colors.surfaceAlt }]}
+            style={[styles.singleImage, { height: singleHeight, backgroundColor: colors.surfaceAlt }]}
             resizeMode="cover"
           />
         </TouchableOpacity>
@@ -58,7 +68,7 @@ export function PostImageGrid({ images, onImagePress }: PostImageGridProps) {
   // Two images - side by side
   if (count === 2) {
     return (
-      <View style={[styles.container, styles.twoImageContainer, { borderColor: colors.border }]}>
+      <View style={[containerStyle, styles.twoImageContainer, { height: twoImageHeight, borderColor: colors.border }]}>
         <TouchableOpacity
           onPress={() => handlePress(0)}
           activeOpacity={0.9}
@@ -94,7 +104,7 @@ export function PostImageGrid({ images, onImagePress }: PostImageGridProps) {
   // Three images - large left + 2 stacked right
   if (count === 3) {
     return (
-      <View style={[styles.container, styles.threeImageContainer, { borderColor: colors.border }]}>
+      <View style={[containerStyle, styles.threeImageContainer, { height: threeImageHeight, borderColor: colors.border }]}>
         <TouchableOpacity
           onPress={() => handlePress(0)}
           activeOpacity={0.9}
@@ -145,8 +155,8 @@ export function PostImageGrid({ images, onImagePress }: PostImageGridProps) {
 
   // Four images - 2x2 grid
   return (
-    <View style={[styles.container, { borderColor: colors.border }]}>
-      <View style={styles.fourImageRow}>
+    <View style={[containerStyle, { borderColor: colors.border }]}>
+      <View style={[styles.fourImageRow, { height: fourImageRowHeight }]}>
         <TouchableOpacity
           onPress={() => handlePress(0)}
           activeOpacity={0.9}
@@ -176,7 +186,7 @@ export function PostImageGrid({ images, onImagePress }: PostImageGridProps) {
           />
         </TouchableOpacity>
       </View>
-      <View style={styles.fourImageRow}>
+      <View style={[styles.fourImageRow, { height: fourImageRowHeight }]}>
         <TouchableOpacity
           onPress={() => handlePress(2)}
           activeOpacity={0.9}
@@ -217,17 +227,23 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
   },
+  containerCompact: {
+    marginTop: spacing.xs,
+    borderRadius: radius.sm,
+    overflow: 'hidden',
+    borderWidth: 1,
+  },
 
   // Single image
   singleImage: {
     width: '100%',
-    height: 200,
+    // height set dynamically via style prop
   },
 
   // Two images
   twoImageContainer: {
     flexDirection: 'row',
-    height: 180,
+    // height set dynamically via style prop
   },
   twoImageLeft: {
     flex: 1,
@@ -245,7 +261,7 @@ const styles = StyleSheet.create({
   // Three images
   threeImageContainer: {
     flexDirection: 'row',
-    height: 200,
+    // height set dynamically via style prop
   },
   threeImageLeft: {
     flex: 2,
@@ -275,7 +291,7 @@ const styles = StyleSheet.create({
   // Four images
   fourImageRow: {
     flexDirection: 'row',
-    height: 100,
+    // height set dynamically via style prop
   },
   fourImageTopLeft: {
     flex: 1,
