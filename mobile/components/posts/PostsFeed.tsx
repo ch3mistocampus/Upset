@@ -1,5 +1,6 @@
 /**
- * PostsFeed - Paginated feed of posts
+ * PostsFeed - X/Twitter-style paginated feed of posts
+ * Compact row layout with divider separation
  * Uses infinite scroll with pull-to-refresh
  * Optimized with FlatList performance props
  */
@@ -8,16 +9,15 @@ import { View, FlatList, StyleSheet, RefreshControl, ActivityIndicator, Text } f
 import { useCallback, useMemo } from 'react';
 import { useTheme } from '../../lib/theme';
 import { spacing, typography } from '../../lib/tokens';
-import { PostCard } from './PostCard';
+import { FeedPostRow } from './FeedPostRow';
 import { PostErrorBoundary } from './PostErrorBoundary';
 import { EmptyState } from '../EmptyState';
 import { usePostsFeed } from '../../hooks/usePosts';
 import { Post } from '../../types/posts';
 
 // Estimated item height for getItemLayout optimization
-// This is approximate - actual height varies by content
-const ESTIMATED_ITEM_HEIGHT = 280;
-const ITEM_MARGIN = 16; // spacing.md
+// Compact row layout: ~120px average (vs 280px for cards)
+const ESTIMATED_ITEM_HEIGHT = 120;
 
 export function PostsFeed() {
   const { colors } = useTheme();
@@ -42,20 +42,23 @@ export function PostsFeed() {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const renderItem = useCallback(({ item }: { item: Post }) => (
-    <View style={styles.postWrapper}>
-      <PostErrorBoundary>
-        <PostCard post={item} />
-      </PostErrorBoundary>
-    </View>
+    <PostErrorBoundary>
+      <FeedPostRow post={item} />
+    </PostErrorBoundary>
   ), []);
 
   const keyExtractor = useCallback((item: Post) => item.id, []);
 
+  // Divider component between posts
+  const ItemSeparator = useCallback(() => (
+    <View style={[styles.divider, { backgroundColor: colors.divider }]} />
+  ), [colors.divider]);
+
   // Estimated layout for better scroll performance
-  // Not perfect due to variable content, but helps with initial render
+  // Compact rows are ~120px on average
   const getItemLayout = useCallback((_data: ArrayLike<Post> | null | undefined, index: number) => ({
-    length: ESTIMATED_ITEM_HEIGHT + ITEM_MARGIN,
-    offset: (ESTIMATED_ITEM_HEIGHT + ITEM_MARGIN) * index,
+    length: ESTIMATED_ITEM_HEIGHT,
+    offset: ESTIMATED_ITEM_HEIGHT * index,
     index,
   }), []);
 
@@ -110,7 +113,11 @@ export function PostsFeed() {
       data={posts}
       renderItem={renderItem}
       keyExtractor={keyExtractor}
-      contentContainerStyle={styles.listContent}
+      contentContainerStyle={[
+        styles.listContent,
+        { backgroundColor: colors.background },
+      ]}
+      ItemSeparatorComponent={ItemSeparator}
       onEndReached={handleEndReached}
       onEndReachedThreshold={0.5}
       ListFooterComponent={renderFooter}
@@ -126,9 +133,9 @@ export function PostsFeed() {
       // Performance optimizations
       getItemLayout={getItemLayout}
       removeClippedSubviews={true}
-      maxToRenderPerBatch={10}
-      windowSize={5}
-      initialNumToRender={5}
+      maxToRenderPerBatch={15}
+      windowSize={7}
+      initialNumToRender={8}
       updateCellsBatchingPeriod={50}
     />
   );
@@ -146,12 +153,13 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   listContent: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+    // No horizontal padding - FeedPostRow handles its own padding
+    paddingTop: spacing.xs,
     paddingBottom: spacing.xl,
   },
-  postWrapper: {
-    marginBottom: spacing.md,
+  divider: {
+    height: 1,
+    marginLeft: spacing.md + 40 + spacing.sm, // Align with content (avatar width + margin)
   },
   loadingFooter: {
     paddingVertical: spacing.lg,

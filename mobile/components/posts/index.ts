@@ -1,4 +1,5 @@
 export { PostCard } from './PostCard';
+export { FeedPostRow } from './FeedPostRow';
 export { PostsFeed } from './PostsFeed';
 export { CommentItem } from './CommentItem';
 export { CommentInput } from './CommentInput';

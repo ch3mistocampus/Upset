@@ -39,7 +39,7 @@ import { useLike } from '../../hooks/useLikes';
 import { useUserSuggestions, getSuggestionReasonText, UserSuggestion } from '../../hooks/useSuggestions';
 import { usePostsFeed, useFollowingPostsFeed } from '../../hooks/usePosts';
 import { useAuth } from '../../hooks/useAuth';
-import { PostCard } from '../../components/posts';
+import { FeedPostRow } from '../../components/posts';
 import { Post } from '../../types/posts';
 
 type FeedTab = 'discover' | 'following';
@@ -162,14 +162,15 @@ export default function DiscoverScreen() {
   // Render combined feed item (either activity or post)
   const renderFeedItem = ({ item }: { item: FeedItem }) => {
     if (item.type === 'post') {
-      return (
-        <View style={styles.postWrapper}>
-          <PostCard post={item.data} />
-        </View>
-      );
+      return <FeedPostRow post={item.data} />;
     }
     return renderActivityItem({ item: item.data });
   };
+
+  // Divider component for feed separation
+  const FeedItemSeparator = useCallback(() => (
+    <View style={[styles.feedDivider, { backgroundColor: colors.divider }]} />
+  ), [colors.divider]);
 
   const renderActivityItem = ({ item }: { item: ActivityItem }) => (
     <TouchableOpacity
@@ -519,6 +520,7 @@ export default function DiscoverScreen() {
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={renderEmpty}
           ListFooterComponent={renderFooter}
+          ItemSeparatorComponent={FeedItemSeparator}
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
           refreshControl={
@@ -530,6 +532,11 @@ export default function DiscoverScreen() {
           }
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          // Performance optimizations
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={15}
+          windowSize={7}
+          initialNumToRender={8}
         />
       )}
 
@@ -590,8 +597,12 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.semibold as '600',
   },
   listContent: {
-    padding: spacing.md,
+    paddingTop: spacing.xs,
     paddingBottom: spacing.xxl,
+  },
+  feedDivider: {
+    height: 1,
+    marginLeft: spacing.md + 40 + spacing.sm, // Align with post content (avatar width + margin)
   },
   loadingContainer: {
     flex: 1,
@@ -701,11 +712,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: typography.sizes.xs,
     fontWeight: typography.weights.semibold as '600',
-  },
-
-  // Post wrapper (for PostCard in feed)
-  postWrapper: {
-    marginBottom: spacing.sm,
   },
 
   // Activity Items

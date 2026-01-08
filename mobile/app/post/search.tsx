@@ -22,7 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/theme';
 import { spacing, radius, typography } from '../../lib/tokens';
 import { useSearchPosts, useTrendingPosts, SearchSortBy } from '../../hooks/usePostSearch';
-import { PostCard, PostErrorBoundary } from '../../components/posts';
+import { FeedPostRow, PostErrorBoundary } from '../../components/posts';
 import { EmptyState } from '../../components/EmptyState';
 import { Post } from '../../types/posts';
 import { useFriends } from '../../hooks/useFriends';
@@ -113,14 +113,17 @@ export default function SearchScreen() {
 
   const renderPost = useCallback(
     ({ item }: { item: Post }) => (
-      <View style={styles.postWrapper}>
-        <PostErrorBoundary>
-          <PostCard post={item} />
-        </PostErrorBoundary>
-      </View>
+      <PostErrorBoundary>
+        <FeedPostRow post={item} />
+      </PostErrorBoundary>
     ),
     []
   );
+
+  // Divider component for feed separation
+  const PostDivider = useCallback(() => (
+    <View style={[styles.postDivider, { backgroundColor: colors.divider }]} />
+  ), [colors.divider]);
 
   const renderUser = useCallback(
     ({ item }: { item: UserSearchResult }) => {
@@ -396,11 +399,16 @@ export default function SearchScreen() {
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={renderEmpty}
           ListFooterComponent={renderFooter}
+          ItemSeparatorComponent={PostDivider}
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={styles.listContentCompact}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={15}
+          windowSize={7}
+          initialNumToRender={8}
         />
       ) : (
         <FlatList
@@ -466,6 +474,14 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     paddingBottom: spacing.xxl,
   },
+  listContentCompact: {
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xxl,
+  },
+  postDivider: {
+    height: 1,
+    marginLeft: spacing.md + 40 + spacing.sm, // Align with post content
+  },
   headerContent: {
     marginBottom: spacing.md,
   },
@@ -520,9 +536,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...typography.body,
-  },
-  postWrapper: {
-    marginBottom: spacing.md,
   },
   loadingFooter: {
     paddingVertical: spacing.lg,
