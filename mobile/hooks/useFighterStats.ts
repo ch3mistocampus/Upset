@@ -86,8 +86,7 @@ interface InfiniteFightersOptions {
   pageSize?: number;
   sortBy?: 'full_name' | 'record_wins' | 'weight_lbs' | 'ranking';
   sortOrder?: 'asc' | 'desc';
-  weightClass?: number | null;
-  weightTolerance?: number;
+  weightClass?: string | null;
 }
 
 interface InfiniteFightersPage {
@@ -106,21 +105,18 @@ export function useInfiniteFighters(options: InfiniteFightersOptions = {}) {
     sortBy = 'full_name',
     sortOrder = 'asc',
     weightClass = null,
-    weightTolerance = 10,
   } = options;
 
   return useInfiniteQuery({
-    queryKey: ['ufc_fighters', 'infinite', pageSize, sortBy, sortOrder, weightClass, weightTolerance],
+    queryKey: ['ufc_fighters', 'infinite', pageSize, sortBy, sortOrder, weightClass],
     queryFn: async ({ pageParam = 0 }): Promise<InfiniteFightersPage> => {
       let query = supabase
         .from('ufc_fighters')
         .select('*', { count: 'exact' });
 
-      // Apply weight class filter
-      if (weightClass !== null) {
-        const minWeight = weightClass >= 206 ? weightClass - 50 : weightClass - weightTolerance;
-        const maxWeight = weightClass >= 206 ? 400 : weightClass + weightTolerance;
-        query = query.gte('weight_lbs', minWeight).lte('weight_lbs', maxWeight);
+      // Apply weight class filter by name (e.g., "Heavyweight", "Lightweight")
+      if (weightClass) {
+        query = query.eq('weight_class', weightClass);
       }
 
       // Apply sorting

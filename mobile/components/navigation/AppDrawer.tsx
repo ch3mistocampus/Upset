@@ -33,6 +33,7 @@ import { useDrawer } from '../../lib/DrawerContext';
 import { useUserStats } from '../../hooks/useQueries';
 import { spacing, radius } from '../../lib/tokens';
 import type { ThemeMode } from '../../lib/tokens';
+import { MmaGloveIcon } from '../icons';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = SCREEN_WIDTH * 0.8;
@@ -49,7 +50,8 @@ const SPRING_CONFIG = {
 };
 
 interface NavItem {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon?: keyof typeof Ionicons.glyphMap;
+  customIcon?: 'mma-glove';
   label: string;
   route: string;
   requiresAuth?: boolean;
@@ -57,7 +59,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { icon: 'person-outline', label: 'Profile', route: '/user/', requiresAuth: true },
-  { icon: 'fitness-outline', label: 'Fighters', route: '/fighters', requiresAuth: false },
+  { customIcon: 'mma-glove', label: 'Fighters', route: '/fighters', requiresAuth: false },
   { icon: 'settings-outline', label: 'Settings', route: '/settings', requiresAuth: false },
 ];
 
@@ -402,7 +404,11 @@ export function AppDrawer() {
                   onPress={() => handleNavigation(item)}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name={item.icon} size={24} color={colors.text} />
+                  {item.customIcon === 'mma-glove' ? (
+                    <MmaGloveIcon size={24} color={colors.text} />
+                  ) : (
+                    <Ionicons name={item.icon!} size={24} color={colors.text} />
+                  )}
                   <Text style={[styles.navLabel, { color: colors.text }]}>{item.label}</Text>
                   <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
                 </TouchableOpacity>

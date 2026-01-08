@@ -34,7 +34,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../lib/theme';
 import { spacing, radius, typography } from '../lib/tokens';
-import { useInfiniteFighters, useSearchFighters, getWeightClassName } from '../hooks/useFighterStats';
+import { useInfiniteFighters, useSearchFighters } from '../hooks/useFighterStats';
 import { FighterCard } from '../components/FighterCard';
 import { EmptyState } from '../components/ui';
 import { SkeletonCard } from '../components/SkeletonCard';
@@ -333,7 +333,7 @@ export default function FightersScreen() {
       <View style={styles.resultsRow}>
         <Text style={[styles.resultsCount, { color: colors.textTertiary }]}>
           {totalCount} fighter{totalCount !== 1 ? 's' : ''}
-          {selectedWeight && !searchQuery.trim() && ` in ${getWeightClassName(selectedWeight) || selectedWeight}`}
+          {selectedWeight && !searchQuery.trim() && ` in ${selectedWeight}`}
           {hasMore && !searchQuery.trim() && ' (scroll for more)'}
         </Text>
       </View>

@@ -1,10 +1,11 @@
 /**
  * SkeletonFightCard Component
  * Skeleton loader for fight cards in pick screen
+ * Matches the horizontal pill layout of actual fight cards
  */
 
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { SkeletonLine } from './SkeletonCard';
 import { useTheme } from '../lib/theme';
 import { radius, spacing } from '../lib/tokens';
@@ -20,19 +21,20 @@ export const SkeletonFightCard: React.FC = () => {
         <SkeletonLine width={100} height={12} marginBottom={0} />
       </View>
 
-      {/* Red corner fighter */}
-      <View style={[styles.fighterButton, { backgroundColor: colors.surfaceAlt }]}>
-        <View style={styles.redIndicator} />
-        <SkeletonLine width="70%" height={16} marginBottom={0} />
-      </View>
+      {/* Fighter pills row - horizontal layout matching actual design */}
+      <View style={styles.fightersRow}>
+        {/* Fighter 1 pill */}
+        <View style={[styles.fighterPill, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+          <SkeletonLine width="80%" height={14} marginBottom={0} />
+        </View>
 
-      {/* VS separator */}
-      <View style={styles.vsSpacer} />
+        {/* VS text */}
+        <Text style={[styles.vs, { color: colors.textTertiary }]}>vs</Text>
 
-      {/* Blue corner fighter */}
-      <View style={[styles.fighterButton, { backgroundColor: colors.surfaceAlt }]}>
-        <View style={styles.blueIndicator} />
-        <SkeletonLine width="65%" height={16} marginBottom={0} />
+        {/* Fighter 2 pill */}
+        <View style={[styles.fighterPill, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+          <SkeletonLine width="75%" height={14} marginBottom={0} />
+        </View>
       </View>
     </View>
   );
@@ -41,7 +43,7 @@ export const SkeletonFightCard: React.FC = () => {
 const styles = StyleSheet.create({
   card: {
     borderRadius: radius.card,
-    padding: spacing.md,
+    padding: spacing.sm,
     marginBottom: spacing.sm,
     borderWidth: 1,
   },
@@ -49,41 +51,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
-  fighterButton: {
+  fightersRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: radius.sm,
-    padding: spacing.md,
-    marginBottom: 8,
-    position: 'relative',
+    gap: spacing.xs,
   },
-  redIndicator: {
-    width: 4,
-    height: '100%',
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: '#dc2626',
-    borderTopLeftRadius: 6,
-    borderBottomLeftRadius: 6,
-    marginRight: spacing.sm,
+  fighterPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.button,
+    borderWidth: 1,
+    minHeight: 36,
   },
-  blueIndicator: {
-    width: 4,
-    height: '100%',
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: '#2563eb',
-    borderTopLeftRadius: 6,
-    borderBottomLeftRadius: 6,
-    marginRight: spacing.sm,
-  },
-  vsSpacer: {
-    height: 8,
+  vs: {
+    fontSize: 11,
+    fontWeight: '500',
+    paddingHorizontal: 2,
   },
 });
