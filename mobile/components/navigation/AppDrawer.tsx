@@ -4,7 +4,7 @@
  * Uses PanResponder + Reanimated for smooth gestures in Expo Go
  */
 
-import React, { useCallback, useRef, useEffect } from 'react';
+import React, { useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,7 +24,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useSegments } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../lib/theme';
@@ -63,11 +63,27 @@ const NAV_ITEMS: NavItem[] = [
 
 export function AppDrawer() {
   const { colors, themeMode, setThemeMode } = useTheme();
-  const { isOpen, closeDrawer, openDrawer } = useDrawer();
+  const { isOpen, isEnabled, closeDrawer, openDrawer, setEnabled } = useDrawer();
   const { user, profile, isGuest, signOut } = useAuth();
   const router = useRouter();
+  const segments = useSegments();
   const insets = useSafeAreaInsets();
   const { data: stats } = useUserStats(user?.id || null);
+
+  // Determine if we're on a top-level tab screen where drawer swipe should be enabled
+  // Top-level screens are: (tabs)/home, (tabs)/pick, (tabs)/discover, (tabs)/leaderboards, etc.
+  // Deeper screens like event/[id], fighter/[id], settings/*, etc. should allow swipe-back instead
+  const isTopLevelScreen = useMemo(() => {
+    // Check if first segment is "(tabs)" - this means we're on a main tab screen
+    // Also allow drawer on index (splash/redirect) and auth screens
+    const firstSegment = segments[0];
+    return firstSegment === '(tabs)' || firstSegment === 'index' || firstSegment === undefined;
+  }, [segments]);
+
+  // Update drawer enabled state based on navigation
+  useEffect(() => {
+    setEnabled(isTopLevelScreen);
+  }, [isTopLevelScreen, setEnabled]);
 
   // Shared value for smooth UI-thread animations
   const translateX = useSharedValue(-DRAWER_WIDTH);
@@ -268,8 +284,8 @@ export function AppDrawer() {
 
   return (
     <>
-      {/* Edge swipe zone - always visible for opening */}
-      {!isOpen && (
+      {/* Edge swipe zone - only visible on top-level screens for opening */}
+      {!isOpen && isEnabled && (
         <View
           style={styles.edgeSwipeZone}
           {...edgePanResponder.panHandlers}
