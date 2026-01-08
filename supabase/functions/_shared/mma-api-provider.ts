@@ -24,6 +24,9 @@ async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Usage tracking callback type
+export type UsageTracker = (endpoint: string, count: number) => Promise<void>;
+
 export class MMAApiProvider implements DataProvider {
   name = "MMA API (RapidAPI)";
   idType: "ufcstats" | "espn" = "espn";
@@ -33,16 +36,24 @@ export class MMAApiProvider implements DataProvider {
   private timeout: number;
   private retries: number;
   private lastRequestTime = 0;
+  private usageTracker?: UsageTracker;
+  private requestCount = 0;
 
-  constructor(config?: ProviderConfig) {
+  constructor(config?: ProviderConfig & { usageTracker?: UsageTracker }) {
     this.apiKey = config?.apiKey || Deno.env.get("MMA_API_KEY") || "";
     this.baseUrl = config?.baseUrl || DEFAULT_BASE_URL;
     this.timeout = config?.timeout || DEFAULT_TIMEOUT;
     this.retries = config?.retries || DEFAULT_RETRIES;
+    this.usageTracker = config?.usageTracker;
 
     if (!this.apiKey) {
       console.warn("MMA API key not configured - provider will not work");
     }
+  }
+
+  /** Get total requests made this session */
+  getRequestCount(): number {
+    return this.requestCount;
   }
 
   private async fetch(endpoint: string, params: Record<string, string> = {}): Promise<any> {
@@ -83,6 +94,17 @@ export class MMAApiProvider implements DataProvider {
         }
 
         const data = await response.json();
+
+        // Track usage on successful request
+        this.requestCount++;
+        if (this.usageTracker) {
+          try {
+            await this.usageTracker(endpoint, 1);
+          } catch (trackingError) {
+            console.warn("Failed to track API usage:", trackingError);
+          }
+        }
+
         return data;
       } catch (error) {
         lastError = error as Error;
