@@ -13,6 +13,7 @@ import { useTheme } from '../lib/theme';
 import { spacing, radius, typography } from '../lib/tokens';
 import { SettingsRow } from '../components/SettingsRow';
 import { SurfaceCard, SegmentedControl } from '../components/ui';
+import { GlobalTabBar } from '../components/navigation/GlobalTabBar';
 import type { ThemeMode } from '../lib/tokens';
 
 export default function Settings() {
@@ -73,10 +74,11 @@ export default function Settings() {
   };
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={styles.contentContainer}
-    >
+    <View style={[styles.wrapper, { backgroundColor: colors.background }]}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+      >
       <Animated.View
         style={{
           opacity: fadeAnim,
@@ -200,11 +202,16 @@ export default function Settings() {
           <Text style={[styles.versionSubtext, { color: colors.textMuted }]}>Built with React Native & Expo</Text>
         </View>
       </Animated.View>
-    </ScrollView>
+      </ScrollView>
+      <GlobalTabBar />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    flex: 1,
+  },
   container: {
     flex: 1,
   },

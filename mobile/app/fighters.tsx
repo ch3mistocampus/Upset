@@ -12,34 +12,48 @@ import {
   RefreshControl,
   ActivityIndicator,
   Keyboard,
+  LayoutAnimation,
+  Platform,
+  UIManager,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+} from 'react-native-reanimated';
 import { useState, useCallback, useMemo } from 'react';
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../lib/theme';
 import { spacing, radius, typography } from '../lib/tokens';
-import { useFighters, useSearchFighters, getWeightClassName } from '../hooks/useFighterStats';
+import { useFighters, useSearchFighters } from '../hooks/useFighterStats';
 import { FighterCard } from '../components/FighterCard';
 import { EmptyState } from '../components/ui';
 import { SkeletonCard } from '../components/SkeletonCard';
 import { UFCFighter, UFCFighterSearchResult } from '../types/database';
+import { GlobalTabBar } from '../components/navigation/GlobalTabBar';
 
 type SortOption = 'ranking' | 'wins' | 'name' | 'weight';
 type DisplayFighter = UFCFighter | UFCFighterSearchResult;
 
 const WEIGHT_CLASSES = [
-  { label: 'All', value: null, name: null },
-  { label: 'HW', value: 265, name: 'Heavyweight' },
-  { label: 'LHW', value: 205, name: 'Light Heavyweight' },
-  { label: 'MW', value: 185, name: 'Middleweight' },
-  { label: 'WW', value: 170, name: 'Welterweight' },
-  { label: 'LW', value: 155, name: 'Lightweight' },
-  { label: 'FW', value: 145, name: 'Featherweight' },
-  { label: 'BW', value: 135, name: 'Bantamweight' },
-  { label: 'FLW', value: 125, name: 'Flyweight' },
-  { label: 'SW', value: 115, name: 'Strawweight' },
+  { label: 'All', value: null },
+  { label: 'HW', value: 'Heavyweight' },
+  { label: 'LHW', value: 'Light Heavyweight' },
+  { label: 'MW', value: 'Middleweight' },
+  { label: 'WW', value: 'Welterweight' },
+  { label: 'LW', value: 'Lightweight' },
+  { label: 'FW', value: 'Featherweight' },
+  { label: 'BW', value: 'Bantamweight' },
+  { label: 'FLW', value: 'Flyweight' },
+  { label: 'SW', value: 'Strawweight' },
 ];
 
 export default function FightersScreen() {
@@ -50,42 +64,31 @@ export default function FightersScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('ranking');
-  const [selectedWeight, setSelectedWeight] = useState<number | null>(null);
+  const [selectedWeight, setSelectedWeight] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Get selected weight class name for ranking queries
-  const selectedWeightClass = useMemo(() => {
-    const wc = WEIGHT_CLASSES.find(w => w.value === selectedWeight);
-    return wc?.name || null;
-  }, [selectedWeight]);
+  // Animation state for smooth transitions
+  const listOpacity = useSharedValue(1);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Queries
-  // Load all fighters - TODO: implement infinite scroll for better perf
+  // Filter by weight class on server for performance
   const fightersQuery = useFighters({
-    limit: 5000, // We have ~4,451 fighters
+    limit: 1000,
     sortBy: sortBy === 'name' ? 'full_name' : sortBy === 'wins' ? 'record_wins' : 'weight_lbs',
     sortOrder: sortBy === 'name' ? 'asc' : 'desc',
+    weightClass: selectedWeight,
   });
 
   const searchQuery_ = useSearchFighters(searchQuery, 30);
 
-  // Filter and sort fighters
+  // Sort fighters (filtering is done server-side)
   const filteredFighters = useMemo(() => {
     const fighters = fightersQuery.data || [];
 
-    // First filter by weight class
-    let filtered = fighters;
-    if (selectedWeight) {
-      const tolerance = selectedWeight >= 206 ? 50 : 10; // Heavyweight has larger range
-      filtered = fighters.filter(f => {
-        if (!f.weight_lbs) return false;
-        return Math.abs(f.weight_lbs - selectedWeight) <= tolerance;
-      });
-    }
-
     // Sort by ranking if selected
     if (sortBy === 'ranking') {
-      return [...filtered].sort((a, b) => {
+      return [...fighters].sort((a, b) => {
         // Ranked fighters come first
         const aRank = (a as UFCFighter).ranking;
         const bRank = (b as UFCFighter).ranking;
@@ -101,8 +104,8 @@ export default function FightersScreen() {
       });
     }
 
-    return filtered;
-  }, [fightersQuery.data, selectedWeight, sortBy]);
+    return fighters;
+  }, [fightersQuery.data, sortBy]);
 
   // Use search results when searching, otherwise filtered list
   const displayFighters = searchQuery.trim().length >= 2
@@ -129,24 +132,117 @@ export default function FightersScreen() {
   };
 
   const handleSortChange = (option: SortOption) => {
+    if (option === sortBy) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSortBy(option);
+
+    // Animate transition
+    setIsTransitioning(true);
+    listOpacity.value = withTiming(0, { duration: 150 }, () => {
+      // This runs on UI thread, we need to update state on JS thread
+    });
+
+    // Update state after fade out
+    setTimeout(() => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setSortBy(option);
+
+      // Fade back in
+      setTimeout(() => {
+        listOpacity.value = withTiming(1, { duration: 200 });
+        setIsTransitioning(false);
+      }, 50);
+    }, 150);
   };
 
-  const handleWeightFilter = (weight: number | null) => {
+  const handleWeightFilter = (weight: string | null) => {
+    if (weight === selectedWeight) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSelectedWeight(weight);
+
+    // Animate transition
+    setIsTransitioning(true);
+    listOpacity.value = withTiming(0, { duration: 150 });
+
+    // Update state after fade out
+    setTimeout(() => {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setSelectedWeight(weight);
+
+      // Fade back in
+      setTimeout(() => {
+        listOpacity.value = withTiming(1, { duration: 200 });
+        setIsTransitioning(false);
+      }, 50);
+    }, 150);
   };
 
   const renderFighter = ({ item }: { item: DisplayFighter }) => (
     <FighterCard fighter={item} compact={searchQuery.trim().length >= 2} />
   );
 
-  const renderHeader = () => (
-    <View style={styles.headerContent}>
-      {/* Sort Options */}
+  // Header is now rendered outside FlatList, so this is empty
+  const renderHeader = () => null;
+
+  // Animated style for list opacity
+  const listAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: listOpacity.value,
+  }));
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.back();
+            }}
+            style={styles.backButton}
+            accessibilityLabel="Go back to Discover"
+            accessibilityRole="button"
+          >
+            <Ionicons name="chevron-back" size={28} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.title, { color: colors.text }]}>Fighters</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+
+        {/* Search Bar */}
+        <View style={[
+          styles.searchContainer,
+          {
+            backgroundColor: colors.surfaceAlt,
+            borderColor: isSearchFocused ? colors.accent : colors.border,
+          },
+        ]}>
+          <Ionicons
+            name="search"
+            size={18}
+            color={isSearchFocused ? colors.accent : colors.textTertiary}
+          />
+          <TextInput
+            style={[styles.searchInput, { color: colors.text }]}
+            placeholder="Search fighters..."
+            placeholderTextColor={colors.textTertiary}
+            value={searchQuery}
+            onChangeText={handleSearch}
+            onFocus={() => setIsSearchFocused(true)}
+            onBlur={() => setIsSearchFocused(false)}
+            returnKeyType="search"
+            autoCorrect={false}
+            autoCapitalize="none"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={clearSearch}>
+              <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/* Sort & Filter Options - Always visible */}
       {!searchQuery.trim() && (
-        <>
+        <View style={[styles.filtersContainer, { backgroundColor: colors.background }]}>
           <View style={styles.sortRow}>
             <Text style={[styles.sortLabel, { color: colors.textSecondary }]}>Sort by:</Text>
             <View style={styles.sortOptions}>
@@ -206,112 +302,79 @@ export default function FightersScreen() {
               </TouchableOpacity>
             )}
           />
-        </>
+        </View>
       )}
 
       {/* Results count */}
-      <Text style={[styles.resultsCount, { color: colors.textTertiary }]}>
-        {displayFighters.length} fighter{displayFighters.length !== 1 ? 's' : ''}
-        {selectedWeight && !searchQuery.trim() && ` in ${getWeightClassName(selectedWeight)}`}
-      </Text>
-    </View>
-  );
-
-  return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.back();
-            }}
-            style={styles.backButton}
-            accessibilityLabel="Go back to Discover"
-            accessibilityRole="button"
-          >
-            <Ionicons name="chevron-back" size={28} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={[styles.title, { color: colors.text }]}>Fighters</Text>
-          <View style={styles.headerSpacer} />
-        </View>
-
-        {/* Search Bar */}
-        <View style={[
-          styles.searchContainer,
-          {
-            backgroundColor: colors.surfaceAlt,
-            borderColor: isSearchFocused ? colors.accent : colors.border,
-          },
-        ]}>
-          <Ionicons
-            name="search"
-            size={18}
-            color={isSearchFocused ? colors.accent : colors.textTertiary}
-          />
-          <TextInput
-            style={[styles.searchInput, { color: colors.text }]}
-            placeholder="Search fighters..."
-            placeholderTextColor={colors.textTertiary}
-            value={searchQuery}
-            onChangeText={handleSearch}
-            onFocus={() => setIsSearchFocused(true)}
-            onBlur={() => setIsSearchFocused(false)}
-            returnKeyType="search"
-            autoCorrect={false}
-            autoCapitalize="none"
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={clearSearch}>
-              <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
-            </TouchableOpacity>
-          )}
-        </View>
+      <View style={styles.resultsRow}>
+        <Text style={[styles.resultsCount, { color: colors.textTertiary }]}>
+          {displayFighters.length} fighter{displayFighters.length !== 1 ? 's' : ''}
+          {selectedWeight && !searchQuery.trim() && ` in ${selectedWeight}`}
+        </Text>
       </View>
 
       {/* Content */}
-      {isLoading && !refreshing ? (
-        <View style={styles.loadingContainer}>
-          <SkeletonCard />
-          <SkeletonCard />
-          <SkeletonCard />
-        </View>
-      ) : displayFighters.length === 0 ? (
-        <EmptyState
-          icon="person-outline"
-          title={searchQuery.trim() ? 'No Fighters Found' : 'No Fighters'}
-          message={
-            searchQuery.trim()
-              ? `No fighters match "${searchQuery}"`
-              : 'No fighter data available yet.'
-          }
-        />
-      ) : (
-        <FlatList<DisplayFighter>
-          data={displayFighters}
-          keyExtractor={(item) => item.fighter_id}
-          renderItem={renderFighter}
-          ListHeaderComponent={renderHeader}
-          contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 100 }]}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={colors.accent}
-              colors={[colors.accent]}
+      <Animated.View style={[styles.contentWrapper, listAnimatedStyle]}>
+        {isLoading && !refreshing ? (
+          <View style={styles.loadingContainer}>
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </View>
+        ) : displayFighters.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons
+              name={selectedWeight ? 'scale-outline' : searchQuery.trim() ? 'search-outline' : 'person-outline'}
+              size={48}
+              color={colors.textTertiary}
             />
-          }
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        />
-      )}
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>
+              {searchQuery.trim()
+                ? 'No Fighters Found'
+                : selectedWeight
+                ? `No ${selectedWeight} Fighters`
+                : 'No Fighters'}
+            </Text>
+            <Text style={[styles.emptyMessage, { color: colors.textSecondary }]}>
+              {searchQuery.trim()
+                ? `No fighters match "${searchQuery}"`
+                : selectedWeight
+                ? 'No fighters found in this weight class.'
+                : 'No fighter data available yet.'}
+            </Text>
+          </View>
+        ) : (
+          <FlatList<DisplayFighter>
+            data={displayFighters}
+            keyExtractor={(item) => item.fighter_id}
+            renderItem={renderFighter}
+            ListHeaderComponent={renderHeader}
+            contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 100 }]}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor={colors.accent}
+                colors={[colors.accent]}
+              />
+            }
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          />
+        )}
+      </Animated.View>
+
+      {/* Global Tab Bar */}
+      <GlobalTabBar />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  contentWrapper: {
     flex: 1,
   },
   header: {
@@ -353,6 +416,30 @@ const styles = StyleSheet.create({
   headerContent: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
+  },
+  filtersContainer: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xs,
+  },
+  resultsRow: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+    gap: spacing.sm,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  emptyMessage: {
+    fontSize: 14,
+    textAlign: 'center',
   },
   sortRow: {
     flexDirection: 'row',

@@ -279,6 +279,8 @@ export default function SearchScreen() {
       <Stack.Screen
         options={{
           headerShown: false,
+          animation: 'fade',
+          animationDuration: 150,
         }}
       />
 

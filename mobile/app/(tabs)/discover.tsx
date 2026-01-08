@@ -330,10 +330,6 @@ export default function DiscoverScreen() {
         </View>
       )}
 
-      {/* Feed Section Header */}
-      <Text style={[styles.sectionTitle, { color: colors.text, marginTop: spacing.lg }]}>
-        {activeTab === 'discover' ? '✨ Activity & Posts' : '👥 From People You Follow'}
-      </Text>
     </View>
   );
 

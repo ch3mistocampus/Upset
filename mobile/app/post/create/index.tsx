@@ -206,7 +206,13 @@ export default function CreatePostScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <Stack.Screen options={{ headerShown: false }} />
+      <Stack.Screen
+        options={{
+          headerShown: false,
+          animation: 'slide_from_bottom',
+          presentation: 'modal',
+        }}
+      />
 
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>

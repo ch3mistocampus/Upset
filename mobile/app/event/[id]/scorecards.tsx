@@ -14,7 +14,7 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,8 +36,8 @@ const useCornerColors = () => {
   };
 };
 
-// Fight Scorecard Card Component
-const FightScorecardCard: React.FC<{
+// Fight Scorecard Card Component - Memoized for performance
+const FightScorecardCard = React.memo<{
   scorecard: EventScorecardSummary;
   liveStatus?: {
     phase: string;
@@ -47,7 +47,7 @@ const FightScorecardCard: React.FC<{
     isScoring: boolean;
   };
   onPress: () => void;
-}> = ({ scorecard, liveStatus, onPress }) => {
+}>(({ scorecard, liveStatus, onPress }) => {
   const { colors } = useTheme();
   const cornerColors = useCornerColors();
 
@@ -168,7 +168,9 @@ const FightScorecardCard: React.FC<{
       </SurfaceCard>
     </TouchableOpacity>
   );
-};
+});
+
+FightScorecardCard.displayName = 'FightScorecardCard';
 
 export default function EventScorecardsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -209,7 +211,7 @@ export default function EventScorecardsScreen() {
 
   // Header
   const Header = () => (
-    <View style={[styles.header, { paddingTop: insets.top, backgroundColor: colors.surface }]}>
+    <View style={[styles.header, { paddingTop: insets.top, backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       <TouchableOpacity
         style={styles.backButton}
         onPress={() => router.back()}
@@ -227,6 +229,7 @@ export default function EventScorecardsScreen() {
   if (isLoading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Stack.Screen options={{ headerShown: false }} />
         <Header />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.accent} />
@@ -241,6 +244,7 @@ export default function EventScorecardsScreen() {
   if (eventError || scorecardsError) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Stack.Screen options={{ headerShown: false }} />
         <Header />
         <ErrorState
           message="Failed to load scorecards. Check your connection and try again."
@@ -253,6 +257,7 @@ export default function EventScorecardsScreen() {
   if (!event) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Stack.Screen options={{ headerShown: false }} />
         <Header />
         <EmptyState
           icon="calendar-outline"
@@ -272,6 +277,7 @@ export default function EventScorecardsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Stack.Screen options={{ headerShown: false }} />
       <Header />
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.lg }]}
@@ -347,8 +353,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
+    borderBottomWidth: 1,
   },
   backButton: {
     width: 40,
@@ -364,7 +369,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+    paddingTop: spacing.sm,
   },
   loadingContainer: {
     flex: 1,

@@ -39,6 +39,10 @@ export function useSearchFighters(query: string, limit = 20) {
   });
 }
 
+// Cache version - increment to bust cache after schema changes
+// v4: December 2025 rankings update
+const FIGHTERS_CACHE_VERSION = 4;
+
 /**
  * Get all fighters (paginated)
  */
@@ -47,23 +51,31 @@ export function useFighters(options: {
   offset?: number;
   sortBy?: 'full_name' | 'record_wins' | 'weight_lbs';
   sortOrder?: 'asc' | 'desc';
+  weightClass?: string | null;
 } = {}) {
-  const { limit = 50, offset = 0, sortBy = 'full_name', sortOrder = 'asc' } = options;
+  const { limit = 1000, offset = 0, sortBy = 'full_name', sortOrder = 'asc', weightClass = null } = options;
 
   return useQuery({
-    queryKey: ['ufc_fighters', 'list', limit, offset, sortBy, sortOrder],
+    queryKey: ['ufc_fighters', 'list', FIGHTERS_CACHE_VERSION, limit, offset, sortBy, sortOrder, weightClass],
     queryFn: async (): Promise<UFCFighter[]> => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('ufc_fighters')
         .select('*')
         .order(sortBy, { ascending: sortOrder === 'asc' })
-        .range(offset, offset + limit - 1);
+        .limit(limit);
+
+      // Filter by weight class on server if specified
+      if (weightClass) {
+        query = query.eq('weight_class', weightClass);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
       return data || [];
     },
-    staleTime: 1000 * 60 * 10, // 10 minutes
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 }
 

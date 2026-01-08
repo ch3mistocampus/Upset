@@ -10,6 +10,8 @@ import { ToastProvider } from '../hooks/useToast';
 import { OnboardingProvider } from '../hooks/useOnboarding';
 import { GuestPicksProvider } from '../hooks/useGuestPicks';
 import { ThemeProvider, useTheme } from '../lib/theme';
+import { DrawerProvider } from '../lib/DrawerContext';
+import { AppDrawer } from '../components/navigation/AppDrawer';
 import { initSentry } from '../lib/sentry';
 
 const queryClient = new QueryClient({
@@ -48,16 +50,38 @@ function RootNavigator() {
         <Stack.Screen name="event/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="friends/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="friends/add" options={{ headerShown: false }} />
-        <Stack.Screen name="user/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+        <Stack.Screen
+          name="user/[id]"
+          options={{
+            headerShown: false,
+            animation: 'fade',
+            animationDuration: 200,
+          }}
+        />
+        <Stack.Screen
+          name="settings"
+          options={{
+            title: 'Settings',
+            animation: 'fade',
+            animationDuration: 200,
+          }}
+        />
         <Stack.Screen name="post/notifications" options={{ title: 'Notifications', headerBackTitle: 'Back' }} />
         <Stack.Screen name="post/search" options={{ title: 'Search', headerBackTitle: 'Back' }} />
         <Stack.Screen name="post/create" options={{ headerShown: false }} />
         <Stack.Screen name="post/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="fighter/[id]" options={{ headerShown: false }} />
-        <Stack.Screen name="fighters" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="fighters"
+          options={{
+            headerShown: false,
+            animation: 'fade',
+            animationDuration: 200,
+          }}
+        />
         <Stack.Screen name="admin" options={{ headerShown: false }} />
       </Stack>
+      <AppDrawer />
     </>
   );
 }
@@ -73,9 +97,11 @@ export default function RootLayout() {
       <GuestPicksProvider>
         <OnboardingProvider>
           <ThemeProvider>
-            <ToastProvider>
-              <RootNavigator />
-            </ToastProvider>
+            <DrawerProvider>
+              <ToastProvider>
+                <RootNavigator />
+              </ToastProvider>
+            </DrawerProvider>
           </ThemeProvider>
         </OnboardingProvider>
       </GuestPicksProvider>

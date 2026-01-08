@@ -75,12 +75,17 @@ export function useEventScorecards(eventId: string | undefined, options?: { refe
         p_event_id: eventId,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Return empty scorecards instead of throwing for graceful degradation
+        console.warn('Failed to fetch event scorecards:', error.message);
+        return { scorecards: [] } as EventScorecards;
+      }
       return data as EventScorecards;
     },
     enabled: !!eventId,
     staleTime: 15000, // 15 seconds
     refetchInterval: options?.refetchInterval ?? false,
+    retry: 1, // Only retry once
   });
 }
 

@@ -42,6 +42,7 @@ import { PostCard, PostErrorBoundary } from '../../../components/posts';
 import { useUserPosts } from '../../../hooks/usePosts';
 import type { FriendshipStatus } from '../../../types/social';
 import type { Post } from '../../../types/posts';
+import { GlobalTabBar } from '../../../components/navigation/GlobalTabBar';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -167,7 +168,7 @@ export default function UserProfile() {
   }, [showAvatarModal, modalScale, modalOpacity]);
 
   const fetchUserData = async () => {
-    if (!id || !user) return;
+    if (!id) return;
 
     try {
       setError(null);
@@ -217,16 +218,18 @@ export default function UserProfile() {
         followers_count: followersCount || 0,
       });
 
-      // Check if current user is following this user
-      const { data: followData } = await supabase
-        .from('friendships')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('friend_id', id)
-        .eq('status', 'accepted')
-        .maybeSingle();
+      // Check if current user is following this user (only if logged in)
+      if (user) {
+        const { data: followData } = await supabase
+          .from('friendships')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('friend_id', id)
+          .eq('status', 'accepted')
+          .maybeSingle();
 
-      setIsFollowing(!!followData);
+        setIsFollowing(!!followData);
+      }
 
       // Fetch user's picks with event info
       const { data: picksData, error: picksError } = await supabase
@@ -413,13 +416,20 @@ export default function UserProfile() {
   };
 
   const renderFollowAction = () => {
-    // If viewing own profile, show "This is you" badge
+    // If viewing own profile, show edit profile button
     if (isOwnProfile) {
       return (
-        <View style={[styles.followBadge, { backgroundColor: colors.surfaceAlt }]}>
-          <Ionicons name="person" size={14} color={colors.textSecondary} />
-          <Text style={[styles.followBadgeText, { color: colors.textSecondary }]}>This is you</Text>
-        </View>
+        <TouchableOpacity
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push('/(tabs)/profile');
+          }}
+          activeOpacity={0.8}
+          style={[styles.followBadge, { backgroundColor: colors.accent }]}
+        >
+          <Ionicons name="pencil" size={14} color="#fff" />
+          <Text style={[styles.followBadgeText, { color: '#fff' }]}>Edit Profile</Text>
+        </TouchableOpacity>
       );
     }
 
@@ -576,7 +586,17 @@ export default function UserProfile() {
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Profile</Text>
-          {!isOwnProfile ? (
+          {isOwnProfile ? (
+            <TouchableOpacity
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/settings');
+              }}
+              style={styles.menuButton}
+            >
+              <Ionicons name="settings-outline" size={24} color={colors.text} />
+            </TouchableOpacity>
+          ) : (
             <TouchableOpacity
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -586,8 +606,6 @@ export default function UserProfile() {
             >
               <Ionicons name="ellipsis-horizontal" size={24} color={colors.text} />
             </TouchableOpacity>
-          ) : (
-            <View style={styles.placeholder} />
           )}
         </View>
 
@@ -1083,6 +1101,9 @@ export default function UserProfile() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Global Tab Bar */}
+      <GlobalTabBar />
     </View>
   );
 }
@@ -1320,7 +1341,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: spacing.md,
-    paddingBottom: 40,
+    paddingBottom: 100, // Extra space for GlobalTabBar
   },
   // Compact event cards
   eventsList: {

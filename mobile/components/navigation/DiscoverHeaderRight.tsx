@@ -1,11 +1,11 @@
 /**
  * DiscoverHeaderRight - Header icons for Discover screen
  *
- * Contains: Search, Fighters, People, Notifications icons
- * Displayed in the native navigation header's right slot
+ * Contains: Search, Notifications icons
+ * Fighters moved to sidebar drawer
  */
 
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -21,11 +21,6 @@ export function DiscoverHeaderRight() {
   const handleSearchPress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/post/search');
-  };
-
-  const handleFightersPress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/fighters');
   };
 
   const handleNotificationsPress = () => {
@@ -45,19 +40,6 @@ export function DiscoverHeaderRight() {
         testID="header-search-button"
       >
         <Ionicons name="search" size={22} color={colors.accent} />
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        onPress={handleFightersPress}
-        style={styles.fightersButton}
-        hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
-        accessibilityRole="button"
-        accessibilityLabel="Browse fighters"
-        accessibilityHint="Opens the UFC fighters list"
-        testID="header-fighters-button"
-      >
-        <Ionicons name="flash" size={16} color={colors.accent} />
-        <Text style={[styles.fightersText, { color: colors.accent }]}>Fighters</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -91,18 +73,6 @@ const styles = StyleSheet.create({
   iconButton: {
     padding: spacing.xs,
     marginLeft: spacing.xs,
-  },
-  fightersButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-    paddingHorizontal: 2,
-    marginLeft: 2,
-    gap: 2,
-  },
-  fightersText: {
-    fontSize: 12,
-    fontWeight: '600',
   },
   badge: {
     position: 'absolute',

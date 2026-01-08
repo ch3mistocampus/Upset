@@ -109,6 +109,18 @@ export default function FighterDetailScreen() {
   // Get recent form (last 5 fights)
   const recentForm = history.slice(0, 5).map(h => h.result === 'Win' ? 'W' : h.result === 'Loss' ? 'L' : 'D');
 
+  // Check if any career stats are available
+  const hasCareerStats = fighter.career_stats && (
+    fighter.career_stats.str_acc !== null ||
+    fighter.career_stats.str_def !== null ||
+    fighter.career_stats.slpm !== null ||
+    fighter.career_stats.sapm !== null ||
+    fighter.career_stats.td_acc !== null ||
+    fighter.career_stats.td_def !== null ||
+    fighter.career_stats.td_avg !== null ||
+    fighter.career_stats.sub_avg !== null
+  );
+
   const renderStatBar = (
     label: string,
     value: number | null,
@@ -362,23 +374,31 @@ export default function FighterDetailScreen() {
             CAREER STATISTICS
           </Text>
 
-          <View style={styles.statsSection}>
-            <Text style={[styles.statsSectionTitle, { color: colors.text }]}>Striking</Text>
-            {renderStatBar('Str. Accuracy', fighter.career_stats.str_acc, 100)}
-            {renderStatBar('Str. Defense', fighter.career_stats.str_def, 100)}
-            {renderStatBar('SLpM', fighter.career_stats.slpm, 8, colors.accent)}
-            {renderStatBar('SApM', fighter.career_stats.sapm, 8, colors.danger)}
-          </View>
+          {hasCareerStats ? (
+            <>
+              <View style={styles.statsSection}>
+                <Text style={[styles.statsSectionTitle, { color: colors.text }]}>Striking</Text>
+                {renderStatBar('Str. Accuracy', fighter.career_stats.str_acc, 100)}
+                {renderStatBar('Str. Defense', fighter.career_stats.str_def, 100)}
+                {renderStatBar('SLpM', fighter.career_stats.slpm, 8, colors.accent)}
+                {renderStatBar('SApM', fighter.career_stats.sapm, 8, colors.danger)}
+              </View>
 
-          <View style={[styles.divider, { backgroundColor: colors.divider }]} />
+              <View style={[styles.divider, { backgroundColor: colors.divider }]} />
 
-          <View style={styles.statsSection}>
-            <Text style={[styles.statsSectionTitle, { color: colors.text }]}>Grappling</Text>
-            {renderStatBar('TD Accuracy', fighter.career_stats.td_acc, 100)}
-            {renderStatBar('TD Defense', fighter.career_stats.td_def, 100)}
-            {renderStatBar('TD Avg (15min)', fighter.career_stats.td_avg, 5)}
-            {renderStatBar('Sub Avg (15min)', fighter.career_stats.sub_avg, 3)}
-          </View>
+              <View style={styles.statsSection}>
+                <Text style={[styles.statsSectionTitle, { color: colors.text }]}>Grappling</Text>
+                {renderStatBar('TD Accuracy', fighter.career_stats.td_acc, 100)}
+                {renderStatBar('TD Defense', fighter.career_stats.td_def, 100)}
+                {renderStatBar('TD Avg (15min)', fighter.career_stats.td_avg, 5)}
+                {renderStatBar('Sub Avg (15min)', fighter.career_stats.sub_avg, 3)}
+              </View>
+            </>
+          ) : (
+            <Text style={[styles.noStatsText, { color: colors.textTertiary }]}>
+              Career statistics not available for this fighter.
+            </Text>
+          )}
         </Card>
 
         {/* Fight History */}
@@ -512,6 +532,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
     marginBottom: spacing.md,
+  },
+  noStatsText: {
+    fontSize: 14,
+    textAlign: 'center',
+    paddingVertical: spacing.lg,
   },
   bioGrid: {
     flexDirection: 'row',

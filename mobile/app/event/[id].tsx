@@ -399,7 +399,7 @@ export default function EventDetail() {
 
   // Custom header with back button and sticky progress
   const Header = () => (
-    <View style={[styles.headerContainer, { backgroundColor: colors.surface }]}>
+    <View style={[styles.headerContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <TouchableOpacity
           style={styles.backButton}
@@ -983,21 +983,24 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerContainer: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
+    borderBottomWidth: 1,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
+    paddingBottom: spacing.xs,
   },
   progressHeader: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
     borderBottomWidth: 1,
   },
   progressText: {

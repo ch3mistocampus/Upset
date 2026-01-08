@@ -186,28 +186,30 @@ export default function PostNotificationsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: 'Notifications',
-          headerStyle: { backgroundColor: colors.surface },
-          headerTintColor: colors.text,
-          headerRight: () =>
-            notifications.some((n) => !n.is_read) ? (
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  markAsRead.mutate(undefined);
-                }}
-                style={styles.markReadButton}
-              >
-                <Text style={[styles.markReadText, { color: colors.accent }]}>
-                  Mark all read
-                </Text>
-              </TouchableOpacity>
-            ) : null,
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
+
+      {/* Custom Header */}
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Notifications</Text>
+        {notifications.some((n) => !n.is_read) ? (
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              markAsRead.mutate(undefined);
+            }}
+            style={styles.markReadButton}
+          >
+            <Text style={[styles.markReadText, { color: colors.accent }]}>
+              Mark all read
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerSpacer} />
+        )}
+      </View>
 
       <FlatList
         data={notifications}
@@ -241,6 +243,25 @@ export default function PostNotificationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+  },
+  backButton: {
+    padding: 4,
+    width: 32,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  headerSpacer: {
+    width: 80,
   },
   listContent: {
     paddingBottom: spacing.xxl,

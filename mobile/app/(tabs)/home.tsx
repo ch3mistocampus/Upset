@@ -7,10 +7,12 @@
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Animated, TouchableOpacity, Easing } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../hooks/useAuth';
 import { useNextEvent, useBoutsForEvent, useRecentPicksSummary, useUserStats } from '../../hooks/useQueries';
 import { useTheme } from '../../lib/theme';
+import { useDrawer } from '../../lib/DrawerContext';
 import { useOnboarding } from '../../hooks/useOnboarding';
 import { spacing, radius, typography } from '../../lib/tokens';
 import { Button, EmptyState, SurfaceCard, PrimaryCTA, ProgressPill } from '../../components/ui';
@@ -24,6 +26,8 @@ export default function Home() {
   const router = useRouter();
   const { colors, isDark } = useTheme();
   const { user, isGuest } = useAuth();
+  const { openDrawer } = useDrawer();
+  const insets = useSafeAreaInsets();
   const { state: onboardingState, isLoaded: onboardingLoaded } = useOnboarding();
   const { data: nextEvent, isLoading: eventLoading, isError: eventError, refetch: refetchEvent } = useNextEvent();
   const { data: bouts, isLoading: boutsLoading, isError: boutsError, refetch: refetchBouts } = useBoutsForEvent(
@@ -338,6 +342,23 @@ export default function Home() {
 
   return (
     <View style={[styles.container, { backgroundColor: canvasBackground }]}>
+      {/* Header with menu button */}
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+        <TouchableOpacity
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            openDrawer();
+          }}
+          style={styles.menuButton}
+          accessibilityLabel="Open menu"
+          accessibilityRole="button"
+        >
+          <Ionicons name="menu" size={26} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>UFC Picks</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
@@ -457,29 +478,37 @@ export default function Home() {
               transform: [{ translateY: secondaryTranslate }],
             }}
           >
-            <SurfaceCard weakWash animatedBorder>
-              <Text style={[styles.cardLabel, { color: colors.textTertiary }]}>
-                LAST EVENT
-              </Text>
-              <Text style={[styles.lastEventName, { color: colors.textPrimary }]}>
-                {lastEventSummary.event.name}
-              </Text>
+            <TouchableOpacity
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push(`/event/${lastEventSummary.event.id}`);
+              }}
+              activeOpacity={0.85}
+            >
+              <SurfaceCard weakWash animatedBorder>
+                <Text style={[styles.cardLabel, { color: colors.textTertiary }]}>
+                  LAST EVENT
+                </Text>
+                <Text style={[styles.lastEventName, { color: colors.textPrimary }]}>
+                  {lastEventSummary.event.name}
+                </Text>
 
-              <View style={styles.lastEventStats}>
-                <Text style={[styles.lastEventLabel, { color: colors.textSecondary }]}>
-                  Your Results
-                </Text>
-                <Text style={[styles.lastEventValue, { color: colors.textPrimary }]}>
-                  {lastEventSummary.correct} / {lastEventSummary.total} Correct
-                </Text>
-              </View>
+                <View style={styles.lastEventStats}>
+                  <Text style={[styles.lastEventLabel, { color: colors.textSecondary }]}>
+                    Your Results
+                  </Text>
+                  <Text style={[styles.lastEventValue, { color: colors.textPrimary }]}>
+                    {lastEventSummary.correct} / {lastEventSummary.total} Correct
+                  </Text>
+                </View>
 
-              {lastEventSummary.total > 0 && (
-                <Text style={[styles.lastEventAccuracy, { color: colors.success }]}>
-                  {Math.round((lastEventSummary.correct / lastEventSummary.total) * 100)}% Accuracy
-                </Text>
-              )}
-            </SurfaceCard>
+                {lastEventSummary.total > 0 && (
+                  <Text style={[styles.lastEventAccuracy, { color: colors.success }]}>
+                    {Math.round((lastEventSummary.correct / lastEventSummary.total) * 100)}% Accuracy
+                  </Text>
+                )}
+              </SurfaceCard>
+            </TouchableOpacity>
           </Animated.View>
         )}
 
@@ -498,6 +527,25 @@ export default function Home() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  menuButton: {
+    padding: spacing.xs,
+    marginRight: spacing.sm,
+    marginLeft: -spacing.xs,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  headerSpacer: {
+    width: 36,
   },
   scrollView: {
     flex: 1,

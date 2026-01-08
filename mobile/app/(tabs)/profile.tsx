@@ -66,11 +66,39 @@ export default function Profile() {
   const { profile, user, signOut, isGuest, updateProfile } = useAuth();
   const { getTotalPickCount, getEventsPickedCount } = useGuestPicks();
   const { data: stats, isLoading: statsLoading, isError: statsError, refetch: refetchStats } = useUserStats(user?.id || null);
-  const { data: recentSummary, isLoading: summaryLoading, refetch: refetchSummary } = useRecentPicksSummary(
+  const { data: recentSummary, isLoading: summaryLoading, isError: summaryError, error: summaryErrorDetails, refetch: refetchSummary } = useRecentPicksSummary(
     user?.id || null,
     5
   );
-  const { data: upcomingEvents, refetch: refetchUpcoming } = useUpcomingEvents();
+  const { data: upcomingEvents, isLoading: upcomingLoading, refetch: refetchUpcoming } = useUpcomingEvents();
+
+  // Debug logging
+  useEffect(() => {
+    if (__DEV__) {
+      console.log('[Profile] Data state:', {
+        statsLoading,
+        summaryLoading,
+        upcomingLoading,
+        summaryError,
+        recentSummaryLength: recentSummary?.length,
+        upcomingEventsLength: upcomingEvents?.length,
+        userId: user?.id,
+      });
+      if (recentSummary && recentSummary.length > 0) {
+        console.log('[Profile] Recent summary data:', recentSummary.map(s => ({
+          eventName: s.event?.name,
+          correct: s.correct,
+          total: s.total,
+        })));
+      }
+      if (upcomingEvents && upcomingEvents.length > 0) {
+        console.log('[Profile] Upcoming events:', upcomingEvents.map(e => e.name));
+      }
+      if (summaryErrorDetails) {
+        console.log('[Profile] Summary error:', summaryErrorDetails);
+      }
+    }
+  }, [statsLoading, summaryLoading, upcomingLoading, summaryError, recentSummary, upcomingEvents, user?.id, summaryErrorDetails]);
 
   const [refreshing, setRefreshing] = useState(false);
   const [showBioModal, setShowBioModal] = useState(false);
@@ -806,7 +834,7 @@ export default function Profile() {
         </Animated.View>
 
         {/* Content Area - Always shows picks */}
-        <Animated.View style={[styles.contentArea, { opacity: contentOpacity }]}>
+        <View style={styles.contentArea}>
           <>
               {/* Upcoming Events */}
               {upcomingEvents && upcomingEvents.length > 0 && (
@@ -858,7 +886,7 @@ export default function Profile() {
                 />
               )}
             </>
-        </Animated.View>
+        </View>
       </ScrollView>
 
       {/* Avatar Preview Modal */}

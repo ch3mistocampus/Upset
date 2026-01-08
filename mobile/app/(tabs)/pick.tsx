@@ -274,7 +274,7 @@ export default function Pick() {
       </Animated.View>
 
       <View style={styles.eventsList}>
-        {events.map((event, index) => (
+        {events.slice(0, 3).map((event, index) => (
           <EventCardWithCounts
             key={event.id}
             event={event}

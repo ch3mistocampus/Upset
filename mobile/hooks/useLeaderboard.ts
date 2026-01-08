@@ -138,8 +138,8 @@ export function useEventCommunityPercentages(boutIds: string[]) {
       });
 
       if (error) {
-        logger.error('Failed to fetch batch community percentages', error);
-        throw error;
+        logger.warn('Failed to fetch batch community percentages, returning empty', error);
+        return new Map(); // Graceful degradation instead of throwing
       }
 
       const percentagesMap = new Map<string, CommunityPickPercentages>();
@@ -173,5 +173,7 @@ export function useEventCommunityPercentages(boutIds: string[]) {
     },
     enabled: boutIds.length > 0,
     staleTime: 30000, // 30 seconds
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
   });
 }

@@ -25,6 +25,7 @@ export default function TabsLayout() {
         name="home"
         options={{
           title: 'Home',
+          headerShown: false, // Uses custom header with drawer menu
         }}
       />
       <Tabs.Screen
@@ -58,6 +59,8 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: 'Profile',
+          href: null, // Accessible via sidebar drawer, not main tab bar
+          headerShown: false,
         }}
       />
     </Tabs>

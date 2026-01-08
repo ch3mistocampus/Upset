@@ -21,11 +21,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useTheme } from '../../lib/theme';
-import { useAuth } from '../../hooks/useAuth';
 import type { ThemeColors } from '../../lib/tokens';
 
 // Tab configuration with outline (inactive) and filled (active) icons
-// Only includes tabs visible in bottom nav (friends/fighters accessible via Discover header)
+// Profile removed - now accessed via sidebar drawer
 const TAB_CONFIG: Record<string, {
   icon: keyof typeof Ionicons.glyphMap;
   iconOutline: keyof typeof Ionicons.glyphMap;
@@ -35,7 +34,6 @@ const TAB_CONFIG: Record<string, {
   pick: { icon: 'calendar', iconOutline: 'calendar-outline', label: 'Events' },
   discover: { icon: 'compass', iconOutline: 'compass-outline', label: 'Discover' },
   leaderboards: { icon: 'trophy', iconOutline: 'trophy-outline', label: 'Ranks' },
-  profile: { icon: 'person', iconOutline: 'person-outline', label: 'Profile' },
 };
 
 // Animated tab button with bounce effect
@@ -148,7 +146,6 @@ function TabButton({
 export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
-  const { isGuest } = useAuth();
 
   return (
     <View style={[styles.container, { bottom: Math.max(insets.bottom, 16) + 8 }]}>
@@ -166,7 +163,7 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
         <View style={styles.tabsRow}>
           {state.routes
             .filter((route) => {
-              // Only show tabs that are in TAB_CONFIG (excludes friends/fighters)
+              // Only show tabs that are in TAB_CONFIG (excludes friends/fighters/profile)
               return route.name in TAB_CONFIG;
             })
             .map((route) => {
@@ -175,12 +172,9 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
             const isFocused = state.index === actualIndex;
             const config = TAB_CONFIG[route.name] || { icon: 'ellipse', iconOutline: 'ellipse-outline', label: route.name };
 
-            // Handle profile tab guest state
-            const isProfileTab = route.name === 'profile';
-            const showGuestDot = isProfileTab && isGuest;
             // Use filled icon when focused, outline when not
             const iconName = (isFocused ? config.icon : config.iconOutline) as keyof typeof Ionicons.glyphMap;
-            const label = isProfileTab && isGuest ? 'Guest' : config.label;
+            const label = config.label;
 
             const handlePress = () => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -210,7 +204,7 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
                 isFocused={isFocused}
                 iconName={iconName}
                 label={label}
-                showGuestDot={showGuestDot}
+                showGuestDot={false}
                 colors={colors}
                 onPress={handlePress}
                 onLongPress={handleLongPress}
