@@ -44,6 +44,13 @@ import { GlobalTabBar } from '../components/navigation/GlobalTabBar';
 type SortOption = 'ranking' | 'wins' | 'name';
 type DisplayFighter = UFCFighter | UFCFighterSearchResult;
 
+// Sort option configuration - maps UI options to database columns and sort direction
+const SORT_CONFIG: Record<SortOption, { column: 'full_name' | 'record_wins' | 'ranking'; order: 'asc' | 'desc' }> = {
+  ranking: { column: 'ranking', order: 'desc' },
+  wins: { column: 'record_wins', order: 'desc' },
+  name: { column: 'full_name', order: 'asc' },
+};
+
 const WEIGHT_CLASSES = [
   { label: 'All', value: null },
   { label: 'HW', value: 'Heavyweight' },
@@ -76,10 +83,11 @@ export default function FightersScreen() {
   const isLoadingMoreRef = useRef(false);
 
   // Infinite scroll query for fighters
+  const sortConfig = SORT_CONFIG[sortBy];
   const fightersQuery = useInfiniteFighters({
     pageSize: 50,
-    sortBy: sortBy === 'name' ? 'full_name' : sortBy === 'wins' ? 'record_wins' : 'ranking',
-    sortOrder: sortBy === 'name' ? 'asc' : 'desc',
+    sortBy: sortConfig.column,
+    sortOrder: sortConfig.order,
     weightClass: selectedWeight,
   });
 
@@ -143,46 +151,31 @@ export default function FightersScreen() {
     Keyboard.dismiss();
   };
 
-  const handleSortChange = (option: SortOption) => {
-    if (option === sortBy) return;
+  // Shared animated transition for filter/sort changes
+  const animateFilterChange = useCallback((updateFn: () => void) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    // Animate transition
     setIsTransitioning(true);
     listOpacity.value = withTiming(0, { duration: 150 });
 
-    // Update state after fade out
     setTimeout(() => {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setSortBy(option);
+      updateFn();
 
-      // Fade back in
       setTimeout(() => {
         listOpacity.value = withTiming(1, { duration: 200 });
         setIsTransitioning(false);
       }, 50);
     }, 150);
+  }, [listOpacity]);
+
+  const handleSortChange = (option: SortOption) => {
+    if (option === sortBy) return;
+    animateFilterChange(() => setSortBy(option));
   };
 
   const handleWeightFilter = (weight: string | null) => {
     if (weight === selectedWeight) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    // Animate transition
-    setIsTransitioning(true);
-    listOpacity.value = withTiming(0, { duration: 150 });
-
-    // Update state after fade out
-    setTimeout(() => {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setSelectedWeight(weight);
-
-      // Fade back in
-      setTimeout(() => {
-        listOpacity.value = withTiming(1, { duration: 200 });
-        setIsTransitioning(false);
-      }, 50);
-    }, 150);
+    animateFilterChange(() => setSelectedWeight(weight));
   };
 
   const renderFighter = ({ item }: { item: DisplayFighter }) => (
@@ -204,6 +197,33 @@ export default function FightersScreen() {
         </Text>
       </View>
     );
+  };
+
+  // Empty state content helper - replaces nested ternaries with clear if/else
+  const getEmptyStateContent = () => {
+    const isSearching = searchQuery.trim().length > 0;
+
+    if (isSearching) {
+      return {
+        icon: 'search-outline' as const,
+        title: 'No Fighters Found',
+        message: `No fighters match "${searchQuery}"`,
+      };
+    }
+
+    if (selectedWeight) {
+      return {
+        icon: 'scale-outline' as const,
+        title: `No ${selectedWeight} Fighters`,
+        message: 'No fighters found in this weight class.',
+      };
+    }
+
+    return {
+      icon: 'person-outline' as const,
+      title: 'No Fighters',
+      message: 'No fighter data available yet.',
+    };
   };
 
   // Animated style for list opacity
@@ -347,27 +367,24 @@ export default function FightersScreen() {
             <SkeletonCard />
           </View>
         ) : displayFighters.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons
-              name={selectedWeight ? 'scale-outline' : searchQuery.trim() ? 'search-outline' : 'person-outline'}
-              size={48}
-              color={colors.textTertiary}
-            />
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>
-              {searchQuery.trim()
-                ? 'No Fighters Found'
-                : selectedWeight
-                ? `No ${selectedWeight} Fighters`
-                : 'No Fighters'}
-            </Text>
-            <Text style={[styles.emptyMessage, { color: colors.textSecondary }]}>
-              {searchQuery.trim()
-                ? `No fighters match "${searchQuery}"`
-                : selectedWeight
-                ? 'No fighters found in this weight class.'
-                : 'No fighter data available yet.'}
-            </Text>
-          </View>
+          (() => {
+            const emptyState = getEmptyStateContent();
+            return (
+              <View style={styles.emptyContainer}>
+                <Ionicons
+                  name={emptyState.icon}
+                  size={48}
+                  color={colors.textTertiary}
+                />
+                <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                  {emptyState.title}
+                </Text>
+                <Text style={[styles.emptyMessage, { color: colors.textSecondary }]}>
+                  {emptyState.message}
+                </Text>
+              </View>
+            );
+          })()
         ) : (
           <FlatList<DisplayFighter>
             data={displayFighters}
