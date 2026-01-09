@@ -45,5 +45,5 @@ supabase functions serve    # Local Edge Functions
 ## Data Source Status
 UFCStats.com scraping works but needs App Store compliant alternative. Evaluating official APIs.
 
-## Dangerous Settings
-This project runs with `dangerouslySkipPermissions: true` - Claude executes without confirmation prompts.
+## Permissions
+YOLO mode enabled via `.claude/settings.json` - Claude executes all tools without confirmation prompts.
