@@ -51,3 +51,4 @@ yarn-error.*
 .cache/
 temp/
 tmp/
+scripts/sherdog-scraper/

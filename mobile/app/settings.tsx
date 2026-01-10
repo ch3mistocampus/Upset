@@ -224,13 +224,13 @@ export default function Settings() {
               icon="shield-checkmark-outline"
               label="Privacy Policy"
               type="link"
-              onPress={() => openLink('https://github.com/ch3mistocampus/Upset')}
+              onPress={() => openLink('https://getupset.app/privacy')}
             />
             <SettingsRow
               icon="document-text-outline"
               label="Terms of Service"
               type="link"
-              onPress={() => openLink('https://github.com/ch3mistocampus/Upset')}
+              onPress={() => openLink('https://getupset.app/terms')}
             />
             <SettingsRow
               icon="logo-github"

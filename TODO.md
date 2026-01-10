@@ -9,22 +9,25 @@
 ## Critical (Blocking Launch)
 
 ### Legal Documents
-- [ ] **Privacy Policy** - Required by App Store
-  - Cover: data collection, auth providers, social features, analytics
+- [x] **Privacy Policy** - DRAFTED in `legal/privacy-policy.md`
+  - Covers: data collection, auth providers, social features, analytics
   - Host at: getupset.app/privacy
-- [ ] **Terms of Service** - Required by App Store
-  - Cover: user conduct, leaderboard integrity, content moderation
+- [x] **Terms of Service** - DRAFTED in `legal/terms-of-service.md`
+  - Covers: user conduct, leaderboard integrity, content moderation
   - Host at: getupset.app/terms
-- [ ] Add legal links to Settings screen (currently placeholder GitHub URLs)
+- [x] Settings screen updated with legal URLs
+- [ ] **Host legal pages** at getupset.app (GitHub Pages or similar)
 
 ### Data Source Compliance
-- [ ] Verify UFCStats.com scraping is allowed OR
-- [ ] Complete ESPN/MMA API integration (migrations started)
+- [x] Document data source status - see `legal/DATA_SOURCE_COMPLIANCE.md`
+- [x] MMA API integration scripts ready (RapidAPI)
+- [ ] Subscribe to MMA API and test in production
+- [ ] Migrate from UFCStats scraping to official API
 - [ ] Document data source in App Store review notes
-- Risk: App Store rejection for IP violations
 
 ### Android OAuth
-- [ ] Generate Android Client ID in Google Cloud Console
+- [x] Document setup steps - see `mobile/docs/ANDROID_OAUTH_SETUP.md`
+- [ ] Generate Android Client ID in Google Cloud Console (manual step)
 - [ ] Add `EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID` to .env
 - [ ] Add to EAS secrets for production
 
