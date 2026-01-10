@@ -52,3 +52,9 @@ yarn-error.*
 temp/
 tmp/
 scripts/sherdog-scraper/
+
+# Environment files with secrets
+.env
+mobile/.env
+.env.local
+mobile/.env.local
