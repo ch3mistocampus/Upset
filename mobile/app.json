@@ -38,12 +38,22 @@
     },
     "plugins": [
       "expo-router",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      "@sentry/react-native",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "react-native",
+          "organization": "upset"
+        }
+      ]
     ],
     "extra": {
       "eas": {
-        "projectId": ""
-      }
+        "projectId": "0e4bc5ef-48da-4080-817c-b069d6d5d7ec"
+      },
+      "router": {}
     },
     "owner": "chemistoncampusx",
     "updates": {
