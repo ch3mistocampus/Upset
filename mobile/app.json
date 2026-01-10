@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "UFC Picks Tracker",
-    "slug": "ufc-picks-tracker",
+    "name": "Upset",
+    "slug": "upset",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "scheme": "ufcpicks",
-    "newArchEnabled": false,
+    "scheme": "upset",
+    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -16,14 +16,15 @@
     "jsEngine": "jsc",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ufcpicks.tracker",
+      "bundleIdentifier": "com.getupset.app",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Used for profile photos",
         "NSPhotoLibraryUsageDescription": "Used for profile photos"
       }
     },
     "android": {
-      "package": "com.ufcpicks.tracker",
+      "package": "com.getupset.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F6F7F9"
@@ -36,14 +37,15 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-apple-authentication"
     ],
     "extra": {
       "eas": {
         "projectId": ""
       }
     },
-    "owner": "",
+    "owner": "chemistoncampusx",
     "updates": {
       "enabled": true,
       "fallbackToCacheTimeout": 0,

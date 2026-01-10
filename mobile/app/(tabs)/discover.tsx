@@ -52,13 +52,14 @@ type FeedItem =
 export default function DiscoverScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
+  const isAuthenticated = !isGuest && !!user;
   const [activeTab, setActiveTab] = useState<FeedTab>('discover');
   const [lastRefreshTime, setLastRefreshTime] = useState<string | null>(null);
   const newPostsAnim = useRef(new Animated.Value(0)).current;
 
   const discoverFeed = useDiscoverFeed();
-  const followingFeed = useFollowingFeed();
+  const followingFeed = useFollowingFeed(isAuthenticated);
   const discoverPosts = usePostsFeed();
   const followingPosts = useFollowingPostsFeed(user?.id ?? null);
   const { data: trendingUsers, refetch: refetchTrending } = useTrendingUsers();
@@ -334,60 +335,73 @@ export default function DiscoverScreen() {
     </View>
   );
 
-  const renderEmpty = () => (
-    <View style={styles.emptyContainer} accessibilityRole="alert">
-      <Ionicons
-        name={activeTab === 'discover' ? 'compass-outline' : 'people-outline'}
-        size={64}
-        color={colors.textTertiary}
-        accessibilityLabel={activeTab === 'discover' ? 'No activities' : 'No following activity'}
-      />
-      <Text style={[styles.emptyTitle, { color: colors.text }]}>
-        {activeTab === 'discover' ? 'No activities yet' : 'Follow some pickers!'}
-      </Text>
-      <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-        {activeTab === 'discover'
-          ? 'Be the first to make some picks or explore fighters'
-          : 'Find and follow people to see their activity here'}
-      </Text>
+  const renderEmpty = () => {
+    // Show sign-up prompt for guests on Following tab
+    const isGuestFollowing = !isAuthenticated && activeTab === 'following';
 
-      {/* Primary CTA */}
-      <TouchableOpacity
-        style={[styles.emptyActionButton, { backgroundColor: colors.accent }]}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          if (activeTab === 'discover') {
-            router.push('/(tabs)/pick');
-          } else {
-            setActiveTab('discover');
-          }
-        }}
-        accessibilityRole="button"
-        accessibilityLabel={activeTab === 'discover' ? 'Make picks' : 'Go to Discover tab to find people to follow'}
-      >
-        <Text style={styles.emptyActionText}>
-          {activeTab === 'discover' ? 'Make Picks' : 'Discover People'}
+    return (
+      <View style={styles.emptyContainer} accessibilityRole="alert">
+        <Ionicons
+          name={isGuestFollowing ? 'person-add-outline' : (activeTab === 'discover' ? 'compass-outline' : 'people-outline')}
+          size={64}
+          color={colors.textTertiary}
+          accessibilityLabel={activeTab === 'discover' ? 'No activities' : 'No following activity'}
+        />
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>
+          {isGuestFollowing
+            ? 'Create an account'
+            : activeTab === 'discover'
+            ? 'No activities yet'
+            : 'Follow some pickers!'}
         </Text>
-      </TouchableOpacity>
+        <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+          {isGuestFollowing
+            ? 'Sign up to follow other pickers and see their activity here'
+            : activeTab === 'discover'
+            ? 'Be the first to make some picks or explore fighters'
+            : 'Find and follow people to see their activity here'}
+        </Text>
 
-      {/* Secondary link - only on Discover tab */}
-      {activeTab === 'discover' && (
+        {/* Primary CTA */}
         <TouchableOpacity
+          style={[styles.emptyActionButton, { backgroundColor: colors.accent }]}
           onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.push('/(tabs)/fighters');
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            if (isGuestFollowing) {
+              router.push('/(auth)/sign-in');
+            } else if (activeTab === 'discover') {
+              router.push('/(tabs)/pick');
+            } else {
+              setActiveTab('discover');
+            }
           }}
-          style={styles.emptySecondaryLink}
-          accessibilityRole="link"
-          accessibilityLabel="Browse UFC fighters"
+          accessibilityRole="button"
+          accessibilityLabel={isGuestFollowing ? 'Sign up' : (activeTab === 'discover' ? 'Make picks' : 'Go to Discover tab to find people to follow')}
         >
-          <Text style={[styles.emptySecondaryText, { color: colors.accent }]}>
-            Browse Fighters
+          <Text style={styles.emptyActionText}>
+            {isGuestFollowing ? 'Sign Up' : activeTab === 'discover' ? 'Make Picks' : 'Discover People'}
           </Text>
         </TouchableOpacity>
-      )}
-    </View>
-  );
+
+        {/* Secondary link - only on Discover tab */}
+        {activeTab === 'discover' && (
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/(tabs)/fighters');
+            }}
+            style={styles.emptySecondaryLink}
+            accessibilityRole="link"
+            accessibilityLabel="Browse UFC fighters"
+          >
+            <Text style={[styles.emptySecondaryText, { color: colors.accent }]}>
+              Browse Fighters
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
 
   const renderFooter = () => {
     // Show error state if pagination failed

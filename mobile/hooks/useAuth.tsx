@@ -1,10 +1,10 @@
 /**
- * Authentication hooks with guest mode support
+ * Authentication context with guest mode support
  * Includes guest pick migration on sign-in
  * Supports email/password, OTP, Apple, and Google authentication
  */
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
@@ -16,7 +16,6 @@ import { useAppleAuth } from './useAppleAuth';
 import { useGoogleAuth } from './useGoogleAuth';
 
 const GUEST_PICKS_KEY = '@ufc_guest_picks';
-
 const GUEST_MODE_KEY = '@ufc_guest_mode';
 const FIRST_LAUNCH_KEY = '@ufc_first_launch_complete';
 
@@ -28,7 +27,51 @@ const FIRST_LAUNCH_KEY = '@ufc_first_launch_complete';
 //
 // These users go through normal Supabase authentication, so picks save correctly.
 
-export function useAuth() {
+interface AuthContextValue {
+  session: Session | null;
+  user: User | null;
+  profile: Profile | null;
+  loading: boolean;
+  // Guest mode
+  isGuest: boolean;
+  isFirstLaunch: boolean;
+  enterGuestMode: () => Promise<void>;
+  exitGuestMode: () => Promise<void>;
+  markFirstLaunchComplete: () => Promise<void>;
+  // Migration
+  migrationResult: { success: boolean; migratedCount: number } | null;
+  clearMigrationResult: () => void;
+  // OTP methods
+  signInWithOTP: (email: string) => Promise<void>;
+  verifyOTP: (email: string, token: string) => Promise<void>;
+  // Password methods
+  signUp: (email: string, password: string) => Promise<any>;
+  signInWithPassword: (email: string, password: string) => Promise<any>;
+  signInWithUsername: (username: string, password: string) => Promise<any>;
+  resetPassword: (email: string) => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<void>;
+  // OAuth methods
+  signInWithApple: () => Promise<void>;
+  isAppleAvailable: boolean;
+  appleLoading: boolean;
+  signInWithGoogle: () => Promise<void>;
+  isGoogleAvailable: boolean;
+  googleLoading: boolean;
+  // Profile
+  createProfile: (username: string) => Promise<Profile>;
+  updateProfile: (updates: { bio?: string | null; avatar_url?: string | null; banner_url?: string | null }) => Promise<Profile>;
+  signOut: () => Promise<void>;
+  // Testing
+  resetForTesting: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+interface AuthProviderProps {
+  children: React.ReactNode;
+}
+
+export function AuthProvider({ children }: AuthProviderProps) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -91,6 +134,30 @@ export function useAuth() {
     }
   }, []);
 
+  const loadProfile = useCallback(async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        // PGRST116 = no rows returned (profile doesn't exist yet)
+        logger.error('Error loading profile', error, { userId });
+      }
+
+      setProfile(data);
+      if (data) {
+        logger.debug('Profile loaded', { username: data.username });
+      }
+    } catch (error) {
+      logger.error('Error loading profile', error as Error, { userId });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     // Check guest mode and first launch status first
     const initAuth = async () => {
@@ -104,15 +171,24 @@ export function useAuth() {
         const isFirst = !firstLaunchComplete;
         setIsFirstLaunch(isFirst);
 
-        if (guestMode === 'true') {
-          logger.debug('Guest mode detected, skipping auth check');
+        // Get initial session and refresh if expired
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        // If user has a valid session, always use it (even if guest mode was set)
+        // This handles the case where user signs in while in guest mode
+        if (session?.user) {
+          if (guestMode === 'true') {
+            logger.debug('Session found while in guest mode, exiting guest mode');
+            await AsyncStorage.removeItem(GUEST_MODE_KEY);
+          }
+          setIsGuest(false);
+        } else if (guestMode === 'true') {
+          // Only use guest mode if there's no valid session
+          logger.debug('Guest mode detected, no session');
           setIsGuest(true);
           setLoading(false);
           return;
         }
-
-        // Get initial session and refresh if expired
-        const { data: { session }, error } = await supabase.auth.getSession();
 
         if (error) {
           logger.error('Failed to get session', error);
@@ -152,6 +228,7 @@ export function useAuth() {
         setUser(null);
         setProfile(null);
         setLoading(false);
+        migrationAttemptedRef.current = false; // Reset for next sign-in
         return;
       }
 
@@ -160,12 +237,16 @@ export function useAuth() {
       setUser(session?.user ?? null);
       if (session?.user) {
         logger.debug('Loading profile after auth change', { userId: session.user.id });
-        loadProfile(session.user.id);
 
-        // Migrate guest picks on sign-in
-        if (event === 'SIGNED_IN') {
-          checkAndMigrateGuestPicks(session.user.id);
-        }
+        // IMPORTANT: Keep loading true until profile is loaded to prevent race condition
+        // where user is set but profile is null, causing redirect to create-username
+        setLoading(true);
+        loadProfile(session.user.id).then(() => {
+          // Migrate guest picks on sign-in (after profile is loaded)
+          if (event === 'SIGNED_IN') {
+            checkAndMigrateGuestPicks(session.user.id);
+          }
+        });
       } else {
         setProfile(null);
         setLoading(false);
@@ -173,45 +254,21 @@ export function useAuth() {
     });
 
     return () => subscription.unsubscribe();
-  }, [checkAndMigrateGuestPicks]);
+  }, [checkAndMigrateGuestPicks, loadProfile]);
 
-  const loadProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        // PGRST116 = no rows returned (profile doesn't exist yet)
-        logger.error('Error loading profile', error, { userId });
-      }
-
-      setProfile(data);
-      if (data) {
-        logger.debug('Profile loaded', { username: data.username });
-      }
-    } catch (error) {
-      logger.error('Error loading profile', error as Error, { userId });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const signInWithOTP = async (email: string) => {
+  const signInWithOTP = useCallback(async (email: string) => {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
         shouldCreateUser: true,
-        emailRedirectTo: 'ufcpicks://',
+        emailRedirectTo: 'upset://',
       },
     });
 
     if (error) throw error;
-  };
+  }, []);
 
-  const verifyOTP = async (email: string, token: string) => {
+  const verifyOTP = useCallback(async (email: string, token: string) => {
     const { error } = await supabase.auth.verifyOtp({
       email,
       token,
@@ -219,9 +276,9 @@ export function useAuth() {
     });
 
     if (error) throw error;
-  };
+  }, []);
 
-  const createProfile = async (username: string) => {
+  const createProfile = useCallback(async (username: string) => {
     if (!user) throw new Error('No user logged in');
 
     const { data, error } = await supabase
@@ -237,9 +294,9 @@ export function useAuth() {
 
     setProfile(data);
     return data;
-  };
+  }, [user]);
 
-  const updateProfile = async (updates: { bio?: string | null; avatar_url?: string | null; banner_url?: string | null }) => {
+  const updateProfile = useCallback(async (updates: { bio?: string | null; avatar_url?: string | null; banner_url?: string | null }) => {
     if (!user) throw new Error('No user logged in');
 
     logger.breadcrumb('Updating profile', 'profile', { updates });
@@ -259,16 +316,16 @@ export function useAuth() {
     setProfile(data);
     logger.info('Profile updated successfully');
     return data;
-  };
+  }, [user]);
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = useCallback(async (email: string, password: string) => {
     logger.breadcrumb('Sign up attempt', 'auth', { email });
 
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: 'ufcpicks://',
+        emailRedirectTo: 'upset://',
       },
     });
 
@@ -279,9 +336,9 @@ export function useAuth() {
 
     logger.info('Sign up successful', { userId: data.user?.id });
     return data;
-  };
+  }, []);
 
-  const signInWithPassword = async (email: string, password: string) => {
+  const signInWithPassword = useCallback(async (email: string, password: string) => {
     logger.breadcrumb('Sign in with password', 'auth', { email });
 
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -296,9 +353,9 @@ export function useAuth() {
 
     logger.info('Sign in successful', { userId: data.user?.id });
     return data;
-  };
+  }, []);
 
-  const signInWithUsername = async (username: string, password: string) => {
+  const signInWithUsername = useCallback(async (username: string, password: string) => {
     logger.breadcrumb('Sign in with username', 'auth', { username });
 
     try {
@@ -318,13 +375,13 @@ export function useAuth() {
       logger.error('Username sign in failed', error as Error, { username });
       throw error;
     }
-  };
+  }, [signInWithPassword]);
 
-  const resetPassword = async (email: string) => {
+  const resetPassword = useCallback(async (email: string) => {
     logger.breadcrumb('Password reset requested', 'auth', { email });
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'ufcpicks://reset-password',
+      redirectTo: 'upset://reset-password',
     });
 
     if (error) {
@@ -333,9 +390,9 @@ export function useAuth() {
     }
 
     logger.info('Password reset email sent', { email });
-  };
+  }, []);
 
-  const updatePassword = async (newPassword: string) => {
+  const updatePassword = useCallback(async (newPassword: string) => {
     logger.breadcrumb('Password update attempt', 'auth');
 
     const { error } = await supabase.auth.updateUser({
@@ -348,12 +405,25 @@ export function useAuth() {
     }
 
     logger.info('Password updated successfully');
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
-  };
+  }, []);
+
+  // Full reset for testing - clears all auth state and simulates fresh install
+  const resetForTesting = useCallback(async () => {
+    logger.info('Resetting app for testing');
+    await AsyncStorage.multiRemove([GUEST_MODE_KEY, FIRST_LAUNCH_KEY, GUEST_PICKS_KEY]);
+    await supabase.auth.signOut();
+    setSession(null);
+    setUser(null);
+    setProfile(null);
+    setIsGuest(false);
+    setIsFirstLaunch(true);
+    migrationAttemptedRef.current = false;
+  }, []);
 
   // Guest mode methods
   const enterGuestMode = useCallback(async () => {
@@ -380,7 +450,7 @@ export function useAuth() {
     setMigrationResult(null);
   }, []);
 
-  return {
+  const value = useMemo<AuthContextValue>(() => ({
     session,
     user,
     profile,
@@ -414,5 +484,50 @@ export function useAuth() {
     createProfile,
     updateProfile,
     signOut,
-  };
+    // Testing
+    resetForTesting,
+  }), [
+    session,
+    user,
+    profile,
+    loading,
+    isGuest,
+    isFirstLaunch,
+    enterGuestMode,
+    exitGuestMode,
+    markFirstLaunchComplete,
+    migrationResult,
+    clearMigrationResult,
+    signInWithOTP,
+    verifyOTP,
+    signUp,
+    signInWithPassword,
+    signInWithUsername,
+    resetPassword,
+    updatePassword,
+    appleAuth.signInWithApple,
+    appleAuth.isAvailable,
+    appleAuth.loading,
+    googleAuth.signInWithGoogle,
+    googleAuth.isAvailable,
+    googleAuth.loading,
+    createProfile,
+    updateProfile,
+    signOut,
+    resetForTesting,
+  ]);
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth(): AuthContextValue {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 }

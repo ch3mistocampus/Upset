@@ -98,10 +98,17 @@ export function useDiscoverFeed() {
   });
 }
 
-export function useFollowingFeed() {
+export function useFollowingFeed(enabled: boolean = true) {
   return useInfiniteQuery({
     queryKey: feedKeys.following(),
     queryFn: async ({ pageParam = 0 }): Promise<ActivityItem[]> => {
+      // Double-check auth before making request (safety net for race conditions)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        logger.debug('Skipping following feed - no session');
+        return [];
+      }
+
       logger.breadcrumb('Fetching following feed', 'feed', { offset: pageParam });
 
       const { data, error } = await supabase.rpc('get_following_feed', {
@@ -125,6 +132,7 @@ export function useFollowingFeed() {
     },
     initialPageParam: 0,
     staleTime: 30000,
+    enabled,
   });
 }
 
