@@ -19,14 +19,6 @@ const GUEST_PICKS_KEY = '@ufc_guest_picks';
 const GUEST_MODE_KEY = '@ufc_guest_mode';
 const FIRST_LAUNCH_KEY = '@ufc_first_launch_complete';
 
-// Test users for development - these are REAL Supabase auth users created by setup script
-// Use these credentials to test the app with proper RLS enforcement:
-//   alice@test.com / Password123 (alice_ufc)
-//   bob@test.com / Password123 (bob_fighter)
-//   charlie@test.com / Password123 (charlie_picks)
-//
-// These users go through normal Supabase authentication, so picks save correctly.
-
 interface AuthContextValue {
   session: Session | null;
   user: User | null;

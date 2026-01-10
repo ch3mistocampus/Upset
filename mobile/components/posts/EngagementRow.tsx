@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../lib/theme';
 import { spacing, typography } from '../../lib/tokens';
+import { useAuth } from '../../hooks/useAuth';
 
 interface EngagementRowProps {
   commentCount: number;
@@ -24,6 +25,8 @@ interface EngagementRowProps {
   disabled?: boolean;
   /** Compact mode for X/Twitter-style feed rows */
   compact?: boolean;
+  /** Called when guest tries to interact - parent should show auth modal */
+  onAuthRequired?: () => void;
 }
 
 export function EngagementRow({
@@ -35,18 +38,28 @@ export function EngagementRow({
   shareContent,
   disabled = false,
   compact = false,
+  onAuthRequired,
 }: EngagementRowProps) {
   const { colors } = useTheme();
+  const { isGuest, user } = useAuth();
   const iconSize = compact ? 16 : 18;
 
   const handleCommentPress = () => {
     if (disabled) return;
+    if (isGuest || !user) {
+      onAuthRequired?.();
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onCommentPress();
   };
 
   const handleLikePress = () => {
     if (disabled) return;
+    if (isGuest || !user) {
+      onAuthRequired?.();
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onLikePress();
   };

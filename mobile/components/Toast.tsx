@@ -1,6 +1,6 @@
 /**
  * Toast Notification Component
- * Bold, UFC-inspired alert system with aggressive animations
+ * Premium floating pill design matching app theme
  */
 
 import React, { useEffect, useRef, useCallback } from 'react';
@@ -10,15 +10,14 @@ import {
   StyleSheet,
   Animated,
   TouchableOpacity,
-  Dimensions,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../lib/theme';
-import { radius, spacing } from '../lib/tokens';
-
-const { width } = Dimensions.get('window');
+import { radius, spacing, typography } from '../lib/tokens';
 
 export type ToastType = 'success' | 'error' | 'info' | 'neutral';
 
@@ -32,49 +31,60 @@ export interface ToastProps {
 
 const TOAST_CONFIG = {
   success: {
-    icon: 'checkmark-circle' as const,
-    color: '#22c55e',
-    bgGradient: 'rgba(34, 197, 94, 0.15)',
+    icon: 'checkmark' as const,
+    lightBg: 'rgba(31, 122, 61, 0.12)',
+    darkBg: 'rgba(52, 211, 153, 0.15)',
+    lightColor: '#1F7A3D',
+    darkColor: '#34D399',
   },
   error: {
-    icon: 'close-circle' as const,
-    color: '#ef4444',
-    bgGradient: 'rgba(239, 68, 68, 0.15)',
+    icon: 'close' as const,
+    lightBg: 'rgba(176, 68, 63, 0.12)',
+    darkBg: 'rgba(224, 90, 85, 0.15)',
+    lightColor: '#B0443F',
+    darkColor: '#E05A55',
   },
   info: {
-    icon: 'information-circle' as const,
-    color: '#06b6d4',
-    bgGradient: 'rgba(6, 182, 212, 0.15)',
+    icon: 'information' as const,
+    lightBg: 'rgba(6, 182, 212, 0.12)',
+    darkBg: 'rgba(6, 182, 212, 0.15)',
+    lightColor: '#0891B2',
+    darkColor: '#22D3EE',
   },
   neutral: {
-    icon: 'checkmark-circle' as const,
-    color: '#6b7280',
-    bgGradient: 'rgba(107, 114, 128, 0.12)',
+    icon: 'checkmark' as const,
+    lightBg: 'rgba(176, 68, 63, 0.08)',
+    darkBg: 'rgba(224, 90, 85, 0.10)',
+    lightColor: '#B0443F',
+    darkColor: '#E05A55',
   },
 };
 
 export const Toast: React.FC<ToastProps> = ({ id, type, message, onDismiss, index }) => {
-  const { colors } = useTheme();
-  const translateY = useRef(new Animated.Value(-100)).current;
+  const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
+  const translateY = useRef(new Animated.Value(80)).current;
   const opacity = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.8)).current;
+  const scale = useRef(new Animated.Value(0.9)).current;
 
   const config = TOAST_CONFIG[type];
+  const iconColor = isDark ? config.darkColor : config.lightColor;
+  const pillBg = isDark ? config.darkBg : config.lightBg;
 
   const handleDismiss = useCallback(() => {
     Animated.parallel([
       Animated.timing(translateY, {
-        toValue: -100,
+        toValue: 80,
         duration: 200,
         useNativeDriver: true,
       }),
       Animated.timing(opacity, {
         toValue: 0,
-        duration: 200,
+        duration: 150,
         useNativeDriver: true,
       }),
       Animated.timing(scale, {
-        toValue: 0.8,
+        toValue: 0.9,
         duration: 200,
         useNativeDriver: true,
       }),
@@ -83,7 +93,7 @@ export const Toast: React.FC<ToastProps> = ({ id, type, message, onDismiss, inde
     });
   }, [id, onDismiss, translateY, opacity, scale]);
 
-  // Haptic feedback on mount based on type
+  // Haptic feedback on mount
   useEffect(() => {
     if (type === 'error') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -94,36 +104,37 @@ export const Toast: React.FC<ToastProps> = ({ id, type, message, onDismiss, inde
     }
   }, [type]);
 
-  // Entrance animation and auto-dismiss timer
+  // Entrance animation and auto-dismiss
   useEffect(() => {
-    // Aggressive slam-in animation
     Animated.parallel([
       Animated.spring(translateY, {
         toValue: 0,
-        tension: 80,
-        friction: 8,
+        tension: 120,
+        friction: 10,
         useNativeDriver: true,
       }),
       Animated.timing(opacity, {
         toValue: 1,
-        duration: 250,
+        duration: 200,
         useNativeDriver: true,
       }),
       Animated.spring(scale, {
         toValue: 1,
-        tension: 100,
-        friction: 7,
+        tension: 150,
+        friction: 8,
         useNativeDriver: true,
       }),
     ]).start();
 
-    // Auto-dismiss with exit animation
     const timer = setTimeout(() => {
       handleDismiss();
-    }, 3500);
+    }, 2800);
 
     return () => clearTimeout(timer);
   }, [handleDismiss, translateY, opacity, scale]);
+
+  // Position above tab bar (80px) + stacking for multiple toasts
+  const bottomPosition = Math.max(insets.bottom, 16) + 90 + (index * 60);
 
   return (
     <Animated.View
@@ -132,43 +143,48 @@ export const Toast: React.FC<ToastProps> = ({ id, type, message, onDismiss, inde
         {
           transform: [{ translateY }, { scale }],
           opacity,
-          top: Platform.OS === 'ios' ? 60 + index * 85 : 20 + index * 85,
+          bottom: bottomPosition,
         },
       ]}
     >
       <TouchableOpacity
-        activeOpacity={0.9}
+        activeOpacity={0.95}
         onPress={handleDismiss}
         style={styles.touchable}
       >
-        <View style={[styles.toast, { backgroundColor: colors.surface, borderLeftColor: config.color, borderColor: colors.border }]}>
-          {/* Accent glow effect */}
+        {/* Glassmorphism background */}
+        <BlurView
+          intensity={isDark ? 40 : 60}
+          tint={isDark ? 'dark' : 'light'}
+          style={styles.blurContainer}
+        >
           <View
             style={[
-              styles.glowOverlay,
-              { backgroundColor: config.bgGradient },
+              styles.toast,
+              {
+                backgroundColor: isDark
+                  ? 'rgba(18, 21, 27, 0.85)'
+                  : 'rgba(255, 255, 255, 0.9)',
+                borderColor: isDark
+                  ? 'rgba(255, 255, 255, 0.1)'
+                  : 'rgba(0, 0, 0, 0.06)',
+              },
             ]}
-          />
-
-          {/* Icon */}
-          <View style={[styles.iconContainer, { backgroundColor: config.color }]}>
-            <Ionicons name={config.icon} size={22} color="#fff" />
-          </View>
-
-          {/* Message */}
-          <Text style={[styles.message, { color: colors.text }]} numberOfLines={2}>
-            {message}
-          </Text>
-
-          {/* Close button */}
-          <TouchableOpacity
-            onPress={handleDismiss}
-            style={styles.closeButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name="close" size={20} color={colors.textMuted} />
-          </TouchableOpacity>
-        </View>
+            {/* Icon pill */}
+            <View style={[styles.iconPill, { backgroundColor: pillBg }]}>
+              <Ionicons name={config.icon} size={16} color={iconColor} />
+            </View>
+
+            {/* Message */}
+            <Text
+              style={[styles.message, { color: colors.text }]}
+              numberOfLines={1}
+            >
+              {message}
+            </Text>
+          </View>
+        </BlurView>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -177,59 +193,44 @@ export const Toast: React.FC<ToastProps> = ({ id, type, message, onDismiss, inde
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: 16,
-    right: 16,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
     zIndex: 9999,
   },
   touchable: {
-    width: '100%',
+    maxWidth: 340,
   },
-  toast: {
-    borderRadius: radius.card, // Rounded to match app style
-    borderLeftWidth: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 12,
-    borderWidth: 1,
+  blurContainer: {
+    borderRadius: radius.pill,
     overflow: 'hidden',
   },
-  glowOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    opacity: 0.3,
+  toast: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingLeft: spacing.sm,
+    paddingRight: spacing.md + 4,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    gap: spacing.sm,
+    // Subtle shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  iconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.sm, // Rounded to match app style
+  iconPill: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: spacing.sm,
-    zIndex: 1,
   },
   message: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-    lineHeight: 20,
-    zIndex: 1,
-  },
-  closeButton: {
-    padding: 4,
-    marginLeft: 8,
-    zIndex: 1,
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.semibold,
+    letterSpacing: 0.2,
   },
 });

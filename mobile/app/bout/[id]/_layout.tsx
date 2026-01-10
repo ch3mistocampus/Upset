@@ -14,9 +14,10 @@ export default function BoutLayout() {
     <Stack
       screenOptions={{
         headerStyle: { backgroundColor: colors.surface },
-        headerTintColor: colors.text,
+        headerTintColor: colors.textPrimary,
         headerTitleStyle: { fontWeight: '600' },
         contentStyle: { backgroundColor: colors.background },
+        headerBackTitle: 'Back',
       }}
     />
   );

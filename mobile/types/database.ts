@@ -169,6 +169,7 @@ export interface Bout {
   blue_name: string;
   status: 'scheduled' | 'completed' | 'canceled' | 'replaced';
   card_snapshot: number;
+  scheduled_rounds: number;
   last_synced_at: string | null;
   created_at: string;
 }
@@ -185,6 +186,7 @@ export interface BoutInsert {
   blue_name: string;
   status?: 'scheduled' | 'completed' | 'canceled' | 'replaced';
   card_snapshot?: number;
+  scheduled_rounds?: number;
   last_synced_at?: string | null;
   created_at?: string;
 }
@@ -195,6 +197,7 @@ export interface BoutUpdate {
   red_name?: string;
   blue_name?: string;
   status?: 'scheduled' | 'completed' | 'canceled' | 'replaced';
+  scheduled_rounds?: number;
   last_synced_at?: string | null;
 }
 
@@ -241,6 +244,8 @@ export interface Pick {
   locked_at: string | null;
   status: 'active' | 'graded' | 'voided';
   score: number | null;
+  is_correct_method: boolean | null;
+  is_correct_round: boolean | null;
   updated_at: string;
 }
 
@@ -265,6 +270,8 @@ export interface PickUpdate {
   picked_round?: number | null;
   status?: 'active' | 'graded' | 'voided';
   score?: number | null;
+  is_correct_method?: boolean | null;
+  is_correct_round?: boolean | null;
   updated_at?: string;
 }
 
@@ -273,6 +280,8 @@ export interface UserStats {
   user_id: string;
   total_picks: number;
   correct_winner: number;
+  correct_method: number;
+  correct_round: number;
   accuracy_pct: number;
   current_streak: number;
   best_streak: number;
@@ -283,6 +292,8 @@ export interface UserStatsInsert {
   user_id: string;
   total_picks?: number;
   correct_winner?: number;
+  correct_method?: number;
+  correct_round?: number;
   accuracy_pct?: number;
   current_streak?: number;
   best_streak?: number;
@@ -292,6 +303,8 @@ export interface UserStatsInsert {
 export interface UserStatsUpdate {
   total_picks?: number;
   correct_winner?: number;
+  correct_method?: number;
+  correct_round?: number;
   accuracy_pct?: number;
   current_streak?: number;
   best_streak?: number;

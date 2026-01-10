@@ -22,16 +22,33 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useFriends } from '../../hooks/useFriends';
 import { useToast } from '../../hooks/useToast';
+import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../lib/theme';
 import { spacing, radius, typography } from '../../lib/tokens';
 import { EmptyState, SurfaceCard, Button } from '../../components/ui';
+import { AuthPromptModal } from '../../components/AuthPromptModal';
 import type { UserSearchResult } from '../../types/social';
 
 export default function AddFriend() {
   const { colors, isDark } = useTheme();
   const router = useRouter();
   const toast = useToast();
+  const { isGuest, user } = useAuth();
   const { searchUsers, follow, followLoading } = useFriends();
+
+  // Guest users cannot follow - show auth prompt
+  if (isGuest || !user) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <AuthPromptModal
+          visible={true}
+          onClose={() => router.back()}
+          onSignIn={() => router.replace('/(auth)/sign-in')}
+          context="friends"
+        />
+      </View>
+    );
+  }
 
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);

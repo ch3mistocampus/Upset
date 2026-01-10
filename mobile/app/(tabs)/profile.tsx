@@ -29,6 +29,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { useGuestPicks } from '../../hooks/useGuestPicks';
@@ -62,6 +63,7 @@ interface RecentEventSummary {
 export default function Profile() {
   const router = useRouter();
   const toast = useToast();
+  const insets = useSafeAreaInsets();
   const { colors, isDark, themeMode, setThemeMode } = useTheme();
   const { profile, user, signOut, isGuest, updateProfile } = useAuth();
   const { getTotalPickCount, getEventsPickedCount } = useGuestPicks();
@@ -496,7 +498,7 @@ export default function Profile() {
           />
         </SurfaceCard>
 
-        <Text style={[styles.appVersion, { color: colors.textTertiary }]}>UFC Picks Tracker v1.0.0</Text>
+        <Text style={[styles.appVersion, { color: colors.textTertiary }]}>Upset v1.0.0</Text>
       </ScrollView>
     );
   }
@@ -682,7 +684,7 @@ export default function Profile() {
 
           {/* Settings Button - Navigate to Settings screen */}
           <TouchableOpacity
-            style={[styles.settingsButton, { backgroundColor: colors.surface + 'CC' }]}
+            style={[styles.settingsButton, { backgroundColor: colors.surface + 'CC', top: insets.top + 8 }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               router.push('/settings');
@@ -955,12 +957,17 @@ export default function Profile() {
           style={[styles.modalContainer, { backgroundColor: colors.background }]}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
+          {/* Drag Handle for swipe-to-dismiss affordance */}
+          <View style={styles.dragHandleContainer}>
+            <View style={[styles.dragHandle, { backgroundColor: colors.border }]} />
+          </View>
+
           <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-            <TouchableOpacity onPress={() => setShowBioModal(false)}>
+            <TouchableOpacity onPress={() => setShowBioModal(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Text style={[styles.modalCancel, { color: colors.textSecondary }]}>Cancel</Text>
             </TouchableOpacity>
             <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Bio</Text>
-            <TouchableOpacity onPress={handleSaveBio} disabled={savingBio}>
+            <TouchableOpacity onPress={handleSaveBio} disabled={savingBio} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Text style={[styles.modalSave, { color: savingBio ? colors.textTertiary : colors.accent }]}>
                 {savingBio ? 'Saving...' : 'Save'}
               </Text>
@@ -1079,7 +1086,6 @@ const styles = StyleSheet.create({
   },
   settingsButton: {
     position: 'absolute',
-    top: 8,
     right: spacing.sm,
     width: 32,
     height: 32,
@@ -1411,6 +1417,16 @@ const styles = StyleSheet.create({
   // Modal
   modalContainer: {
     flex: 1,
+  },
+  dragHandleContainer: {
+    alignItems: 'center',
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
+  },
+  dragHandle: {
+    width: 36,
+    height: 5,
+    borderRadius: 3,
   },
   modalHeader: {
     flexDirection: 'row',

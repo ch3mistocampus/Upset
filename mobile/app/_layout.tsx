@@ -10,6 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ToastProvider } from '../hooks/useToast';
 import { OnboardingProvider } from '../hooks/useOnboarding';
 import { GuestPicksProvider } from '../hooks/useGuestPicks';
+import { AuthProvider } from '../hooks/useAuth';
 import { ThemeProvider, useTheme } from '../lib/theme';
 import { DrawerProvider } from '../lib/DrawerContext';
 import { AppDrawer } from '../components/navigation/AppDrawer';
@@ -67,6 +68,7 @@ function RootNavigator() {
             title: 'Settings',
             animation: 'fade',
             animationDuration: 200,
+            headerBackTitle: 'Back',
           }}
         />
         <Stack.Screen name="post/notifications" options={{ title: 'Notifications', headerBackTitle: 'Back' }} />
@@ -97,17 +99,19 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <GuestPicksProvider>
-        <OnboardingProvider>
-          <ThemeProvider>
-            <DrawerProvider>
-              <ToastProvider>
-                <RootNavigator />
-              </ToastProvider>
-            </DrawerProvider>
-          </ThemeProvider>
-        </OnboardingProvider>
-      </GuestPicksProvider>
+      <AuthProvider>
+        <GuestPicksProvider>
+          <OnboardingProvider>
+            <ThemeProvider>
+              <DrawerProvider>
+                <ToastProvider>
+                  <RootNavigator />
+                </ToastProvider>
+              </DrawerProvider>
+            </ThemeProvider>
+          </OnboardingProvider>
+        </GuestPicksProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

@@ -35,9 +35,9 @@ export default function Index() {
     return <Redirect href="/(auth)/create-username" />;
   }
 
-  // First launch - show welcome screen with guest/sign-in options
+  // First launch - show onboarding carousel
   if (isFirstLaunch) {
-    return <Redirect href="/(auth)/welcome" />;
+    return <Redirect href="/(auth)/onboarding" />;
   }
 
   // Returning user without session - go to sign-in

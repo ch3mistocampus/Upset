@@ -21,6 +21,7 @@ import { spacing, radius, typography } from '../../lib/tokens';
 import { submitEvent, isEventSubmitted, unsubmitEvent } from '../../lib/storage';
 import { SurfaceCard, EmptyState, LiveBadge } from '../../components/ui';
 import { ErrorState } from '../../components/ErrorState';
+import { GlobalTabBar } from '../../components/navigation/GlobalTabBar';
 import { SkeletonFightCard } from '../../components/SkeletonFightCard';
 import { LockExplainerModal } from '../../components/LockExplainerModal';
 import { AuthPromptModal } from '../../components/AuthPromptModal';
@@ -266,9 +267,16 @@ export default function EventDetail() {
     markSeen('hasSeenLockExplainer');
   };
 
-  // Handle opening submit modal
+  // Handle opening submit modal - require account for guests
   const handleOpenSubmitModal = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Guests must create an account to submit picks
+    if (isGuest) {
+      openGate('picks');
+      return;
+    }
+
     setShowSubmitModal(true);
   };
 
@@ -306,7 +314,7 @@ export default function EventDetail() {
 
     // If not authenticated and not in guest mode, show auth prompt
     if (!user && !isGuest) {
-      openGate('history');
+      openGate('picks');
       return;
     }
 
@@ -382,8 +390,12 @@ export default function EventDetail() {
 
       await upsertPick.mutateAsync({ pick, isGuest });
 
-      if (method) {
-        toast.showNeutral(`${corner === 'red' ? bout.red_name : bout.blue_name} by ${method}${round ? ` R${round}` : ''}`);
+      if (method || round) {
+        const fighterName = corner === 'red' ? bout.red_name : bout.blue_name;
+        const prediction = method
+          ? `${method}${round ? ` R${round}` : ''}`
+          : `R${round}`;
+        toast.showNeutral(`${fighterName} by ${prediction}`);
       }
     } catch (error: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -516,6 +528,7 @@ export default function EventDetail() {
           <SkeletonFightCard />
           <SkeletonFightCard />
         </ScrollView>
+        <GlobalTabBar />
       </View>
     );
   }
@@ -528,6 +541,7 @@ export default function EventDetail() {
           message="Failed to load event. Check your connection and try again."
           onRetry={() => refetchEvent()}
         />
+        <GlobalTabBar />
       </View>
     );
   }
@@ -540,6 +554,7 @@ export default function EventDetail() {
           message="Failed to load fights. Check your connection and try again."
           onRetry={() => refetchBouts()}
         />
+        <GlobalTabBar />
       </View>
     );
   }
@@ -555,6 +570,7 @@ export default function EventDetail() {
           actionLabel="Go Back"
           onAction={() => router.back()}
         />
+        <GlobalTabBar />
       </View>
     );
   }
@@ -570,6 +586,7 @@ export default function EventDetail() {
           actionLabel="Refresh"
           onAction={onRefresh}
         />
+        <GlobalTabBar />
       </View>
     );
   }
@@ -775,10 +792,11 @@ export default function EventDetail() {
                             <Text style={[styles.pickLabel, { color: colors.textTertiary }]}>
                               Your pick
                             </Text>
-                            {bout.pick?.picked_method && (
+                            {(bout.pick?.picked_method || bout.pick?.picked_round) && (
                               <Text style={[styles.predictionLabel, { color: colors.accent }]} numberOfLines={1}>
-                                {bout.pick.picked_method.replace('Decision - ', '').replace('Submission - ', '')}
-                                {bout.pick.picked_round ? ` R${bout.pick.picked_round}` : ''}
+                                {bout.pick.picked_method?.replace('Decision - ', '').replace('Submission - ', '') || ''}
+                                {bout.pick.picked_method && bout.pick.picked_round ? ' ' : ''}
+                                {bout.pick.picked_round ? `R${bout.pick.picked_round}` : ''}
                               </Text>
                             )}
                           </>
@@ -796,10 +814,11 @@ export default function EventDetail() {
                             <Text style={[styles.pickLabel, { color: colors.textTertiary }]}>
                               Your pick
                             </Text>
-                            {bout.pick?.picked_method && (
+                            {(bout.pick?.picked_method || bout.pick?.picked_round) && (
                               <Text style={[styles.predictionLabel, { color: colors.accent }]} numberOfLines={1}>
-                                {bout.pick.picked_method.replace('Decision - ', '').replace('Submission - ', '')}
-                                {bout.pick.picked_round ? ` R${bout.pick.picked_round}` : ''}
+                                {bout.pick.picked_method?.replace('Decision - ', '').replace('Submission - ', '') || ''}
+                                {bout.pick.picked_method && bout.pick.picked_round ? ' ' : ''}
+                                {bout.pick.picked_round ? `R${bout.pick.picked_round}` : ''}
                               </Text>
                             )}
                           </>
@@ -914,8 +933,8 @@ export default function EventDetail() {
         );
         })}
 
-        {/* Bottom padding for safe area and submit button */}
-        <View style={{ height: insets.bottom + spacing.lg + (picksCount > 0 && !locked && !isSubmitted ? 70 : 0) }} />
+        {/* Bottom padding for tab bar and submit button */}
+        <View style={{ height: 100 + (picksCount > 0 && !locked && !isSubmitted ? 70 : 0) }} />
       </ScrollView>
 
       {/* Lock Explainer Modal */}
@@ -924,7 +943,7 @@ export default function EventDetail() {
         onDismiss={handleDismissLockExplainer}
       />
 
-      {/* Auth Prompt Modal - shown when unauthenticated user tries to pick */}
+      {/* Auth Prompt Modal - shown when unauthenticated user tries to pick or submit */}
       <AuthPromptModal
         visible={showGate}
         onClose={closeGate}
@@ -932,11 +951,11 @@ export default function EventDetail() {
           closeGate();
           router.push('/(auth)/sign-in');
         }}
-        onContinueAsGuest={async () => {
+        onContinueAsGuest={isGuest ? undefined : async () => {
           await enterGuestMode();
           closeGate();
         }}
-        context={gateContext || 'history'}
+        context={gateContext || 'picks'}
       />
 
       {/* Method Picker Modal - shown when user picks a fighter */}
@@ -952,12 +971,13 @@ export default function EventDetail() {
         selectedCorner={pendingPick?.corner || 'red'}
         currentMethod={pendingPick?.bout.pick?.picked_method}
         currentRound={pendingPick?.bout.pick?.picked_round}
+        scheduledRounds={pendingPick?.bout.scheduled_rounds}
         orderIndex={bouts?.findIndex(b => b.id === pendingPick?.bout.id)}
       />
 
-      {/* Submit Button - Fixed at bottom (only when not submitted) */}
+      {/* Submit Button - Fixed above tab bar (only when not submitted) */}
       {!locked && picksCount > 0 && !isSubmitted && (
-        <View style={[styles.submitContainer, { paddingBottom: insets.bottom + spacing.md }]}>
+        <View style={[styles.submitContainer, { bottom: Math.max(insets.bottom, 16) + 80 }]}>
           <TouchableOpacity
             style={[styles.submitButton, { backgroundColor: colors.accent }]}
             onPress={handleOpenSubmitModal}
@@ -1040,6 +1060,9 @@ export default function EventDetail() {
           </Animated.View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Global Tab Bar for navigation consistency */}
+      <GlobalTabBar />
     </View>
   );
 }

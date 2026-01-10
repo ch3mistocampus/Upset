@@ -15,6 +15,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
+import { logger } from '../../lib/logger';
 import { useTheme } from '../../lib/theme';
 import { spacing, radius, typography } from '../../lib/tokens';
 import { Button, LinkButton, Input } from '../../components/ui';
@@ -25,7 +26,7 @@ type AuthTab = 'password' | 'otp';
 
 export default function SignIn() {
   const { colors } = useTheme();
-  const { signInWithPassword, signInWithUsername, signInWithOTP, verifyOTP } = useAuth();
+  const { signInWithPassword, signInWithUsername, signInWithOTP, verifyOTP, enterGuestMode } = useAuth();
   const toast = useToast();
   const router = useRouter();
 
@@ -104,6 +105,12 @@ export default function SignIn() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleContinueAsGuest = async () => {
+    logger.info('Continuing as guest from sign-in screen');
+    await enterGuestMode();
+    router.replace('/(tabs)/home');
   };
 
   const renderPasswordTab = () => (
@@ -212,7 +219,7 @@ export default function SignIn() {
       >
         <View style={styles.content}>
           <Text style={[styles.title, { color: colors.textPrimary }]}>
-            UFC Picks Tracker
+            Upset
           </Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             Sign in to continue
@@ -263,7 +270,11 @@ export default function SignIn() {
           </View>
 
           {/* OAuth Sign-In Options */}
-          <SocialAuthButtons action="Sign in" disabled={loading} />
+          <SocialAuthButtons
+            action="Sign in"
+            disabled={loading}
+            onSuccess={() => router.replace('/')}
+          />
 
           {/* Sign Up Link */}
           <TouchableOpacity
@@ -274,6 +285,17 @@ export default function SignIn() {
             <Text style={[styles.signUpText, { color: colors.textSecondary }]}>
               Don't have an account?{' '}
               <Text style={{ color: colors.accent, fontWeight: '600' }}>Sign up</Text>
+            </Text>
+          </TouchableOpacity>
+
+          {/* Guest Mode Link */}
+          <TouchableOpacity
+            style={styles.guestButton}
+            onPress={handleContinueAsGuest}
+            disabled={loading}
+          >
+            <Text style={[styles.guestText, { color: colors.textTertiary }]}>
+              Continue as Guest
             </Text>
           </TouchableOpacity>
         </View>
@@ -342,5 +364,13 @@ const styles = StyleSheet.create({
   },
   signUpText: {
     ...typography.body,
+  },
+  guestButton: {
+    marginTop: spacing.md,
+    padding: spacing.sm,
+    alignItems: 'center',
+  },
+  guestText: {
+    ...typography.meta,
   },
 });

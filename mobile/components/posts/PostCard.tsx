@@ -26,6 +26,7 @@ import { EditPostModal } from './EditPostModal';
 import { EngagementRow } from './EngagementRow';
 import { PostImageGrid } from './PostImageGrid';
 import { ImageViewer } from '../ImageViewer';
+import { AuthPromptModal } from '../AuthPromptModal';
 
 interface PostCardProps {
   post: Post;
@@ -44,6 +45,7 @@ export function PostCard({ post, onPress, showActions = true }: PostCardProps) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Press animation
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -110,6 +112,10 @@ export function PostCard({ post, onPress, showActions = true }: PostCardProps) {
   const handleActionsPress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowActionsMenu(true);
+  };
+
+  const handleAuthRequired = () => {
+    setShowAuthModal(true);
   };
 
   const isSystemPost = post.post_type === 'system';
@@ -246,6 +252,7 @@ export function PostCard({ post, onPress, showActions = true }: PostCardProps) {
                 onLikePress={handleLikePress}
                 shareContent={shareContent}
                 disabled={toggleLike.isPending}
+                onAuthRequired={handleAuthRequired}
               />
             </View>
           </View>
@@ -259,6 +266,7 @@ export function PostCard({ post, onPress, showActions = true }: PostCardProps) {
         post={post}
         onEdit={() => setShowEditModal(true)}
         onReport={() => setShowReportModal(true)}
+        onAuthRequired={handleAuthRequired}
       />
 
       <ReportModal
@@ -285,6 +293,17 @@ export function PostCard({ post, onPress, showActions = true }: PostCardProps) {
           onClose={() => setShowImageViewer(false)}
         />
       )}
+
+      {/* Auth Prompt for Guests */}
+      <AuthPromptModal
+        visible={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSignIn={() => {
+          setShowAuthModal(false);
+          router.push('/(auth)/sign-in');
+        }}
+        context="social"
+      />
     </TouchableOpacity>
   );
 }

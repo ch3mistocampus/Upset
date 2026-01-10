@@ -446,7 +446,7 @@ export function AppDrawer() {
         {/* App Version */}
         <View style={styles.footer}>
           <Text style={[styles.versionText, { color: colors.textTertiary }]}>
-            UFC Picks v1.0.0
+            Upset v1.0.0
           </Text>
         </View>
       </Animated.View>

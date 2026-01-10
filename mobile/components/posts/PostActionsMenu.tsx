@@ -27,6 +27,7 @@ interface PostActionsMenuProps {
   post: Post;
   onEdit?: () => void;
   onReport?: () => void;
+  onAuthRequired?: () => void;
 }
 
 export function PostActionsMenu({
@@ -35,10 +36,11 @@ export function PostActionsMenu({
   post,
   onEdit,
   onReport,
+  onAuthRequired,
 }: PostActionsMenuProps) {
   const { colors } = useTheme();
   const toast = useToast();
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const deletePost = useDeletePost();
 
   const isOwnPost = user?.id === post.user_id;
@@ -64,6 +66,12 @@ export function PostActionsMenu({
   };
 
   const handleReport = () => {
+    // Gate for guests
+    if (isGuest || !user) {
+      onClose();
+      onAuthRequired?.();
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onClose();
     onReport?.();

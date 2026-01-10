@@ -36,7 +36,7 @@ export default function Welcome() {
 
         {/* Title */}
         <Text style={[styles.title, { color: colors.textPrimary }]}>
-          UFC Picks Tracker
+          Upset
         </Text>
 
         {/* Tagline */}

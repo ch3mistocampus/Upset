@@ -23,9 +23,11 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../../lib/supabase';
 import { logger } from '../../../lib/logger';
 import { useAuth } from '../../../hooks/useAuth';
+import { AuthPromptModal } from '../../../components/AuthPromptModal';
 import { useFriends } from '../../../hooks/useFriends';
 import { useBlocking } from '../../../hooks/useBlocking';
 import { useMute } from '../../../hooks/useMute';
@@ -84,7 +86,8 @@ export default function UserProfile() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const toast = useToast();
-  const { user } = useAuth();
+  const insets = useSafeAreaInsets();
+  const { user, isGuest } = useAuth();
   const { follow, unfollow, followLoading, unfollowLoading } = useFriends();
   const { blockedUsers, block, unblock, blockLoading } = useBlocking();
   const { mutedUsers, mute, unmute, isMuting } = useMute();
@@ -92,6 +95,7 @@ export default function UserProfile() {
 
   const [activeTab, setActiveTab] = useState<TabType>('picks');
   const [showActionMenu, setShowActionMenu] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [eventGroups, setEventGroups] = useState<EventGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -320,6 +324,11 @@ export default function UserProfile() {
   };
 
   const handleFollow = async () => {
+    // Gate for guests
+    if (isGuest || !user) {
+      setShowAuthModal(true);
+      return;
+    }
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await follow(id!);
@@ -354,6 +363,11 @@ export default function UserProfile() {
 
   const handleMuteToggle = async () => {
     setShowActionMenu(false);
+    // Gate for guests
+    if (isGuest || !user) {
+      setShowAuthModal(true);
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       if (isMuted) {
@@ -370,6 +384,11 @@ export default function UserProfile() {
 
   const handleBlockToggle = async () => {
     setShowActionMenu(false);
+    // Gate for guests
+    if (isGuest || !user) {
+      setShowAuthModal(true);
+      return;
+    }
     if (isBlocked) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       try {
@@ -486,8 +505,8 @@ export default function UserProfile() {
   if (isLoading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <Stack.Screen options={{ headerShown: false }} />
-        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <Stack.Screen options={{ headerShown: false, gestureEnabled: true }} />
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border, paddingTop: insets.top + spacing.sm }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
@@ -499,6 +518,7 @@ export default function UserProfile() {
           <SkeletonCard />
           <SkeletonCard />
         </ScrollView>
+        <GlobalTabBar />
       </View>
     );
   }
@@ -506,8 +526,8 @@ export default function UserProfile() {
   if (error || !profile) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <Stack.Screen options={{ headerShown: false }} />
-        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+        <Stack.Screen options={{ headerShown: false, gestureEnabled: true }} />
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border, paddingTop: insets.top + spacing.sm }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
@@ -518,6 +538,7 @@ export default function UserProfile() {
           message={error || 'Failed to load user profile'}
           onRetry={fetchUserData}
         />
+        <GlobalTabBar />
       </View>
     );
   }
@@ -578,10 +599,10 @@ export default function UserProfile() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Stack.Screen options={{ headerShown: false }} />
+      <Stack.Screen options={{ headerShown: false, gestureEnabled: true }} />
       {/* Header */}
       <Animated.View style={{ opacity: headerOpacity }}>
-        <View style={[styles.header, { backgroundColor: colors.background }]}>
+        <View style={[styles.header, { backgroundColor: colors.background, paddingTop: insets.top + spacing.sm }]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
@@ -1107,6 +1128,17 @@ export default function UserProfile() {
 
       {/* Global Tab Bar */}
       <GlobalTabBar />
+
+      {/* Auth Prompt Modal for guests */}
+      <AuthPromptModal
+        visible={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSignIn={() => {
+          setShowAuthModal(false);
+          router.push('/(auth)/sign-in');
+        }}
+        context="social"
+      />
     </View>
   );
 }

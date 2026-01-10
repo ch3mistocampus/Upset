@@ -9,7 +9,7 @@ import { useTheme } from '../lib/theme';
 import { spacing, radius, typography } from '../lib/tokens';
 import { Button } from './ui';
 
-export type AuthContext = 'friends' | 'leaderboard' | 'history' | 'sync';
+export type AuthContext = 'friends' | 'leaderboard' | 'history' | 'sync' | 'picks' | 'social' | 'settings';
 
 interface AuthPromptModalProps {
   visible: boolean;
@@ -39,6 +39,21 @@ const COPY: Record<AuthContext, { title: string; body: string; icon: keyof typeo
     title: 'Sync across devices',
     body: 'Sign in to access your picks from any device.',
     icon: 'cloud-upload',
+  },
+  picks: {
+    title: 'Save your picks',
+    body: 'Create an account to save your picks permanently, track your accuracy, and compete on the leaderboards.',
+    icon: 'bookmark',
+  },
+  social: {
+    title: 'Join the community',
+    body: 'Create an account to post, comment, like, and connect with other MMA fans.',
+    icon: 'chatbubbles',
+  },
+  settings: {
+    title: 'Account required',
+    body: 'Create an account to access all settings and customize your experience.',
+    icon: 'settings',
   },
 };
 

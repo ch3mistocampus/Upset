@@ -17,6 +17,7 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../lib/theme';
 import { spacing, radius, typography } from '../../lib/tokens';
 import { useCreateComment } from '../../hooks/usePosts';
+import { useAuth } from '../../hooks/useAuth';
 
 interface CommentInputProps {
   postId: string;
@@ -27,10 +28,12 @@ interface CommentInputProps {
   onCancelReply?: () => void;
   onFocus?: () => void;
   onBlur?: () => void;
+  onAuthRequired?: () => void;
 }
 
-export function CommentInput({ postId, replyTo, onCancelReply, onFocus, onBlur }: CommentInputProps) {
+export function CommentInput({ postId, replyTo, onCancelReply, onFocus, onBlur, onAuthRequired }: CommentInputProps) {
   const { colors } = useTheme();
+  const { isGuest, user } = useAuth();
   const [text, setText] = useState('');
   const inputRef = useRef<TextInput>(null);
   const createComment = useCreateComment();
@@ -44,6 +47,12 @@ export function CommentInput({ postId, replyTo, onCancelReply, onFocus, onBlur }
 
   const handleSubmit = async () => {
     if (!text.trim()) return;
+
+    // Gate for guests
+    if (isGuest || !user) {
+      onAuthRequired?.();
+      return;
+    }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
@@ -60,6 +69,16 @@ export function CommentInput({ postId, replyTo, onCancelReply, onFocus, onBlur }
     } catch (error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
+  };
+
+  const handleInputFocus = () => {
+    // Gate for guests when they try to focus the input
+    if (isGuest || !user) {
+      inputRef.current?.blur();
+      onAuthRequired?.();
+      return;
+    }
+    onFocus?.();
   };
 
   const handleCancelReply = () => {
@@ -99,7 +118,7 @@ export function CommentInput({ postId, replyTo, onCancelReply, onFocus, onBlur }
           placeholderTextColor={colors.textTertiary}
           value={text}
           onChangeText={setText}
-          onFocus={onFocus}
+          onFocus={handleInputFocus}
           onBlur={onBlur}
           multiline
           maxLength={2000}

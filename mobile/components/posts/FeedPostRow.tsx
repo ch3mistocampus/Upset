@@ -27,6 +27,7 @@ import { EditPostModal } from './EditPostModal';
 import { EngagementRow } from './EngagementRow';
 import { PostImageGrid } from './PostImageGrid';
 import { ImageViewer } from '../ImageViewer';
+import { AuthPromptModal } from '../AuthPromptModal';
 
 interface FeedPostRowProps {
   post: Post;
@@ -46,6 +47,7 @@ export function FeedPostRow({ post, onPress, showActions = true }: FeedPostRowPr
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isPressed, setIsPressed] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Subtle press animation
   const opacityAnim = useRef(new Animated.Value(1)).current;
@@ -97,6 +99,10 @@ export function FeedPostRow({ post, onPress, showActions = true }: FeedPostRowPr
   const handleActionsPress = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowActionsMenu(true);
+  }, []);
+
+  const handleAuthRequired = useCallback(() => {
+    setShowAuthModal(true);
   }, []);
 
   const isSystemPost = post.post_type === 'system';
@@ -245,6 +251,7 @@ export function FeedPostRow({ post, onPress, showActions = true }: FeedPostRowPr
               onLikePress={handleLikePress}
               shareContent={shareContent}
               disabled={toggleLike.isPending}
+              onAuthRequired={handleAuthRequired}
               compact
             />
           </View>
@@ -258,6 +265,7 @@ export function FeedPostRow({ post, onPress, showActions = true }: FeedPostRowPr
         post={post}
         onEdit={() => setShowEditModal(true)}
         onReport={() => setShowReportModal(true)}
+        onAuthRequired={handleAuthRequired}
       />
 
       <ReportModal
@@ -284,6 +292,17 @@ export function FeedPostRow({ post, onPress, showActions = true }: FeedPostRowPr
           onClose={() => setShowImageViewer(false)}
         />
       )}
+
+      {/* Auth Prompt for Guests */}
+      <AuthPromptModal
+        visible={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSignIn={() => {
+          setShowAuthModal(false);
+          router.push('/(auth)/sign-in');
+        }}
+        context="social"
+      />
     </Pressable>
   );
 }

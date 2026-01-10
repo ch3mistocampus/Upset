@@ -27,6 +27,7 @@ import { Avatar } from '../../../components/Avatar';
 import { CommentItem, CommentInput, PostActionsMenu, ReportModal, EditPostModal, PostImageGrid, EngagementRow } from '../../../components/posts';
 import { EmptyState } from '../../../components/EmptyState';
 import { ImageViewer } from '../../../components/ImageViewer';
+import { AuthPromptModal } from '../../../components/AuthPromptModal';
 import { useAuth } from '../../../hooks/useAuth';
 
 export default function PostDetailScreen() {
@@ -34,7 +35,7 @@ export default function PostDetailScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const { data, isLoading, isRefetching, refetch, error } = usePostWithComments(id);
   const toggleLike = useTogglePostLike();
   const scrollViewRef = useRef<ScrollView>(null);
@@ -45,6 +46,7 @@ export default function PostDetailScreen() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showImageViewer, setShowImageViewer] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const post = data?.post;
   const comments = data?.comments ?? [];
@@ -81,6 +83,10 @@ export default function PostDetailScreen() {
     setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 300);
+  }, []);
+
+  const handleAuthRequired = useCallback(() => {
+    setShowAuthModal(true);
   }, []);
 
   if (isLoading) {
@@ -258,6 +264,7 @@ export default function PostDetailScreen() {
                 title: post.title,
               }}
               disabled={toggleLike.isPending}
+              onAuthRequired={handleAuthRequired}
             />
           </View>
         </View>
@@ -292,6 +299,7 @@ export default function PostDetailScreen() {
           replyTo={replyTo}
           onCancelReply={handleCancelReply}
           onFocus={handleInputFocus}
+          onAuthRequired={handleAuthRequired}
         />
       </View>
 
@@ -302,6 +310,7 @@ export default function PostDetailScreen() {
         post={post}
         onEdit={() => setShowEditModal(true)}
         onReport={() => setShowReportModal(true)}
+        onAuthRequired={handleAuthRequired}
       />
 
       <ReportModal
@@ -328,6 +337,17 @@ export default function PostDetailScreen() {
           onClose={() => setShowImageViewer(false)}
         />
       )}
+
+      {/* Auth Prompt for Guests */}
+      <AuthPromptModal
+        visible={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSignIn={() => {
+          setShowAuthModal(false);
+          router.push('/(auth)/sign-in');
+        }}
+        context="social"
+      />
     </KeyboardAvoidingView>
   );
 }

@@ -120,7 +120,11 @@ export default function SignUp() {
           />
 
           {/* OAuth Sign-Up Options */}
-          <SocialAuthButtons action="Sign up" disabled={loading} />
+          <SocialAuthButtons
+            action="Sign up"
+            disabled={loading}
+            onSuccess={() => router.replace('/')}
+          />
 
           <TouchableOpacity
             style={styles.linkButton}

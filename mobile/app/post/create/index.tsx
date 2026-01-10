@@ -34,6 +34,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import { supabase } from '../../../lib/supabase';
 import { logger } from '../../../lib/logger';
 import { Avatar } from '../../../components/Avatar';
+import { AuthPromptModal } from '../../../components/AuthPromptModal';
 
 const MAX_CONTENT_LENGTH = 5000;
 const MAX_IMAGES = 4;
@@ -51,11 +52,25 @@ export default function CreatePostScreen() {
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const createPost = useCreatePost();
-  const { user, profile } = useAuth();
+  const { user, profile, isGuest } = useAuth();
 
   const [content, setContent] = useState('');
   const [images, setImages] = useState<SelectedImage[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Guest users cannot create posts - show auth prompt
+  if (isGuest || !user) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <AuthPromptModal
+          visible={true}
+          onClose={() => router.back()}
+          onSignIn={() => router.replace('/(auth)/sign-in')}
+          context="social"
+        />
+      </View>
+    );
+  }
 
   const canSubmit = content.trim().length > 0 && !isSubmitting && !images.some((i) => i.uploading);
 

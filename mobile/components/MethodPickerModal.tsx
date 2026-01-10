@@ -26,19 +26,14 @@ import { useTheme } from '../lib/theme';
 import { spacing, radius, typography, shadows, fighterColors } from '../lib/tokens';
 
 // Method types for structured storage
-export type MethodType = 'KO_TKO' | 'SUB' | 'DEC' | 'DQ' | 'OTHER';
+export type MethodType = 'KO_TKO' | 'SUB' | 'DEC';
 
 // Method options with display labels
 export const METHOD_OPTIONS: { value: MethodType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { value: 'KO_TKO', label: 'KO/TKO', icon: 'flash-outline' },
   { value: 'SUB', label: 'Submission', icon: 'hand-left-outline' },
   { value: 'DEC', label: 'Decision', icon: 'clipboard-outline' },
-  { value: 'DQ', label: 'DQ', icon: 'warning-outline' },
-  { value: 'OTHER', label: 'Other', icon: 'help-circle-outline' },
 ];
-
-// Methods that require round selection (finishes)
-const FINISH_METHODS: MethodType[] = ['KO_TKO', 'SUB', 'DQ', 'OTHER'];
 
 interface MethodPickerModalProps {
   visible: boolean;
@@ -104,8 +99,6 @@ function parseMethodType(method: string | null | undefined): MethodType | null {
   if (upper.includes('KO') || upper.includes('TKO')) return 'KO_TKO';
   if (upper.includes('SUB')) return 'SUB';
   if (upper.includes('DEC')) return 'DEC';
-  if (upper.includes('DQ') || upper.includes('DISQ')) return 'DQ';
-  if (upper === 'OTHER' || upper.includes('OTHER')) return 'OTHER';
 
   return null;
 }
@@ -118,8 +111,6 @@ function methodTypeToString(method: MethodType): string {
     case 'KO_TKO': return 'KO/TKO';
     case 'SUB': return 'Submission';
     case 'DEC': return 'Decision';
-    case 'DQ': return 'DQ';
-    case 'OTHER': return 'Other';
     default: return method;
   }
 }
@@ -159,11 +150,8 @@ export function MethodPickerModal({
     [maxRounds]
   );
 
-  // Determine if round selection is needed
-  const needsRound = selectedMethod && FINISH_METHODS.includes(selectedMethod);
-
-  // Check if save is allowed
-  const canSave = selectedMethod && (!needsRound || selectedRound);
+  // Check if save is allowed - can save with just method OR just round OR both
+  const canSave = selectedMethod || selectedRound;
 
   // Corner colors
   const cornerColor = selectedCorner === 'red'
@@ -206,21 +194,24 @@ export function MethodPickerModal({
     }
   }, [visible, currentMethod, currentRound]);
 
-  // Handle method selection
+  // Handle method selection - toggle if already selected
   const handleMethodSelect = (method: MethodType) => {
     Haptics.selectionAsync();
-    setSelectedMethod(method);
-
-    // Clear round if switching to decision (doesn't need round)
-    if (!FINISH_METHODS.includes(method)) {
-      setSelectedRound(null);
+    if (selectedMethod === method) {
+      setSelectedMethod(null); // Deselect
+    } else {
+      setSelectedMethod(method);
     }
   };
 
-  // Handle round selection
+  // Handle round selection - toggle if already selected
   const handleRoundSelect = (round: number) => {
     Haptics.selectionAsync();
-    setSelectedRound(round);
+    if (selectedRound === round) {
+      setSelectedRound(null); // Deselect
+    } else {
+      setSelectedRound(round);
+    }
   };
 
   // Handle save
@@ -230,7 +221,7 @@ export function MethodPickerModal({
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     onConfirm(
       selectedMethod ? methodTypeToString(selectedMethod) : null,
-      needsRound ? selectedRound : null
+      selectedRound
     );
     onClose();
   };
@@ -342,7 +333,7 @@ export function MethodPickerModal({
                   >
                     <Ionicons
                       name={option.icon}
-                      size={16}
+                      size={14}
                       color={isSelected ? '#fff' : colors.textSecondary}
                     />
                     <Text
@@ -353,67 +344,46 @@ export function MethodPickerModal({
                     >
                       {option.label}
                     </Text>
-                    {isSelected && (
-                      <Ionicons name="checkmark" size={14} color="#fff" />
-                    )}
                   </TouchableOpacity>
                 );
               })}
             </View>
           </View>
 
-          {/* Round Selection (conditional) */}
-          {needsRound && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
-                In Round
-              </Text>
-              <View style={styles.roundRow}>
-                {roundOptions.map((round) => {
-                  const isSelected = selectedRound === round;
-                  return (
-                    <TouchableOpacity
-                      key={round}
+          {/* Round Selection */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
+              In Round
+            </Text>
+            <View style={styles.roundRow}>
+              {roundOptions.map((round) => {
+                const isSelected = selectedRound === round;
+                return (
+                  <TouchableOpacity
+                    key={round}
+                    style={[
+                      styles.roundChip,
+                      {
+                        backgroundColor: isSelected ? cornerColor : colors.surfaceAlt,
+                        borderColor: isSelected ? cornerColor : colors.border,
+                      },
+                    ]}
+                    onPress={() => handleRoundSelect(round)}
+                    activeOpacity={0.7}
+                  >
+                    <Text
                       style={[
-                        styles.roundChip,
-                        {
-                          backgroundColor: isSelected ? cornerColor : colors.surfaceAlt,
-                          borderColor: isSelected ? cornerColor : colors.border,
-                        },
+                        styles.roundChipLabel,
+                        { color: isSelected ? '#fff' : colors.text },
                       ]}
-                      onPress={() => handleRoundSelect(round)}
-                      activeOpacity={0.7}
                     >
-                      <Text
-                        style={[
-                          styles.roundChipLabel,
-                          { color: isSelected ? '#fff' : colors.text },
-                        ]}
-                      >
-                        R{round}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-              {!selectedRound && (
-                <Text style={[styles.roundHint, { color: colors.textTertiary }]}>
-                  Select a round to continue
-                </Text>
-              )}
+                      R{round}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-          )}
-
-          {/* Selection Summary */}
-          {selectedMethod && (
-            <View style={[styles.summaryBanner, { backgroundColor: colors.successSoft }]}>
-              <Ionicons name="checkmark-circle" size={18} color={colors.success} />
-              <Text style={[styles.summaryText, { color: colors.success }]}>
-                {selectedFighterName} by {METHOD_OPTIONS.find(m => m.value === selectedMethod)?.label}
-                {needsRound && selectedRound ? ` in Round ${selectedRound}` : ''}
-              </Text>
-            </View>
-          )}
+          </View>
 
           {/* Footer Actions */}
           <View style={styles.footer}>
@@ -484,20 +454,20 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   header: {
-    padding: spacing.lg,
-    paddingBottom: spacing.md,
+    padding: spacing.md,
+    paddingBottom: spacing.sm,
     alignItems: 'center',
   },
   title: {
     ...typography.h2,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   subtitle: {
     ...typography.meta,
   },
   fighterBanner: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
   fighterContent: {
     flexDirection: 'row',
@@ -525,29 +495,29 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   section: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
   },
   sectionLabel: {
     ...typography.caption,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
   methodGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.xs,
   },
   methodChip: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
+    gap: 4,
     paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
     borderRadius: radius.button,
     borderWidth: 1,
   },
   methodChipLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   roundRow: {
@@ -556,67 +526,49 @@ const styles = StyleSheet.create({
   },
   roundChip: {
     flex: 1,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     borderRadius: radius.button,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   roundChipLabel: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
-  },
-  roundHint: {
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: spacing.xs,
-  },
-  summaryBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.sm,
-  },
-  summaryText: {
-    fontSize: 14,
-    fontWeight: '600',
   },
   footer: {
     flexDirection: 'row',
     gap: spacing.sm,
-    padding: spacing.lg,
-    paddingBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
   },
   skipButton: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
     borderRadius: radius.button,
   },
   skipButtonText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
   },
   saveButton: {
     flex: 1,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     borderRadius: radius.button,
     alignItems: 'center',
     justifyContent: 'center',
   },
   saveButtonText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
   },
   cancelLink: {
     alignItems: 'center',
-    paddingBottom: spacing.lg,
+    paddingBottom: spacing.md,
   },
   cancelLinkText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
   },
 });

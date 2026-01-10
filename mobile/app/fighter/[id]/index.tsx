@@ -37,6 +37,7 @@ import { Card, SurfaceCard, EmptyState } from '../../../components/ui';
 import { StatRing } from '../../../components/ui/StatRing';
 import { SkeletonCard } from '../../../components/SkeletonCard';
 import { ErrorState } from '../../../components/ErrorState';
+import { GlobalTabBar } from '../../../components/navigation/GlobalTabBar';
 import type { FightHistoryItem } from '../../../types/database';
 
 export default function FighterDetailScreen() {
@@ -70,6 +71,7 @@ export default function FighterDetailScreen() {
           <SkeletonCard />
           <SkeletonCard />
         </ScrollView>
+        <GlobalTabBar />
       </View>
     );
   }
@@ -89,6 +91,7 @@ export default function FighterDetailScreen() {
           message={error?.message || 'Failed to load fighter profile'}
           onRetry={() => refetch()}
         />
+        <GlobalTabBar />
       </View>
     );
   }
@@ -454,6 +457,9 @@ export default function FighterDetailScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Global Tab Bar for navigation consistency */}
+      <GlobalTabBar />
     </View>
   );
 }
