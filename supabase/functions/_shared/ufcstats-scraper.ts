@@ -527,6 +527,111 @@ export function parseUFCStatsDate(dateText: string): Date | null {
   }
 }
 
+// Selectors for fighter stats page
+const FIGHTER_STATS_SELECTORS = [
+  "li.b-list__box-list-item",
+  ".b-list__box-list-item",
+];
+
+/**
+ * Fighter stats interface
+ */
+export interface FighterStats {
+  slpm: number | null;      // Strikes Landed per Minute
+  sapm: number | null;      // Strikes Absorbed per Minute
+  str_acc: number | null;   // Striking Accuracy (0-100)
+  str_def: number | null;   // Strike Defense (0-100)
+  td_avg: number | null;    // Takedown Average
+  td_acc: number | null;    // Takedown Accuracy (0-100)
+  td_def: number | null;    // Takedown Defense (0-100)
+  sub_avg: number | null;   // Submission Average
+}
+
+/**
+ * Parse a percentage string like "49%" to a number (49)
+ */
+function parsePercentage(text: string): number | null {
+  const match = text.match(/(\d+(?:\.\d+)?)\s*%/);
+  if (match) {
+    return parseFloat(match[1]);
+  }
+  return null;
+}
+
+/**
+ * Parse a decimal number from text like "5.32"
+ */
+function parseDecimal(text: string): number | null {
+  const match = text.match(/(\d+(?:\.\d+)?)/);
+  if (match) {
+    return parseFloat(match[1]);
+  }
+  return null;
+}
+
+/**
+ * Scrape fighter advanced statistics from UFCStats fighter page
+ * Returns stats like SLpM, Str. Acc., TD Avg., etc.
+ */
+export async function scrapeFighterStats(fighterUrl: string): Promise<FighterStats> {
+  console.log(`Scraping fighter stats: ${fighterUrl}`);
+
+  const stats: FighterStats = {
+    slpm: null,
+    sapm: null,
+    str_acc: null,
+    str_def: null,
+    td_avg: null,
+    td_acc: null,
+    td_def: null,
+    sub_avg: null,
+  };
+
+  try {
+    const html = await fetchWithRetry(fighterUrl);
+    const $ = load(html);
+
+    // Find all stat items in the career statistics section
+    const statItems = trySelectors($, FIGHTER_STATS_SELECTORS);
+
+    statItems.each((_: number, el: any) => {
+      const $el = $(el);
+      const titleEl = $el.find("i.b-list__box-item-title");
+      const title = titleEl.text().trim().toLowerCase();
+
+      // Get the value - it's the text after the title element
+      const fullText = $el.text().trim();
+      const titleText = titleEl.text().trim();
+      const valueText = fullText.replace(titleText, "").trim();
+
+      // Match stats by title
+      if (title.includes("slpm")) {
+        stats.slpm = parseDecimal(valueText);
+      } else if (title.includes("sapm")) {
+        stats.sapm = parseDecimal(valueText);
+      } else if (title.includes("str. acc")) {
+        stats.str_acc = parsePercentage(valueText);
+      } else if (title.includes("str. def")) {
+        stats.str_def = parsePercentage(valueText);
+      } else if (title.includes("td avg")) {
+        stats.td_avg = parseDecimal(valueText);
+      } else if (title.includes("td acc")) {
+        stats.td_acc = parsePercentage(valueText);
+      } else if (title.includes("td def")) {
+        stats.td_def = parsePercentage(valueText);
+      } else if (title.includes("sub. avg")) {
+        stats.sub_avg = parseDecimal(valueText);
+      }
+    });
+
+    console.log(`Fighter stats:`, stats);
+    return stats;
+  } catch (error) {
+    console.error("Error scraping fighter stats:", error);
+    throw error;
+  }
+}
+
 /**
  * Health check for UFCStats scraper
  * Returns connectivity status and basic scraping ability
