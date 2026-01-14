@@ -5,7 +5,7 @@
  * Uses icons with optional counts, styled like Twitter/X.
  */
 
-import { View, TouchableOpacity, Text, StyleSheet, Share } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, Share, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../lib/theme';
@@ -27,6 +27,8 @@ interface EngagementRowProps {
   compact?: boolean;
   /** Called when guest tries to interact - parent should show auth modal */
   onAuthRequired?: () => void;
+  /** Show loading indicator on like button */
+  isLikeLoading?: boolean;
 }
 
 export function EngagementRow({
@@ -39,6 +41,7 @@ export function EngagementRow({
   disabled = false,
   compact = false,
   onAuthRequired,
+  isLikeLoading = false,
 }: EngagementRowProps) {
   const { colors } = useTheme();
   const { isGuest, user } = useAuth();
@@ -111,17 +114,21 @@ export function EngagementRow({
       <TouchableOpacity
         style={[styles.actionButton, compact && styles.actionButtonCompact]}
         onPress={handleLikePress}
-        disabled={disabled}
+        disabled={disabled || isLikeLoading}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         accessibilityRole="button"
         accessibilityLabel={userHasLiked ? 'Unlike this post' : 'Like this post'}
         accessibilityState={{ selected: userHasLiked }}
       >
-        <Ionicons
-          name={userHasLiked ? 'heart' : 'heart-outline'}
-          size={iconSize}
-          color={userHasLiked ? colors.accent : colors.textTertiary}
-        />
+        {isLikeLoading ? (
+          <ActivityIndicator size="small" color={colors.textTertiary} style={{ width: iconSize, height: iconSize }} />
+        ) : (
+          <Ionicons
+            name={userHasLiked ? 'heart' : 'heart-outline'}
+            size={iconSize}
+            color={userHasLiked ? colors.accent : colors.textTertiary}
+          />
+        )}
         {likeCount > 0 && (
           <Text
             style={[

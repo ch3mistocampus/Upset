@@ -11,7 +11,7 @@
  */
 
 import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
-import { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, memo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -28,6 +28,7 @@ import { EngagementRow } from './EngagementRow';
 import { PostImageGrid } from './PostImageGrid';
 import { ImageViewer } from '../ImageViewer';
 import { AuthPromptModal } from '../AuthPromptModal';
+import { useToast } from '../../hooks/useToast';
 
 interface FeedPostRowProps {
   post: Post;
@@ -35,10 +36,11 @@ interface FeedPostRowProps {
   showActions?: boolean;
 }
 
-export function FeedPostRow({ post, onPress, showActions = true }: FeedPostRowProps) {
+function FeedPostRowComponent({ post, onPress, showActions = true }: FeedPostRowProps) {
   const router = useRouter();
   const { colors } = useTheme();
   const toggleLike = useTogglePostLike();
+  const toast = useToast();
 
   // Modal states
   const [showActionsMenu, setShowActionsMenu] = useState(false);
@@ -86,8 +88,12 @@ export function FeedPostRow({ post, onPress, showActions = true }: FeedPostRowPr
   }, [onPress, router, post.id]);
 
   const handleLikePress = useCallback(() => {
-    toggleLike.mutate(post.id);
-  }, [toggleLike, post.id]);
+    toggleLike.mutate(post.id, {
+      onError: (error: any) => {
+        toast.showError(error?.message || 'Failed to update like');
+      },
+    });
+  }, [toggleLike, post.id, toast]);
 
   const handleAuthorPress = useCallback(() => {
     if (post.user_id) {
@@ -131,9 +137,9 @@ export function FeedPostRow({ post, onPress, showActions = true }: FeedPostRowPr
     return content;
   }, [post, isSystemPost]);
 
-  // Share content for external sharing
+  // Share content for external sharing with deeplink
   const shareContent = {
-    message: `${post.title}${post.body ? '\n\n' + post.body : ''}\n\n- via UFC Picks`,
+    message: `${post.title}${post.body ? '\n\n' + post.body : ''}\n\nhttps://getupset.app/post/${post.id}`,
     title: post.title,
   };
 
@@ -252,6 +258,7 @@ export function FeedPostRow({ post, onPress, showActions = true }: FeedPostRowPr
               shareContent={shareContent}
               disabled={toggleLike.isPending}
               onAuthRequired={handleAuthRequired}
+              isLikeLoading={toggleLike.isPending}
               compact
             />
           </View>
@@ -379,4 +386,18 @@ const styles = StyleSheet.create({
   imageContainer: {
     marginTop: spacing.xs,
   },
+});
+
+// Memoized export to prevent unnecessary re-renders
+export const FeedPostRow = memo(FeedPostRowComponent, (prev, next) => {
+  const prevPost = prev.post;
+  const nextPost = next.post;
+  return (
+    prevPost.id === nextPost.id &&
+    prevPost.like_count === nextPost.like_count &&
+    prevPost.comment_count === nextPost.comment_count &&
+    prevPost.user_has_liked === nextPost.user_has_liked &&
+    prevPost.is_edited === nextPost.is_edited &&
+    prev.showActions === next.showActions
+  );
 });

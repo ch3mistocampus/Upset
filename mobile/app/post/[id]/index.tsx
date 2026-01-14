@@ -14,7 +14,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -23,6 +23,7 @@ import { useTheme } from '../../../lib/theme';
 import { spacing, radius, typography } from '../../../lib/tokens';
 import { usePostWithComments, buildCommentTree, formatRelativeTime } from '../../../hooks/usePosts';
 import { useTogglePostLike } from '../../../hooks/usePostLikes';
+import { useToast } from '../../../hooks/useToast';
 import { Avatar } from '../../../components/Avatar';
 import { CommentItem, CommentInput, PostActionsMenu, ReportModal, EditPostModal, PostImageGrid, EngagementRow } from '../../../components/posts';
 import { EmptyState } from '../../../components/EmptyState';
@@ -38,6 +39,7 @@ export default function PostDetailScreen() {
   const { user, isGuest } = useAuth();
   const { data, isLoading, isRefetching, refetch, error } = usePostWithComments(id);
   const toggleLike = useTogglePostLike();
+  const toast = useToast();
   const scrollViewRef = useRef<ScrollView>(null);
 
   const [replyTo, setReplyTo] = useState<{ commentId: string; username: string } | null>(null);
@@ -50,12 +52,17 @@ export default function PostDetailScreen() {
 
   const post = data?.post;
   const comments = data?.comments ?? [];
-  const commentTree = buildCommentTree(comments);
+  // Memoize comment tree to avoid rebuilding on every render
+  const commentTree = useMemo(() => buildCommentTree(comments), [comments]);
 
   const handleLikePress = () => {
     if (!post) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    toggleLike.mutate(post.id);
+    toggleLike.mutate(post.id, {
+      onError: (error: any) => {
+        toast.showError(error?.message || 'Failed to update like');
+      },
+    });
   };
 
   const handleReply = useCallback((commentId: string, username: string) => {
@@ -260,11 +267,12 @@ export default function PostDetailScreen() {
               onCommentPress={() => {}}
               onLikePress={handleLikePress}
               shareContent={{
-                message: `${post.title}${post.body ? '\n\n' + post.body : ''}\n\n- via UFC Picks`,
+                message: `${post.title}${post.body ? '\n\n' + post.body : ''}\n\nhttps://getupset.app/post/${post.id}`,
                 title: post.title,
               }}
               disabled={toggleLike.isPending}
               onAuthRequired={handleAuthRequired}
+              isLikeLoading={toggleLike.isPending}
             />
           </View>
         </View>

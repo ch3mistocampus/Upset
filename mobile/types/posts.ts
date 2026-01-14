@@ -5,6 +5,9 @@
 // Post Types
 export type PostType = 'user' | 'system';
 
+// Feed sort options
+export type FeedSortOption = 'top' | 'recent';
+
 export interface PostImage {
   id: string;
   image_url: string;

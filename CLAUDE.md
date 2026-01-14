@@ -79,7 +79,37 @@ EXPO_PUBLIC_SENTRY_DSN=
 - Build profiles in `eas.json`: development, preview, production
 
 ## Data Source Status
-UFCStats.com scraping works but needs App Store compliant alternative. Evaluating official APIs.
+**Hybrid approach implemented:**
+- **UFCStats.com**: Detailed fighter stats (SLpM, str_acc, stance, rankings)
+- **SportsData.io**: Live events, schedules, fight cards (App Store compliant)
+
+### SportsData.io Integration
+```
+supabase/functions/
+├── sync-sportsdata/     # Syncs events, fighters, fights
+├── map-fighter-ids/     # Auto-maps SportsData ↔ UFCStats IDs
+
+Database tables (sportsdata_*):
+├── sportsdata_events    # Events from SportsData.io
+├── sportsdata_fighters  # Fighter profiles
+├── sportsdata_fights    # Fight cards
+├── sportsdata_fight_fighters  # Fight participants
+├── sportsdata_fight_stats     # Fight statistics
+├── fighter_id_mappings  # ID mapping between sources
+└── event_id_mappings    # Event ID mapping
+```
+
+**Setup:**
+```bash
+# Set API key
+supabase secrets set SPORTSDATA_API_KEY=your_key
+
+# Sync data
+curl -X POST https://your-project.supabase.co/functions/v1/sync-sportsdata
+
+# Map fighter IDs
+curl -X POST https://your-project.supabase.co/functions/v1/map-fighter-ids
+```
 
 ## Production Checklist
 - [ ] Enable leaked password protection (Supabase Auth dashboard)

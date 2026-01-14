@@ -40,7 +40,7 @@ import { useUserSuggestions, getSuggestionReasonText, UserSuggestion } from '../
 import { usePostsFeed, useFollowingPostsFeed } from '../../hooks/usePosts';
 import { useAuth } from '../../hooks/useAuth';
 import { FeedPostRow } from '../../components/posts';
-import { Post } from '../../types/posts';
+import { Post, FeedSortOption } from '../../types/posts';
 
 type FeedTab = 'discover' | 'following';
 
@@ -55,12 +55,13 @@ export default function DiscoverScreen() {
   const { user, isGuest } = useAuth();
   const isAuthenticated = !isGuest && !!user;
   const [activeTab, setActiveTab] = useState<FeedTab>('discover');
+  const [feedSort, setFeedSort] = useState<FeedSortOption>('top');
   const [lastRefreshTime, setLastRefreshTime] = useState<string | null>(null);
   const newPostsAnim = useRef(new Animated.Value(0)).current;
 
   const discoverFeed = useDiscoverFeed();
   const followingFeed = useFollowingFeed(isAuthenticated);
-  const discoverPosts = usePostsFeed();
+  const discoverPosts = usePostsFeed(feedSort);
   const followingPosts = useFollowingPostsFeed(user?.id ?? null);
   const { data: trendingUsers, refetch: refetchTrending } = useTrendingUsers();
   const { data: suggestions } = useUserSuggestions(5);
@@ -296,8 +297,68 @@ export default function DiscoverScreen() {
     </TouchableOpacity>
   );
 
+  const handleSortChange = (sort: FeedSortOption) => {
+    if (sort !== feedSort) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setFeedSort(sort);
+    }
+  };
+
   const renderHeader = () => (
     <View>
+      {/* Sort Toggle - Only show on Discover tab */}
+      {activeTab === 'discover' && (
+        <View style={styles.sortContainer}>
+          <TouchableOpacity
+            style={[
+              styles.sortPill,
+              feedSort === 'top' && [styles.sortPillActive, { backgroundColor: colors.accent }],
+              feedSort !== 'top' && { backgroundColor: colors.surfaceAlt },
+            ]}
+            onPress={() => handleSortChange('top')}
+            accessibilityRole="button"
+            accessibilityState={{ selected: feedSort === 'top' }}
+            accessibilityLabel="Sort by top posts"
+          >
+            <Ionicons
+              name="flame"
+              size={14}
+              color={feedSort === 'top' ? '#fff' : colors.textSecondary}
+            />
+            <Text style={[
+              styles.sortPillText,
+              { color: feedSort === 'top' ? '#fff' : colors.textSecondary },
+            ]}>
+              Top
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.sortPill,
+              feedSort === 'recent' && [styles.sortPillActive, { backgroundColor: colors.accent }],
+              feedSort !== 'recent' && { backgroundColor: colors.surfaceAlt },
+            ]}
+            onPress={() => handleSortChange('recent')}
+            accessibilityRole="button"
+            accessibilityState={{ selected: feedSort === 'recent' }}
+            accessibilityLabel="Sort by recent posts"
+          >
+            <Ionicons
+              name="time"
+              size={14}
+              color={feedSort === 'recent' ? '#fff' : colors.textSecondary}
+            />
+            <Text style={[
+              styles.sortPillText,
+              { color: feedSort === 'recent' ? '#fff' : colors.textSecondary },
+            ]}>
+              Recent
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Trending Section */}
       {activeTab === 'discover' && trendingUsers && trendingUsers.length > 0 && (
         <View style={styles.trendingSection}>
@@ -610,6 +671,27 @@ const styles = StyleSheet.create({
     fontFamily: 'BebasNeue',
     fontSize: 18,
     letterSpacing: 0.5,
+  },
+  sortContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.xs,
+  },
+  sortPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    gap: spacing.xs,
+  },
+  sortPillActive: {
+    // backgroundColor set dynamically
+  },
+  sortPillText: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium as '500',
   },
   listContent: {
     paddingTop: spacing.xs,

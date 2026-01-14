@@ -18,6 +18,7 @@ import { useTheme } from '../../lib/theme';
 import { spacing, radius, typography } from '../../lib/tokens';
 import { useCreateComment } from '../../hooks/usePosts';
 import { useAuth } from '../../hooks/useAuth';
+import { useToast } from '../../hooks/useToast';
 
 interface CommentInputProps {
   postId: string;
@@ -34,6 +35,7 @@ interface CommentInputProps {
 export function CommentInput({ postId, replyTo, onCancelReply, onFocus, onBlur, onAuthRequired }: CommentInputProps) {
   const { colors } = useTheme();
   const { isGuest, user } = useAuth();
+  const toast = useToast();
   const [text, setText] = useState('');
   const inputRef = useRef<TextInput>(null);
   const createComment = useCreateComment();
@@ -66,8 +68,9 @@ export function CommentInput({ postId, replyTo, onCancelReply, onFocus, onBlur, 
       setText('');
       onCancelReply?.();
       inputRef.current?.blur();
-    } catch (error) {
+    } catch (error: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      toast.showError(error?.message || 'Failed to post comment');
     }
   };
 
