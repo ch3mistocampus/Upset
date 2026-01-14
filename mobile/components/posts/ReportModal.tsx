@@ -38,9 +38,20 @@ export function ReportModal({ visible, onClose, type, targetId }: ReportModalPro
 
   const isLoading = reportPost.isPending || reportComment.isPending;
 
+  // Validation for "other" reason requiring details
+  const MIN_DETAILS_LENGTH = 20;
+  const needsDetails = selectedReason === 'other';
+  const detailsValid = !needsDetails || details.trim().length >= MIN_DETAILS_LENGTH;
+  const canSubmit = selectedReason && detailsValid;
+
   const handleSubmit = async () => {
     if (!selectedReason) {
       toast.showError('Please select a reason');
+      return;
+    }
+
+    if (needsDetails && !detailsValid) {
+      toast.showError(`Please provide at least ${MIN_DETAILS_LENGTH} characters of details`);
       return;
     }
 
@@ -66,6 +77,11 @@ export function ReportModal({ visible, onClose, type, targetId }: ReportModalPro
     } catch (error: any) {
       if (error.message?.includes('already reported')) {
         toast.showNeutral('You have already reported this content');
+        handleClose();
+      } else if (error.message?.includes('too many reports') || error.message?.includes('Rate limit')) {
+        toast.showError('You\'ve submitted too many reports recently. Please try again later.');
+      } else if (error.message?.includes('cannot report your own')) {
+        toast.showError('You cannot report your own content');
         handleClose();
       } else {
         toast.showError(error.message || 'Failed to submit report');
@@ -148,12 +164,18 @@ export function ReportModal({ visible, onClose, type, targetId }: ReportModalPro
             {/* Additional Details */}
             <View style={styles.detailsSection}>
               <Text style={[styles.detailsLabel, { color: colors.textSecondary }]}>
-                Additional details (optional)
+                Additional details {needsDetails ? '(required - min 20 characters)' : '(optional)'}
               </Text>
               <TextInput
                 style={[
                   styles.detailsInput,
-                  { color: colors.text, backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+                  {
+                    color: colors.text,
+                    backgroundColor: colors.surfaceAlt,
+                    borderColor: needsDetails && details.trim().length < MIN_DETAILS_LENGTH && details.length > 0
+                      ? colors.danger
+                      : colors.border
+                  },
                 ]}
                 placeholder="Provide more context about this report..."
                 placeholderTextColor={colors.textTertiary}
@@ -163,8 +185,13 @@ export function ReportModal({ visible, onClose, type, targetId }: ReportModalPro
                 maxLength={500}
                 textAlignVertical="top"
               />
-              <Text style={[styles.charCount, { color: colors.textTertiary }]}>
-                {details.length}/500
+              <Text style={[
+                styles.charCount,
+                { color: needsDetails && details.trim().length < MIN_DETAILS_LENGTH ? colors.danger : colors.textTertiary }
+              ]}>
+                {needsDetails && details.trim().length < MIN_DETAILS_LENGTH
+                  ? `${details.trim().length}/${MIN_DETAILS_LENGTH} min`
+                  : `${details.length}/500`}
               </Text>
             </View>
           </ScrollView>
@@ -174,10 +201,10 @@ export function ReportModal({ visible, onClose, type, targetId }: ReportModalPro
             <TouchableOpacity
               style={[
                 styles.submitButton,
-                { backgroundColor: selectedReason ? colors.danger : colors.surfaceAlt },
+                { backgroundColor: canSubmit ? colors.danger : colors.surfaceAlt },
               ]}
               onPress={handleSubmit}
-              disabled={!selectedReason || isLoading}
+              disabled={!canSubmit || isLoading}
             >
               {isLoading ? (
                 <ActivityIndicator color="#fff" />
@@ -185,7 +212,7 @@ export function ReportModal({ visible, onClose, type, targetId }: ReportModalPro
                 <Text
                   style={[
                     styles.submitButtonText,
-                    { color: selectedReason ? '#fff' : colors.textTertiary },
+                    { color: canSubmit ? '#fff' : colors.textTertiary },
                   ]}
                 >
                   Submit Report
