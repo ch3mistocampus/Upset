@@ -115,10 +115,11 @@ export function useTogglePostLike() {
       // Also invalidate all to ensure consistency
       queryClient.invalidateQueries({ queryKey: postKeys.all });
     },
-    // Always refetch after mutation to ensure consistency
+    // Selectively refetch - optimistic update already handles UI consistency
     onSettled: (_, __, postId) => {
-      // Invalidate all post-related queries to update like counts everywhere
-      queryClient.invalidateQueries({ queryKey: postKeys.all });
+      // Only invalidate the specific post detail to sync server state
+      // Don't invalidate all feeds - optimistic updates handle that
+      queryClient.invalidateQueries({ queryKey: postKeys.detail(postId) });
     },
   });
 }

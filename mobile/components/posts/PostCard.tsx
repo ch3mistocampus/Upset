@@ -27,6 +27,7 @@ import { EngagementRow } from './EngagementRow';
 import { PostImageGrid } from './PostImageGrid';
 import { ImageViewer } from '../ImageViewer';
 import { AuthPromptModal } from '../AuthPromptModal';
+import { useToast } from '../../hooks/useToast';
 
 interface PostCardProps {
   post: Post;
@@ -38,6 +39,7 @@ export function PostCard({ post, onPress, showActions = true }: PostCardProps) {
   const router = useRouter();
   const { colors } = useTheme();
   const toggleLike = useTogglePostLike();
+  const toast = useToast();
 
   // Modal states
   const [showActionsMenu, setShowActionsMenu] = useState(false);
@@ -99,7 +101,11 @@ export function PostCard({ post, onPress, showActions = true }: PostCardProps) {
   };
 
   const handleLikePress = () => {
-    toggleLike.mutate(post.id);
+    toggleLike.mutate(post.id, {
+      onError: (error: any) => {
+        toast.showError(error?.message || 'Failed to update like');
+      },
+    });
   };
 
   const handleAuthorPress = () => {
@@ -144,9 +150,9 @@ export function PostCard({ post, onPress, showActions = true }: PostCardProps) {
     return content;
   };
 
-  // Share content for external sharing
+  // Share content for external sharing with deeplink
   const shareContent = {
-    message: `${post.title}${post.body ? '\n\n' + post.body : ''}\n\n- via UFC Picks`,
+    message: `${post.title}${post.body ? '\n\n' + post.body : ''}\n\nhttps://getupset.app/post/${post.id}`,
     title: post.title,
   };
 
@@ -253,6 +259,7 @@ export function PostCard({ post, onPress, showActions = true }: PostCardProps) {
                 shareContent={shareContent}
                 disabled={toggleLike.isPending}
                 onAuthRequired={handleAuthRequired}
+                isLikeLoading={toggleLike.isPending}
               />
             </View>
           </View>

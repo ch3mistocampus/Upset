@@ -23,6 +23,34 @@ const MIN_ASPECT_RATIO = 0.5;  // Tallest allowed (2:1 portrait)
 const MAX_ASPECT_RATIO = 2.5;  // Widest allowed (2.5:1 landscape)
 const DEFAULT_ASPECT_RATIO = 1.5; // Default if unknown (3:2 landscape)
 
+// Cache for image dimensions to avoid repeated Image.getSize calls
+const imageDimensionsCache = new Map<string, { width: number; height: number; aspectRatio: number }>();
+
+/**
+ * Get cached image dimensions or fetch and cache them
+ */
+function getCachedImageDimensions(
+  url: string,
+  onSuccess: (dims: { width: number; height: number; aspectRatio: number }) => void,
+  onError: () => void
+): void {
+  const cached = imageDimensionsCache.get(url);
+  if (cached) {
+    onSuccess(cached);
+    return;
+  }
+
+  Image.getSize(
+    url,
+    (width, height) => {
+      const dims = { width, height, aspectRatio: width / height };
+      imageDimensionsCache.set(url, dims);
+      onSuccess(dims);
+    },
+    onError
+  );
+}
+
 interface PostImageGridProps {
   images: PostImage[];
   onImagePress?: (index: number) => void;
@@ -51,19 +79,13 @@ export function PostImageGrid({ images, onImagePress, compact = false }: PostIma
     onImagePress?.(index);
   }, [onImagePress]);
 
-  // Fetch dimensions for single image to calculate dynamic height
+  // Fetch dimensions for single image to calculate dynamic height (with caching)
   useEffect(() => {
     if (count === 1 && firstImageUrl) {
-      Image.getSize(
+      getCachedImageDimensions(
         firstImageUrl,
-        (width, height) => {
-          const aspectRatio = width / height;
-          setFirstImageDimensions({ width, height, aspectRatio });
-        },
-        () => {
-          // On error, use default
-          setFirstImageDimensions({ width: 3, height: 2, aspectRatio: DEFAULT_ASPECT_RATIO });
-        }
+        (dims) => setFirstImageDimensions(dims),
+        () => setFirstImageDimensions({ width: 3, height: 2, aspectRatio: DEFAULT_ASPECT_RATIO })
       );
     }
   }, [count, firstImageUrl]);

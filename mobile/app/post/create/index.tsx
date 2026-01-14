@@ -169,6 +169,61 @@ export default function CreatePostScreen() {
     setImages((prev) => prev.filter((img) => img.uri !== uri));
   };
 
+  const retryUpload = async (uri: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Mark as uploading
+    setImages((prev) =>
+      prev.map((img) =>
+        img.uri === uri ? { ...img, uploading: true, error: undefined } : img
+      )
+    );
+
+    try {
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+      const filePath = `${user.id}/${fileName}`;
+
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: 'base64',
+      });
+      const arrayBuffer = decode(base64);
+
+      const { error: uploadError } = await supabase.storage
+        .from('post-images')
+        .upload(filePath, arrayBuffer, {
+          contentType: 'image/jpeg',
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('post-images').getPublicUrl(filePath);
+
+      setImages((prev) =>
+        prev.map((img) =>
+          img.uri === uri ? { ...img, uploading: false, uploadedUrl: publicUrl } : img
+        )
+      );
+
+      toast.showSuccess('Image uploaded');
+      logger.debug('Image uploaded on retry', { publicUrl });
+    } catch (error: any) {
+      logger.error('Failed to retry image upload', error);
+      setImages((prev) =>
+        prev.map((img) =>
+          img.uri === uri ? { ...img, uploading: false, error: 'Upload failed' } : img
+        )
+      );
+      toast.showError('Failed to upload image');
+    }
+  };
+
   const handleSubmit = async () => {
     if (!canSubmit) return;
 
@@ -306,9 +361,15 @@ export default function CreatePostScreen() {
                       )}
 
                       {image.error && (
-                        <View style={[styles.imageOverlay, styles.imageErrorOverlay]}>
-                          <Ionicons name="alert-circle" size={24} color="#fff" />
-                        </View>
+                        <TouchableOpacity
+                          style={[styles.imageOverlay, styles.imageErrorOverlay]}
+                          onPress={() => retryUpload(image.uri)}
+                          activeOpacity={0.8}
+                          accessibilityLabel="Retry upload"
+                        >
+                          <Ionicons name="refresh" size={24} color="#fff" />
+                          <Text style={styles.retryText}>Tap to retry</Text>
+                        </TouchableOpacity>
                       )}
 
                       <TouchableOpacity
@@ -427,6 +488,12 @@ const styles = StyleSheet.create({
   },
   imageErrorOverlay: {
     backgroundColor: 'rgba(220,53,69,0.6)',
+  },
+  retryText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
   },
   removeImageButton: {
     position: 'absolute',
