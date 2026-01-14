@@ -27,9 +27,17 @@
   - Trial key tested - requires paid subscription for full access
   - **Missing data**: Career stats (SLpM, str_acc, etc.), stance, rankings
   - **Recommendation**: Use SportsData.io for events + keep UFCStats for fighter stats
+- [x] **SportsData.io Database Integration** - COMPLETED 2026-01-14
+  - Database tables: `supabase/migrations/20260114000001_add_sportsdata_tables.sql`
+  - Edge Functions:
+    - `sync-sportsdata` - Syncs events, fighters, fights from API
+    - `map-fighter-ids` - Auto-maps SportsData IDs to UFCStats IDs
+  - Tables created: `sportsdata_events`, `sportsdata_fighters`, `sportsdata_fights`, etc.
+  - ID mapping tables: `fighter_id_mappings`, `event_id_mappings`
 - [ ] Contact SportsData.io sales for pricing (sales@sportsdata.io)
-- [ ] Subscribe to MMA API and test in production
-- [ ] Migrate from UFCStats scraping to official API
+- [ ] Set `SPORTSDATA_API_KEY` in Supabase secrets
+- [ ] Run initial data sync: `POST /sync-sportsdata`
+- [ ] Run fighter ID mapping: `POST /map-fighter-ids`
 - [ ] Document data source in App Store review notes
 
 ### Android OAuth
