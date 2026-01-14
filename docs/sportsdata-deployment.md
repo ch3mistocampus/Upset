@@ -36,11 +36,13 @@ This creates the following tables:
 ## Step 2: Set API Key
 
 ```bash
-# Set the SportsData.io API key as a secret
+# Set the SportsData.io API key as a secret (trial key)
 supabase secrets set SPORTSDATA_API_KEY=d3e269ed0b4747629bd4259b46252b5e
 ```
 
-Note: The trial key has limitations. For production, contact sales@sportsdata.io for pricing.
+**Trial Key:** `d3e269ed0b4747629bd4259b46252b5e`
+
+Note: This trial key has limitations (see table below). For production, contact sales@sportsdata.io for pricing.
 
 ## Step 3: Deploy Edge Functions
 
