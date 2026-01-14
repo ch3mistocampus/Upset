@@ -64,24 +64,13 @@ export function useFriends() {
     },
   });
 
-  // Follow a user (creates accepted friendship directly for follow model)
+  // Follow a user (uses RPC with rate limiting)
   const followUser = useMutation({
     mutationFn: async (targetUserId: string) => {
       logger.breadcrumb('Following user', 'friends', { targetUserId });
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        throw new Error('Not authenticated');
-      }
-
-      // For follow model, we create an accepted follow directly
-      const { error } = await supabase.from('follows').insert({
-        user_id: user.id,
-        following_id: targetUserId,
-        status: 'accepted', // Direct follow, no pending state
+      const { data, error } = await supabase.rpc('follow_user', {
+        p_target_user_id: targetUserId,
       });
 
       if (error) {
@@ -89,7 +78,8 @@ export function useFriends() {
         throw error;
       }
 
-      logger.info('User followed', { targetUserId });
+      logger.info('User followed', { targetUserId, result: data });
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['friends'] });
@@ -98,32 +88,22 @@ export function useFriends() {
     },
   });
 
-  // Unfollow a user
+  // Unfollow a user (uses RPC with rate limiting)
   const unfollowUser = useMutation({
     mutationFn: async (targetUserId: string) => {
       logger.breadcrumb('Unfollowing user', 'friends', { targetUserId });
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        throw new Error('Not authenticated');
-      }
-
-      // Delete the follow relationship where current user is the follower
-      const { error } = await supabase
-        .from('follows')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('following_id', targetUserId);
+      const { data, error } = await supabase.rpc('unfollow_user', {
+        p_target_user_id: targetUserId,
+      });
 
       if (error) {
         logger.error('Failed to unfollow user', error, { targetUserId });
         throw error;
       }
 
-      logger.info('User unfollowed', { targetUserId });
+      logger.info('User unfollowed', { targetUserId, result: data });
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['friends'] });
