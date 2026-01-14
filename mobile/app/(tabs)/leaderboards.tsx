@@ -1,7 +1,7 @@
 /**
- * Leaderboards screen - global and friends rankings
+ * Leaderboards screen - global rankings with podium layout
  * Requires authentication - shows gate for guests
- * Theme-aware design with SurfaceCard and entrance animations
+ * Premium design with top 3 podium and list for remaining
  */
 
 import {
@@ -13,6 +13,7 @@ import {
   RefreshControl,
   Animated,
   Easing,
+  Image,
 } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
@@ -24,40 +25,38 @@ import { useLeaderboard } from '../../hooks/useLeaderboard';
 import { useTheme } from '../../lib/theme';
 import { spacing, radius, typography } from '../../lib/tokens';
 import { ErrorState } from '../../components/ErrorState';
-import { EmptyState, SurfaceCard } from '../../components/ui';
+import { EmptyState } from '../../components/ui';
 import { SkeletonCard } from '../../components/SkeletonCard';
 import { AuthPromptModal } from '../../components/AuthPromptModal';
 import type { LeaderboardEntry } from '../../types/social';
 
-// Single tab - global only (friends accessible from profile)
-
 const MIN_GRADED_PICKS = 10;
 
-// Animated leaderboard entry wrapper
-function AnimatedLeaderboardItem({ children, index }: { children: React.ReactNode; index: number }) {
+// Animated wrapper for entrance animations
+function AnimatedItem({ children, index, delay = 60 }: { children: React.ReactNode; index: number; delay?: number }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const translateAnim = useRef(new Animated.Value(8)).current;
+  const translateAnim = useRef(new Animated.Value(12)).current;
 
   useEffect(() => {
-    const delay = 60 + index * 40; // Faster stagger for leaderboard
+    const animDelay = delay + index * 50;
     const timer = setTimeout(() => {
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 220,
+          duration: 280,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(translateAnim, {
           toValue: 0,
-          duration: 220,
+          duration: 280,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
       ]).start();
-    }, delay);
+    }, animDelay);
     return () => clearTimeout(timer);
-  }, [fadeAnim, translateAnim, index]);
+  }, [fadeAnim, translateAnim, index, delay]);
 
   return (
     <Animated.View
@@ -71,6 +70,115 @@ function AnimatedLeaderboardItem({ children, index }: { children: React.ReactNod
   );
 }
 
+// Podium position component for top 3
+interface PodiumPositionProps {
+  entry: LeaderboardEntry;
+  position: 1 | 2 | 3;
+  onPress: (userId: string) => void;
+  isMe: boolean;
+  colors: ReturnType<typeof useTheme>['colors'];
+}
+
+function PodiumPosition({ entry, position, onPress, isMe, colors }: PodiumPositionProps) {
+  const isFirst = position === 1;
+  const avatarSize = isFirst ? 100 : 72;
+  const badgeSize = isFirst ? 28 : 24;
+
+  return (
+    <TouchableOpacity
+      style={[styles.podiumPosition, isFirst && styles.podiumFirst]}
+      onPress={() => onPress(entry.user_id)}
+      activeOpacity={0.8}
+    >
+      {/* Crown for #1 */}
+      {isFirst && (
+        <View style={styles.crownContainer}>
+          <Ionicons name="diamond" size={28} color={colors.accent} />
+        </View>
+      )}
+
+      {/* Avatar with border - square rounded */}
+      <View
+        style={[
+          styles.podiumAvatarContainer,
+          {
+            width: avatarSize,
+            height: avatarSize,
+            borderRadius: isFirst ? 24 : 18,
+            borderColor: colors.accent,
+            borderWidth: isFirst ? 4 : 3,
+          },
+        ]}
+      >
+        {entry.avatar_url ? (
+          <Image
+            source={{ uri: entry.avatar_url }}
+            style={{
+              width: avatarSize - (isFirst ? 8 : 6),
+              height: avatarSize - (isFirst ? 8 : 6),
+              borderRadius: isFirst ? 20 : 14,
+            }}
+          />
+        ) : (
+          <View
+            style={[
+              styles.podiumAvatarPlaceholder,
+              {
+                width: avatarSize - (isFirst ? 8 : 6),
+                height: avatarSize - (isFirst ? 8 : 6),
+                borderRadius: isFirst ? 20 : 14,
+                backgroundColor: colors.surfaceAlt,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.podiumAvatarText,
+                { color: colors.text, fontSize: isFirst ? 36 : 28 },
+              ]}
+            >
+              {entry.username.charAt(0).toUpperCase()}
+            </Text>
+          </View>
+        )}
+
+        {/* Rank badge */}
+        <View
+          style={[
+            styles.podiumRankBadge,
+            {
+              width: badgeSize,
+              height: badgeSize,
+              borderRadius: badgeSize / 2,
+              backgroundColor: colors.accent,
+            },
+          ]}
+        >
+          <Text style={[styles.podiumRankText, { fontSize: isFirst ? 14 : 12 }]}>
+            {position}
+          </Text>
+        </View>
+      </View>
+
+      {/* Name */}
+      <Text
+        style={[styles.podiumName, { color: colors.text }]}
+        numberOfLines={1}
+      >
+        {isMe ? 'You' : entry.username}
+      </Text>
+
+      {/* Accuracy */}
+      <View style={styles.podiumAccuracyRow}>
+        <Ionicons name="sparkles" size={12} color={colors.accent} />
+        <Text style={[styles.podiumAccuracy, { color: colors.textSecondary }]}>
+          {entry.accuracy.toFixed(1)}%
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 export default function Leaderboards() {
   const router = useRouter();
   const { user } = useAuth();
@@ -79,28 +187,6 @@ export default function Leaderboards() {
   // Global leaderboard only
   const [refreshing, setRefreshing] = useState(false);
   const [gateDismissed, setGateDismissed] = useState(false);
-
-  // Entrance animations
-  const bannerFadeAnim = useRef(new Animated.Value(0)).current;
-  const bannerTranslateAnim = useRef(new Animated.Value(6)).current;
-
-  useEffect(() => {
-    // Banner entrance
-    Animated.parallel([
-      Animated.timing(bannerFadeAnim, {
-        toValue: 1,
-        duration: 220,
-        useNativeDriver: true,
-      }),
-      Animated.timing(bannerTranslateAnim, {
-        toValue: 0,
-        duration: 220,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [bannerFadeAnim, bannerTranslateAnim]);
-
 
   // All hooks must be called before any conditional returns
   const {
@@ -169,132 +255,88 @@ export default function Leaderboards() {
     );
   }
 
-  const getRankBorderColor = (rank: number) => {
-    switch (rank) {
-      case 1:
-        return colors.gold;
-      case 2:
-        return colors.silver;
-      case 3:
-        return colors.bronze;
-      default:
-        return null;
-    }
-  };
-
-  const getRankIcon = (rank: number) => {
-    switch (rank) {
-      case 1:
-        return '🥇';
-      case 2:
-        return '🥈';
-      case 3:
-        return '🥉';
-      default:
-        return null;
-    }
-  };
-
   const handleUserPress = (userId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push(`/user/${userId}`);
   };
 
-  const renderLeaderboardItem = (entry: LeaderboardEntry, index: number) => {
+  // Get top 3 and remaining entries
+  const top3 = leaderboard.slice(0, 3);
+  const remaining = leaderboard.slice(3);
+
+  // Reorder for podium display: [2nd, 1st, 3rd]
+  const podiumOrder = top3.length >= 3
+    ? [top3[1], top3[0], top3[2]]
+    : top3;
+
+  const renderListItem = (entry: LeaderboardEntry, index: number) => {
     const isMe = entry.user_id === user?.id;
-    const rankIcon = getRankIcon(entry.rank);
-    const isTopThree = entry.rank <= 3;
-
-    const content = (
-      <View style={styles.leaderboardItemRow}>
-        <View style={styles.rankContainer}>
-          {rankIcon ? (
-            <Text style={styles.rankIcon}>{rankIcon}</Text>
-          ) : (
-            <Text style={[styles.rankNumber, { color: colors.textTertiary }]}>{entry.rank}</Text>
-          )}
-        </View>
-
-        <View style={[styles.avatar, { backgroundColor: isMe ? colors.accent : colors.surfaceAlt }]}>
-          <Text style={[styles.avatarText, { color: isMe ? '#fff' : colors.text }]}>
-            {entry.username.charAt(0).toUpperCase()}
-          </Text>
-        </View>
-
-        <View style={styles.userInfo}>
-          <View style={styles.nameRow}>
-            <Text style={[styles.username, { color: colors.text }, isMe && { color: colors.accent }]}>
-              @{entry.username}
-            </Text>
-            {isMe && (
-              <View style={[styles.youBadge, { backgroundColor: colors.accent }]}>
-                <Text style={styles.youBadgeText}>You</Text>
-              </View>
-            )}
-          </View>
-          <Text style={[styles.picks, { color: colors.textSecondary }]}>{entry.total_picks} picks</Text>
-        </View>
-
-        <View style={styles.accuracyContainer}>
-          <Text style={[styles.accuracy, { color: colors.success }]}>{entry.accuracy.toFixed(1)}%</Text>
-          {!isMe && (
-            <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} style={styles.chevron} />
-          )}
-        </View>
-      </View>
-    );
 
     return (
-      <AnimatedLeaderboardItem key={entry.user_id} index={index}>
-        <SurfaceCard
-          weakWash
-          animatedBorder={isMe}
-          style={isTopThree ? { borderWidth: 2, borderColor: getRankBorderColor(entry.rank) || colors.border, borderRadius: radius.card } : undefined}
+      <AnimatedItem key={entry.user_id} index={index} delay={200}>
+        <TouchableOpacity
+          style={[
+            styles.listItem,
+            {
+              backgroundColor: isMe ? colors.accent : colors.surface,
+              borderColor: isMe ? colors.accent : colors.border,
+            },
+          ]}
+          onPress={() => handleUserPress(entry.user_id)}
+          activeOpacity={0.8}
         >
-          <TouchableOpacity onPress={() => handleUserPress(entry.user_id)} activeOpacity={0.7}>
-            {content}
-          </TouchableOpacity>
-        </SurfaceCard>
-      </AnimatedLeaderboardItem>
+          {/* Rank number */}
+          <Text
+            style={[
+              styles.listRank,
+              { color: isMe ? '#fff' : colors.textTertiary },
+            ]}
+          >
+            {entry.rank}
+          </Text>
+
+          {/* Avatar */}
+          {entry.avatar_url ? (
+            <Image source={{ uri: entry.avatar_url }} style={styles.listAvatar} />
+          ) : (
+            <View style={[styles.listAvatarPlaceholder, { backgroundColor: isMe ? 'rgba(255,255,255,0.2)' : colors.surfaceAlt }]}>
+              <Text style={[styles.listAvatarText, { color: isMe ? '#fff' : colors.text }]}>
+                {entry.username.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+          )}
+
+          {/* Name */}
+          <Text
+            style={[
+              styles.listName,
+              { color: isMe ? '#fff' : colors.text },
+            ]}
+            numberOfLines={1}
+          >
+            {isMe ? 'You' : entry.username}
+          </Text>
+
+          {/* Accuracy */}
+          <Text
+            style={[
+              styles.listAccuracy,
+              { color: isMe ? '#fff' : colors.text },
+            ]}
+          >
+            {entry.accuracy.toFixed(1)}%
+          </Text>
+        </TouchableOpacity>
+      </AnimatedItem>
     );
   };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* My Rank Banner */}
-      {myRank && !isLoading && (
-        <Animated.View
-          style={{
-            opacity: bannerFadeAnim,
-            transform: [{ translateY: bannerTranslateAnim }],
-            paddingHorizontal: spacing.md,
-            paddingTop: spacing.md,
-          }}
-        >
-          <SurfaceCard heroGlow animatedBorder>
-            <View style={styles.myRankBannerRow}>
-              <View style={styles.myRankLeft}>
-                <View style={[styles.trophyBadge, { backgroundColor: colors.accent }]}>
-                  <Ionicons name="trophy" size={18} color="#fff" />
-                </View>
-                <View>
-                  <Text style={[styles.myRankLabel, { color: colors.textSecondary }]}>Your Rank</Text>
-                  <Text style={[styles.myRankNumber, { color: colors.text }]}>#{myRank.rank}</Text>
-                </View>
-              </View>
-              <View style={styles.myRankRight}>
-                <Text style={[styles.myRankAccuracyLabel, { color: colors.textSecondary }]}>Accuracy</Text>
-                <Text style={[styles.myRankAccuracy, { color: colors.success }]}>{myRank.accuracy.toFixed(1)}%</Text>
-              </View>
-            </View>
-          </SurfaceCard>
-        </Animated.View>
-      )}
-
-      {/* Content */}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -316,41 +358,69 @@ export default function Leaderboards() {
           <EmptyState
             icon="trophy-outline"
             title="No Rankings Yet"
-            message="Be the first to make picks and appear on the leaderboard!"
+            message="Be the first to call it. Every fight is an upset waiting to happen."
           />
         ) : (
           <>
-            {leaderboard.map((entry, index) => renderLeaderboardItem(entry, index))}
+            {/* Podium Section - Top 3 */}
+            {top3.length > 0 && (
+              <AnimatedItem index={0} delay={0}>
+                <View style={styles.podiumContainer}>
+                  {podiumOrder.map((entry, idx) => {
+                    if (!entry) return null;
+                    const position = entry.rank as 1 | 2 | 3;
+                    return (
+                      <PodiumPosition
+                        key={entry.user_id}
+                        entry={entry}
+                        position={position}
+                        onPress={handleUserPress}
+                        isMe={entry.user_id === user?.id}
+                        colors={colors}
+                      />
+                    );
+                  })}
+                </View>
+              </AnimatedItem>
+            )}
+
+            {/* List Section - Ranks 4+ */}
+            {remaining.length > 0 && (
+              <View style={[styles.listContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                {remaining.map((entry, index) => renderListItem(entry, index))}
+              </View>
+            )}
 
             {/* Threshold Notice */}
-            <AnimatedLeaderboardItem index={leaderboard.length}>
-              <SurfaceCard weakWash>
-                <View style={styles.thresholdNoticeRow}>
-                  <Ionicons name="information-circle-outline" size={16} color={colors.textTertiary} />
-                  <Text style={[styles.thresholdText, { color: colors.textTertiary }]}>
-                    Rankings require {MIN_GRADED_PICKS} graded picks
-                  </Text>
-                </View>
-              </SurfaceCard>
-            </AnimatedLeaderboardItem>
+            <AnimatedItem index={remaining.length + 1} delay={300}>
+              <View style={styles.thresholdNoticeRow}>
+                <Ionicons name="information-circle-outline" size={14} color={colors.textTertiary} />
+                <Text style={[styles.thresholdText, { color: colors.textTertiary }]}>
+                  Rankings require {MIN_GRADED_PICKS} graded picks
+                </Text>
+              </View>
+            </AnimatedItem>
 
             {/* User-specific threshold message */}
             {myRank && myRank.total_picks < MIN_GRADED_PICKS && (
-              <AnimatedLeaderboardItem index={leaderboard.length + 1}>
-                <SurfaceCard weakWash animatedBorder>
-                  <View style={styles.userThresholdNoticeRow}>
-                    <Ionicons name="trending-up-outline" size={18} color={colors.accent} />
-                    <Text style={[styles.userThresholdText, { color: colors.textSecondary }]}>
-                      Need <Text style={{ color: colors.accent, fontWeight: '600' }}>
-                        {MIN_GRADED_PICKS - myRank.total_picks} more
-                      </Text> graded picks to rank
-                    </Text>
-                  </View>
-                </SurfaceCard>
-              </AnimatedLeaderboardItem>
+              <AnimatedItem index={remaining.length + 2} delay={350}>
+                <View style={[styles.userThresholdNotice, { backgroundColor: colors.accentSoft }]}>
+                  <Ionicons name="trending-up-outline" size={16} color={colors.accent} />
+                  <Text style={[styles.userThresholdText, { color: colors.textSecondary }]}>
+                    Need{' '}
+                    <Text style={{ color: colors.accent, fontWeight: '600' }}>
+                      {MIN_GRADED_PICKS - myRank.total_picks} more
+                    </Text>{' '}
+                    graded picks to rank
+                  </Text>
+                </View>
+              </AnimatedItem>
             )}
           </>
         )}
+
+        {/* Bottom padding */}
+        <View style={{ height: 100 }} />
       </ScrollView>
 
       {/* Auth Gate Modal */}
@@ -368,138 +438,123 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  tabContainer: {
-    borderBottomWidth: 1,
-  },
-  tabsRow: {
-    flexDirection: 'row',
-  },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-    gap: spacing.xs,
-  },
-  tabIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    width: '50%',
-    height: 2,
-    borderRadius: 1,
-  },
-  tabText: {
-    ...typography.body,
-    fontWeight: '600',
-  },
-  myRankBannerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  myRankLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  trophyBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  myRankLabel: {
-    ...typography.meta,
-  },
-  myRankNumber: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  myRankRight: {
-    alignItems: 'flex-end',
-  },
-  myRankAccuracyLabel: {
-    ...typography.meta,
-  },
-  myRankAccuracy: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
   scrollView: {
     flex: 1,
   },
   content: {
     padding: spacing.md,
-    paddingBottom: 100,
+    gap: spacing.lg,
+  },
+
+  // Podium styles
+  podiumContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
     gap: spacing.sm,
   },
-  leaderboardItemRow: {
+  podiumPosition: {
+    alignItems: 'center',
+    width: 100,
+  },
+  podiumFirst: {
+    marginBottom: spacing.md,
+  },
+  crownContainer: {
+    marginBottom: spacing.xs,
+  },
+  podiumAvatarContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  podiumAvatarPlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  podiumAvatarText: {
+    fontWeight: '700',
+  },
+  podiumRankBadge: {
+    position: 'absolute',
+    bottom: -4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  podiumRankText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  podiumName: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: spacing.sm,
+    textAlign: 'center',
+    maxWidth: 90,
+  },
+  podiumAccuracyRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
   },
-  rankContainer: {
-    width: 36,
+  podiumAccuracy: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  // List styles
+  listContainer: {
+    borderRadius: radius.card,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  listItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  listRank: {
+    width: 28,
+    fontSize: 15,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  listAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 11,
+    marginLeft: spacing.sm,
+  },
+  listAvatarPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 11,
+    marginLeft: spacing.sm,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  rankIcon: {
-    fontSize: 24,
+  listAvatarText: {
+    fontSize: 18,
+    fontWeight: '700',
   },
-  rankNumber: {
+  listName: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: spacing.sm,
+  },
+  listAccuracy: {
     fontSize: 16,
     fontWeight: '700',
   },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  userInfo: {
-    flex: 1,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  username: {
-    ...typography.body,
-    fontWeight: '600',
-  },
-  youBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  youBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  picks: {
-    ...typography.meta,
-    marginTop: 2,
-  },
-  accuracyContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  accuracy: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  chevron: {
-    marginLeft: spacing.xs,
-  },
+
+  // Notice styles
   thresholdNoticeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -507,15 +562,19 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   thresholdText: {
-    ...typography.meta,
+    fontSize: 12,
+    fontWeight: '500',
   },
-  userThresholdNoticeRow: {
+  userThresholdNotice: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.input,
   },
   userThresholdText: {
-    ...typography.body,
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

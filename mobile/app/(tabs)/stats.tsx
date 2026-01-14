@@ -3,9 +3,11 @@
  */
 
 import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { spacing, radius, typography } from '../../lib/tokens';
 import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useUserStats, useRecentPicksSummary } from '../../hooks/useQueries';
+import { useTheme } from '../../lib/theme';
 import { ErrorState } from '../../components/ErrorState';
 import { EmptyState } from '../../components/EmptyState';
 import { SkeletonStats } from '../../components/SkeletonStats';
@@ -14,6 +16,7 @@ import { MiniChart } from '../../components/MiniChart';
 
 export default function Stats() {
   const { user } = useAuth();
+  const { colors } = useTheme();
   const { data: stats, isLoading: statsLoading, isError: statsError, refetch: refetchStats } = useUserStats(user?.id || null);
   const { data: recentSummary, isLoading: summaryLoading, isError: summaryError, refetch: refetchSummary } = useRecentPicksSummary(
     user?.id || null,
@@ -30,7 +33,10 @@ export default function Stats() {
 
   if (statsLoading || summaryLoading) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        contentContainerStyle={styles.content}
+      >
         <SkeletonStats />
         <SkeletonStats />
       </ScrollView>
@@ -39,13 +45,15 @@ export default function Stats() {
 
   if (statsError || summaryError) {
     return (
-      <ErrorState
-        message="Failed to load your stats. Check your connection and try again."
-        onRetry={() => {
-          refetchStats();
-          refetchSummary();
-        }}
-      />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <ErrorState
+          message="Failed to load your stats. Check your connection and try again."
+          onRetry={() => {
+            refetchStats();
+            refetchSummary();
+          }}
+        />
+      </View>
     );
   }
 
@@ -53,20 +61,20 @@ export default function Stats() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          tintColor="#d4202a"
-          colors={['#d4202a']}
+          tintColor={colors.accent}
+          colors={[colors.accent]}
         />
       }
     >
       {/* Overall Stats */}
-      <View style={styles.card}>
-        <Text style={styles.cardLabel}>OVERALL STATS</Text>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>OVERALL STATS</Text>
 
         {/* Accuracy Ring - Visual centerpiece */}
         <View style={styles.accuracyRingContainer}>
@@ -76,42 +84,42 @@ export default function Stats() {
         {/* Stats Grid below ring */}
         <View style={styles.statsGrid}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{stats?.total_picks || 0}</Text>
-            <Text style={styles.statLabel}>Total Picks</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{stats?.total_picks || 0}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total Picks</Text>
           </View>
 
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{stats?.correct_winner || 0}</Text>
-            <Text style={styles.statLabel}>Correct</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{stats?.correct_winner || 0}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Correct</Text>
           </View>
 
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{stats?.total_picks ? stats.total_picks - stats.correct_winner : 0}</Text>
-            <Text style={styles.statLabel}>Missed</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{stats?.total_picks ? stats.total_picks - stats.correct_winner : 0}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Missed</Text>
           </View>
         </View>
       </View>
 
       {/* Streaks */}
       {hasStats && (
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>STREAKS</Text>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>STREAKS</Text>
 
           <View style={styles.streaksContainer}>
             <View style={styles.streakItem}>
-              <Text style={styles.streakValue}>{stats.current_streak}</Text>
-              <Text style={styles.streakLabel}>Current Streak</Text>
-              <Text style={styles.streakDescription}>Consecutive correct picks</Text>
+              <Text style={[styles.streakValue, { color: colors.text }]}>{stats.current_streak}</Text>
+              <Text style={[styles.streakLabel, { color: colors.text }]}>Current Streak</Text>
+              <Text style={[styles.streakDescription, { color: colors.textTertiary }]}>Consecutive correct picks</Text>
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
             <View style={styles.streakItem}>
               <Text style={[styles.streakValue, styles.bestStreakValue]}>
                 {stats.best_streak}
               </Text>
-              <Text style={styles.streakLabel}>Best Streak</Text>
-              <Text style={styles.streakDescription}>Personal record</Text>
+              <Text style={[styles.streakLabel, { color: colors.text }]}>Best Streak</Text>
+              <Text style={[styles.streakDescription, { color: colors.textTertiary }]}>Personal record</Text>
             </View>
           </View>
         </View>
@@ -119,8 +127,8 @@ export default function Stats() {
 
       {/* Recent Events */}
       {recentSummary && recentSummary.length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>RECENT EVENTS</Text>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>RECENT EVENTS</Text>
 
           {/* Mini Chart - Visual trend */}
           <View style={styles.chartContainer}>
@@ -142,10 +150,10 @@ export default function Stats() {
             return (
               <View key={summary.event.id} style={styles.eventItem}>
                 <View style={styles.eventHeader}>
-                  <Text style={styles.eventName} numberOfLines={1}>
+                  <Text style={[styles.eventName, { color: colors.text }]} numberOfLines={1}>
                     {summary.event.name}
                   </Text>
-                  <Text style={styles.eventDate}>
+                  <Text style={[styles.eventDate, { color: colors.textTertiary }]}>
                     {new Date(summary.event.event_date).toLocaleDateString('en-US', {
                       month: 'short',
                       day: 'numeric',
@@ -154,7 +162,7 @@ export default function Stats() {
                 </View>
 
                 <View style={styles.eventStats}>
-                  <Text style={styles.eventScore}>
+                  <Text style={[styles.eventScore, { color: colors.text }]}>
                     {summary.correct} / {summary.total}
                   </Text>
                   <Text
@@ -169,7 +177,9 @@ export default function Stats() {
                   </Text>
                 </View>
 
-                {index < recentSummary.length - 1 && <View style={styles.eventDivider} />}
+                {index < recentSummary.length - 1 && (
+                  <View style={[styles.eventDivider, { backgroundColor: colors.border }]} />
+                )}
               </View>
             );
           })}
@@ -181,7 +191,7 @@ export default function Stats() {
         <EmptyState
           icon="stats-chart-outline"
           title="No Stats Yet"
-          message="Make some picks and check back after the event to see your results and track your accuracy!"
+          message="Call some fights and check back. The truth is in the tape."
         />
       )}
     </ScrollView>
@@ -191,54 +201,45 @@ export default function Stats() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   content: {
-    padding: 16,
+    padding: spacing.md,
   },
   card: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 16,
+    borderRadius: radius.card,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: '#333',
   },
   cardLabel: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#999',
+    fontFamily: 'BebasNeue',
+    fontSize: typography.sizes.sm,
     letterSpacing: 1,
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   accuracyRingContainer: {
     alignItems: 'center',
-    marginVertical: 16,
+    marginVertical: spacing.md,
   },
   statsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 16,
+    marginTop: spacing.md,
   },
   chartContainer: {
-    marginVertical: 12,
-    marginHorizontal: -8,
+    marginVertical: spacing.sm,
+    marginHorizontal: -spacing.xs,
   },
   statItem: {
     alignItems: 'center',
   },
   statValue: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  accuracyValue: {
-    color: '#d4202a',
+    fontFamily: 'BebasNeue',
+    fontSize: 36,
+    marginBottom: spacing.xs,
   },
   statLabel: {
-    fontSize: 12,
-    color: '#999',
+    fontSize: typography.sizes.xs,
   },
   streaksContainer: {
     flexDirection: 'row',
@@ -248,48 +249,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   streakValue: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
+    fontFamily: 'BebasNeue',
+    fontSize: 42,
+    marginBottom: spacing.xs,
   },
   bestStreakValue: {
     color: '#fbbf24',
   },
   streakLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-    marginBottom: 4,
+    fontSize: typography.sizes.md,
+    fontWeight: '600' as const,
+    marginBottom: spacing.xs,
   },
   streakDescription: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: typography.sizes.xs,
   },
   divider: {
     width: 1,
-    backgroundColor: '#333',
-    marginHorizontal: 16,
+    marginHorizontal: spacing.md,
   },
   eventItem: {
-    paddingVertical: 12,
+    paddingVertical: spacing.sm,
   },
   eventHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.xs,
   },
   eventName: {
     flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-    marginRight: 8,
+    fontSize: typography.sizes.md,
+    fontWeight: '600' as const,
+    marginRight: spacing.xs,
   },
   eventDate: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: typography.sizes.xs,
   },
   eventStats: {
     flexDirection: 'row',
@@ -297,13 +292,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   eventScore: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
+    fontSize: typography.sizes.lg,
+    fontWeight: '600' as const,
   },
   eventAccuracy: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: typography.sizes.lg,
+    fontWeight: '700' as const,
   },
   eventAccuracyHigh: {
     color: '#4ade80',
@@ -316,23 +310,6 @@ const styles = StyleSheet.create({
   },
   eventDivider: {
     height: 1,
-    backgroundColor: '#333',
-    marginTop: 12,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
-    paddingHorizontal: 40,
+    marginTop: spacing.sm,
   },
 });

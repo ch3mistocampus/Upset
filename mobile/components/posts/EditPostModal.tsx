@@ -224,7 +224,9 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
   title: {
-    ...typography.h3,
+    fontFamily: 'BebasNeue',
+    fontSize: 22,
+    letterSpacing: 0.3,
   },
   saveButton: {
     paddingHorizontal: spacing.md,
@@ -234,8 +236,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveButtonText: {
-    ...typography.body,
-    fontWeight: '600',
+    fontFamily: 'BebasNeue',
+    fontSize: 16,
+    letterSpacing: 0.3,
   },
   content: {
     flex: 1,
@@ -248,8 +251,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   inputLabel: {
-    ...typography.meta,
-    fontWeight: '600',
+    fontFamily: 'BebasNeue',
+    fontSize: 14,
+    letterSpacing: 0.5,
     marginBottom: spacing.sm,
   },
   titleInput: {

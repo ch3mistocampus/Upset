@@ -569,7 +569,7 @@ const styles = StyleSheet.create({
   userAvatarPlaceholder: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },

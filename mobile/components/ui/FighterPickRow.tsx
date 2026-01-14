@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../lib/theme';
-import { spacing, radius, typography } from '../../lib/tokens';
+import { spacing, radius, typography, displayTypography } from '../../lib/tokens';
 
 interface FighterPickRowProps {
   fighterName: string;
@@ -101,8 +101,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   fighterName: {
-    ...typography.body,
-    fontWeight: '600',
+    ...displayTypography.fighterName,
     flex: 1,
   },
   checkContainer: {

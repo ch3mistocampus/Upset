@@ -299,9 +299,10 @@ const styles = StyleSheet.create({
     width: 36,
   },
   headerTitle: {
-    ...typography.body,
+    fontFamily: 'BebasNeue',
+    fontSize: 22,
+    letterSpacing: 0.3,
     flex: 1,
-    fontWeight: '600',
   },
   scrollView: {
     flex: 1,
@@ -318,7 +319,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.sm,

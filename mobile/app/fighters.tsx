@@ -33,7 +33,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../lib/theme';
-import { spacing, radius, typography } from '../lib/tokens';
+import { spacing, radius, typography, displayTypography } from '../lib/tokens';
 import { useInfiniteFighters, useSearchFighters } from '../hooks/useFighterStats';
 import { FighterCard } from '../components/FighterCard';
 import { EmptyState } from '../components/ui';
@@ -41,13 +41,12 @@ import { SkeletonCard } from '../components/SkeletonCard';
 import { UFCFighter, UFCFighterSearchResult } from '../types/database';
 import { GlobalTabBar } from '../components/navigation/GlobalTabBar';
 
-type SortOption = 'ranking' | 'wins' | 'name';
+type SortOption = 'ranking' | 'name';
 type DisplayFighter = UFCFighter | UFCFighterSearchResult;
 
 // Sort option configuration - maps UI options to database columns and sort direction
-const SORT_CONFIG: Record<SortOption, { column: 'full_name' | 'record_wins' | 'ranking'; order: 'asc' | 'desc' }> = {
+const SORT_CONFIG: Record<SortOption, { column: 'ranking' | 'full_name'; order: 'asc' | 'desc' }> = {
   ranking: { column: 'ranking', order: 'desc' },
-  wins: { column: 'record_wins', order: 'desc' },
   name: { column: 'full_name', order: 'asc' },
 };
 
@@ -168,11 +167,6 @@ export default function FightersScreen() {
     }, 150);
   }, [listOpacity]);
 
-  const handleSortChange = (option: SortOption) => {
-    if (option === sortBy) return;
-    animateFilterChange(() => setSortBy(option));
-  };
-
   const handleWeightFilter = (weight: string | null) => {
     if (weight === selectedWeight) return;
     animateFilterChange(() => setSelectedWeight(weight));
@@ -242,75 +236,110 @@ export default function FightersScreen() {
               router.back();
             }}
             style={styles.backButton}
-            accessibilityLabel="Go back to Discover"
+            accessibilityLabel="Go back"
             accessibilityRole="button"
           >
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={[styles.title, { color: colors.text }]}>Fighters</Text>
-          <View style={styles.headerSpacer} />
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setIsSearchFocused(!isSearchFocused);
+              if (isSearchFocused) {
+                clearSearch();
+              }
+            }}
+            style={[
+              styles.searchButton,
+              { backgroundColor: isSearchFocused ? colors.accent : colors.surfaceAlt },
+            ]}
+            accessibilityLabel="Search fighters"
+            accessibilityRole="button"
+          >
+            <Ionicons
+              name={isSearchFocused ? 'close' : 'search'}
+              size={20}
+              color={isSearchFocused ? '#fff' : colors.textSecondary}
+            />
+          </TouchableOpacity>
         </View>
 
-        {/* Search Bar */}
-        <View style={[
-          styles.searchContainer,
-          {
-            backgroundColor: colors.surfaceAlt,
-            borderColor: isSearchFocused ? colors.accent : colors.border,
-          },
-        ]}>
-          <Ionicons
-            name="search"
-            size={18}
-            color={isSearchFocused ? colors.accent : colors.textTertiary}
-          />
-          <TextInput
-            style={[styles.searchInput, { color: colors.text }]}
-            placeholder="Search fighters..."
-            placeholderTextColor={colors.textTertiary}
-            value={searchQuery}
-            onChangeText={handleSearch}
-            onFocus={() => setIsSearchFocused(true)}
-            onBlur={() => setIsSearchFocused(false)}
-            returnKeyType="search"
-            autoCorrect={false}
-            autoCapitalize="none"
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={clearSearch}>
-              <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
-            </TouchableOpacity>
-          )}
-        </View>
+        {/* Expandable Search Bar */}
+        {isSearchFocused && (
+          <View style={[
+            styles.searchContainer,
+            {
+              backgroundColor: colors.surfaceAlt,
+              borderColor: colors.accent,
+            },
+          ]}>
+            <Ionicons
+              name="search"
+              size={18}
+              color={colors.accent}
+            />
+            <TextInput
+              style={[styles.searchInput, { color: colors.text }]}
+              placeholder="Search fighters..."
+              placeholderTextColor={colors.textTertiary}
+              value={searchQuery}
+              onChangeText={handleSearch}
+              returnKeyType="search"
+              autoCorrect={false}
+              autoCapitalize="none"
+              autoFocus
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={clearSearch}>
+                <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
       </View>
 
-      {/* Sort & Filter Options - Always visible */}
-      {!searchQuery.trim() && (
+      {/* Filter Options - Hidden when searching */}
+      {!searchQuery.trim() && !isSearchFocused && (
         <View style={[styles.filtersContainer, { backgroundColor: colors.background }]}>
+          {/* Sort Options */}
           <View style={styles.sortRow}>
             <Text style={[styles.sortLabel, { color: colors.textSecondary }]}>Sort by:</Text>
             <View style={styles.sortOptions}>
-              {[
-                { key: 'ranking' as SortOption, label: 'Rankings' },
-                { key: 'wins' as SortOption, label: 'Top Wins' },
-                { key: 'name' as SortOption, label: 'A-Z' },
-              ].map(option => (
-                <TouchableOpacity
-                  key={option.key}
-                  style={[
-                    styles.sortButton,
-                    { backgroundColor: sortBy === option.key ? colors.accent : colors.surfaceAlt },
-                  ]}
-                  onPress={() => handleSortChange(option.key)}
-                >
-                  <Text style={[
-                    styles.sortButtonText,
-                    { color: sortBy === option.key ? '#fff' : colors.textSecondary },
-                  ]}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              <TouchableOpacity
+                style={[
+                  styles.sortButton,
+                  { backgroundColor: sortBy === 'ranking' ? colors.accent : colors.surfaceAlt },
+                ]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSortBy('ranking');
+                }}
+              >
+                <Text style={[
+                  styles.sortButtonText,
+                  { color: sortBy === 'ranking' ? '#fff' : colors.textSecondary },
+                ]}>
+                  Rankings
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.sortButton,
+                  { backgroundColor: sortBy === 'name' ? colors.accent : colors.surfaceAlt },
+                ]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSortBy('name');
+                }}
+              >
+                <Text style={[
+                  styles.sortButtonText,
+                  { color: sortBy === 'name' ? '#fff' : colors.textSecondary },
+                ]}>
+                  A-Z
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -433,20 +462,24 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.md,
   },
   backButton: {
     marginRight: spacing.sm,
     marginLeft: -spacing.xs,
     padding: spacing.xs,
   },
-  headerSpacer: {
-    width: 36,
+  searchButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
     flex: 1,
+    fontFamily: 'BebasNeue',
     fontSize: 28,
-    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -456,6 +489,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.input,
     borderWidth: 1,
     gap: spacing.sm,
+    marginTop: spacing.md,
   },
   searchInput: {
     flex: 1,
@@ -482,8 +516,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontFamily: 'BebasNeue',
+    fontSize: 22,
+    letterSpacing: 0.3,
     textAlign: 'center',
   },
   emptyMessage: {
@@ -496,7 +531,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   sortLabel: {
-    fontSize: 13,
+    fontFamily: 'BebasNeue',
+    fontSize: 14,
+    letterSpacing: 0.3,
     marginRight: spacing.sm,
   },
   sortOptions: {
@@ -504,13 +541,16 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   sortButton: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderRadius: radius.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
   },
   sortButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'BebasNeue',
+    fontSize: 14,
+    letterSpacing: 0.3,
   },
   weightFilter: {
     marginBottom: spacing.sm,
@@ -521,15 +561,16 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   weightChip: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
     borderRadius: radius.pill,
     borderWidth: 1,
     marginRight: spacing.xs,
   },
   weightChipText: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontFamily: 'BebasNeue',
+    fontSize: 15,
+    letterSpacing: 0.5,
   },
   resultsCount: {
     fontSize: 12,

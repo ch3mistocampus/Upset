@@ -171,6 +171,73 @@ export const typography = {
   },
 } as const;
 
+// Display typography - Bebas Neue for UFC-style headers
+// Use for: Event titles, fighter names, countdown timers, section titles
+export const displayTypography = {
+  // Event headers (e.g., "UFC 324")
+  eventTitle: {
+    fontFamily: 'BebasNeue',
+    fontSize: 28,
+    lineHeight: 30,
+    letterSpacing: -0.5,
+    textTransform: 'uppercase' as const,
+  },
+  // Large event title (hero cards)
+  eventTitleLarge: {
+    fontFamily: 'BebasNeue',
+    fontSize: 32,
+    lineHeight: 34,
+    letterSpacing: -0.6,
+    textTransform: 'uppercase' as const,
+  },
+  // Fighter names
+  fighterName: {
+    fontFamily: 'BebasNeue',
+    fontSize: 20,
+    lineHeight: 22,
+    letterSpacing: -0.4,
+    textTransform: 'uppercase' as const,
+  },
+  // Large fighter name (detail screens)
+  fighterNameLarge: {
+    fontFamily: 'BebasNeue',
+    fontSize: 26,
+    lineHeight: 28,
+    letterSpacing: -0.5,
+    textTransform: 'uppercase' as const,
+  },
+  // Countdown numbers
+  countdown: {
+    fontFamily: 'BebasNeue',
+    fontSize: 36,
+    lineHeight: 38,
+    letterSpacing: -0.8,
+  },
+  // Section titles (Next Event, Your Picks, etc.)
+  sectionTitle: {
+    fontFamily: 'BebasNeue',
+    fontSize: 20,
+    lineHeight: 22,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase' as const,
+  },
+  // Large numeric displays
+  statNumber: {
+    fontFamily: 'BebasNeue',
+    fontSize: 42,
+    lineHeight: 44,
+    letterSpacing: -1,
+  },
+  // Hero headings
+  hero: {
+    fontFamily: 'BebasNeue',
+    fontSize: 38,
+    lineHeight: 40,
+    letterSpacing: -0.8,
+    textTransform: 'uppercase' as const,
+  },
+} as const;
+
 export const spacing = {
   xs: 6,
   sm: 10,

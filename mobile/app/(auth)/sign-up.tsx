@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { useTheme } from '../../lib/theme';
-import { spacing, typography } from '../../lib/tokens';
+import { spacing, typography, displayTypography } from '../../lib/tokens';
 import { Button, Input } from '../../components/ui';
 import { SocialAuthButtons } from '../../components/auth';
 import { validateEmail, validatePassword, getAuthErrorMessage } from '../../lib/validation';
@@ -76,7 +76,7 @@ export default function SignUp() {
             Create Account
           </Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Sign up to start tracking your picks
+            Sign up to call the fights
           </Text>
 
           <Input
@@ -156,7 +156,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xxl,
   },
   title: {
-    ...typography.h1,
+    fontFamily: 'BebasNeue',
+    fontSize: 36,
+    letterSpacing: 0.5,
     textAlign: 'center',
     marginBottom: spacing.sm,
   },

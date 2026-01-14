@@ -164,9 +164,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   text: {
+    fontFamily: 'BebasNeue',
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    letterSpacing: 0.3,
+    fontSize: 19,
+    letterSpacing: 0.5,
   },
 });

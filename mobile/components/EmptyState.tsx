@@ -7,7 +7,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../lib/theme';
-import { spacing, radius, typography } from '../lib/tokens';
+import { spacing, radius, typography, displayTypography } from '../lib/tokens';
 
 interface EmptyStateProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   title: {
-    ...typography.h2,
+    ...displayTypography.eventTitle,
     textAlign: 'center',
     marginBottom: spacing.sm,
   },
@@ -120,8 +120,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   actionText: {
+    fontFamily: 'BebasNeue',
     color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 17,
+    letterSpacing: 0.5,
   },
 });

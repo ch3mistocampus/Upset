@@ -18,7 +18,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../lib/theme';
-import { spacing, typography, radius } from '../../lib/tokens';
+import { spacing, typography, radius, displayTypography } from '../../lib/tokens';
 import { Button } from '../../components/ui';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -36,25 +36,25 @@ const SLIDES: OnboardingSlide[] = [
     id: '1',
     icon: 'flash',
     title: 'Welcome to Upset',
-    description: 'The ultimate UFC picks tracker for MMA fans who want to prove their fight IQ.',
+    description: 'Where chaos proves who\'s right.',
   },
   {
     id: '2',
     icon: 'hand-left',
-    title: 'Make Your Picks',
-    description: 'Predict fight winners before events lock. Choose the fighter and method of victory.',
+    title: 'Call the Fight',
+    description: 'Call it before it happens. Pick your winner and method.',
   },
   {
     id: '3',
     icon: 'stats-chart',
-    title: 'Track Your Stats',
-    description: 'See your accuracy percentage, win streaks, and performance over time.',
+    title: 'Own the Outcome',
+    description: 'The truth is in the tape. Track your accuracy and streaks.',
   },
   {
     id: '4',
     icon: 'trophy',
-    title: 'Compete & Win',
-    description: 'Climb the leaderboards, compete with friends, and prove you know MMA.',
+    title: 'Prove You\'re Right',
+    description: 'Every fight is an upset waiting to happen. Climb the ranks.',
   },
 ];
 
@@ -177,8 +177,9 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   skipText: {
-    ...typography.body,
-    fontWeight: '500',
+    fontFamily: 'BebasNeue',
+    fontSize: 16,
+    letterSpacing: 0.3,
   },
   slide: {
     flex: 1,
@@ -198,7 +199,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xxl,
   },
   title: {
-    ...typography.h1,
+    ...displayTypography.hero,
     textAlign: 'center',
     marginBottom: spacing.md,
   },

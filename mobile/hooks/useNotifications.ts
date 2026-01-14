@@ -317,14 +317,30 @@ export function useNotifications() {
   // Mark notification as read
   const markAsRead = useMutation({
     mutationFn: async (notificationId: string) => {
-      const { error } = await supabase
+      // Get current user for RLS compliance
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        logger.debug('No user, skipping mark as read');
+        return;
+      }
+
+      const { error, count } = await supabase
         .from('notification_log')
         .update({ read_at: new Date().toISOString() })
-        .eq('id', notificationId);
+        .eq('id', notificationId)
+        .eq('user_id', user.id);
 
       if (error) {
         logger.error('Failed to mark notification as read', error);
         throw error;
+      }
+
+      // Log if no rows were updated (notification may not exist)
+      if (count === 0) {
+        logger.debug('No notification found to mark as read', { notificationId });
       }
     },
     onSuccess: () => {

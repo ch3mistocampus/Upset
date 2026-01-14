@@ -20,7 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../../../lib/theme';
-import { spacing, radius, typography } from '../../../lib/tokens';
+import { spacing, radius, typography, displayTypography } from '../../../lib/tokens';
 import { useFighterProfile } from '../../../hooks/useFighterStats';
 import {
   formatHeight,
@@ -514,8 +514,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   fighterName: {
-    fontSize: 24,
-    fontWeight: '700',
+    ...displayTypography.fighterNameLarge,
     marginBottom: 4,
     textAlign: 'center',
   },

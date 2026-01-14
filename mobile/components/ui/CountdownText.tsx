@@ -11,6 +11,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Text, StyleSheet, Animated } from 'react-native';
 import { useTheme } from '../../lib/theme';
+import { displayTypography } from '../../lib/tokens';
 
 interface CountdownTextProps {
   /** Target date to count down to */
@@ -112,11 +113,7 @@ export function CountdownText({ targetDate, onComplete }: CountdownTextProps) {
 
 const styles = StyleSheet.create({
   countdown: {
-    fontSize: 28,
-    fontWeight: '700',
-    lineHeight: 36,
-    fontVariant: ['tabular-nums'],
-    letterSpacing: 0.5,
+    ...displayTypography.countdown,
     textAlign: 'center',
   },
 });

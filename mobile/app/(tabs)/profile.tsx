@@ -43,7 +43,7 @@ import {
 import { useTheme } from '../../lib/theme';
 import { supabase } from '../../lib/supabase';
 import { logger } from '../../lib/logger';
-import { spacing, radius } from '../../lib/tokens';
+import { spacing, radius, displayTypography } from '../../lib/tokens';
 import { isEventSubmitted } from '../../lib/storage';
 import { SurfaceCard, Button, SegmentedControl, EmptyState } from '../../components/ui';
 import { ErrorState } from '../../components/ErrorState';
@@ -677,8 +677,9 @@ export default function Profile() {
               </View>
             )}
             {/* Banner edit hint */}
-            <View style={[styles.bannerEditHint, { backgroundColor: colors.surface + 'CC' }]}>
-              <Ionicons name="camera" size={12} color={colors.text} />
+            <View style={[styles.bannerEditHint, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+              <Ionicons name="camera" size={14} color="#fff" />
+              <Text style={styles.bannerEditHintText}>Tap to edit</Text>
             </View>
           </TouchableOpacity>
 
@@ -747,22 +748,14 @@ export default function Profile() {
             )}
           </TouchableOpacity>
 
-          {/* Main Stats Row - Large & Prominent */}
+          {/* Main Stats Row */}
           <View style={styles.mainStatsRow}>
-            <TouchableOpacity
-              style={styles.mainStatItem}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/(tabs)/leaderboards');
-              }}
-              activeOpacity={0.7}
-            >
+            <View style={styles.mainStatItem}>
               <Text style={[styles.mainStatValue, { color: colors.accent }]}>
                 {accuracy.toFixed(1)}%
               </Text>
               <Text style={[styles.mainStatLabel, { color: colors.textSecondary }]}>ACCURACY</Text>
-              <Text style={[styles.mainStatHint, { color: colors.textTertiary }]}>View rank</Text>
-            </TouchableOpacity>
+            </View>
             <View style={[styles.mainStatDivider, { backgroundColor: colors.border }]} />
             <View style={styles.mainStatItem}>
               <Text style={[styles.mainStatValue, { color: colors.text }]}>
@@ -804,35 +797,6 @@ export default function Profile() {
             </TouchableOpacity>
           </View>
 
-          {/* Quick Actions Row */}
-          <View style={styles.quickActionsRow}>
-            <TouchableOpacity
-              style={[styles.quickAction, { backgroundColor: colors.surfaceAlt }]}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push(`/user/${user?.id}`);
-              }}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="eye-outline" size={16} color={colors.text} />
-              <Text style={[styles.quickActionText, { color: colors.text }]}>View Profile</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.quickAction, { backgroundColor: colors.surfaceAlt }]}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowBioModal(true);
-              }}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="pencil-outline" size={16} color={colors.text} />
-              <Text style={[styles.quickActionText, { color: colors.text }]}>Edit Bio</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Divider */}
-          <View style={[styles.sectionDivider, { backgroundColor: colors.danger }]} />
         </Animated.View>
 
         {/* Content Area - Always shows picks */}
@@ -884,7 +848,7 @@ export default function Profile() {
                   message="Make picks on upcoming events to see your history here."
                   actionLabel="Browse Events"
                   onAction={() => router.push('/(tabs)/pick')}
-                  hint="Your accuracy and stats will appear once you make picks"
+                  hint="The truth is in the tape—make your first call to see your stats"
                 />
               )}
             </>
@@ -1076,13 +1040,19 @@ const styles = StyleSheet.create({
   },
   bannerEditHint: {
     position: 'absolute',
-    bottom: 6,
-    left: 6,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    bottom: 8,
+    right: 8,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  bannerEditHintText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
   },
   settingsButton: {
     position: 'absolute',
@@ -1095,15 +1065,17 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   avatarContainer: {
-    marginTop: -40,
-    marginBottom: spacing.sm,
+    marginTop: -44,
+    marginBottom: spacing.md,
   },
   avatarSquare: {
-    width: 80,
-    height: 80,
-    borderRadius: 18,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 4,
+    borderColor: '#fff',
   },
   avatarUploading: {
     opacity: 0.6,
@@ -1111,131 +1083,94 @@ const styles = StyleSheet.create({
   avatarUploadOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.4)',
-    borderRadius: 18,
+    borderRadius: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: '600',
     color: '#fff',
   },
   username: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 2,
+    fontFamily: 'BebasNeue',
+    fontSize: 24,
+    marginBottom: spacing.xs,
   },
   bio: {
-    fontSize: 13,
+    fontSize: 14,
     textAlign: 'center',
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    lineHeight: 18,
+    paddingHorizontal: spacing.xl,
+    marginBottom: spacing.lg,
+    lineHeight: 20,
   },
   bioPlaceholder: {
-    fontSize: 13,
+    fontSize: 14,
     fontStyle: 'italic',
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
 
-  // Main Stats Row - balanced spacing
+  // Main Stats Row - clean spacing
   mainStatsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    marginBottom: 6,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.sm,
   },
   mainStatItem: {
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
   },
   mainStatValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
+    fontFamily: 'BebasNeue',
+    fontSize: 26,
     lineHeight: 28,
   },
   mainStatLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginTop: 2,
   },
-  mainStatHint: {
-    fontSize: 9,
-    marginTop: 2,
-  },
   mainStatDivider: {
     width: 1,
-    height: 32,
-    marginHorizontal: 0,
+    height: 28,
   },
 
-  // Social row - balanced
+  // Social row - compact inline
   socialRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 24,
-    marginTop: 8,
-    marginBottom: 12,
+    gap: 20,
+    marginBottom: spacing.lg,
   },
   socialItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   socialNumber: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
-    lineHeight: 20,
   },
   socialLabel: {
     fontSize: 14,
-  },
-
-  // Quick Actions Row
-  quickActionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-    marginBottom: spacing.md,
-    paddingHorizontal: spacing.md,
-  },
-  quickAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.button,
-  },
-  quickActionText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-
-  // Section Divider
-  sectionDivider: {
-    height: 1,
-    marginHorizontal: spacing.md,
-    width: SCREEN_WIDTH - spacing.md * 2,
+    fontWeight: '400',
   },
 
   // Content Area
   contentArea: {
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+    paddingTop: spacing.lg,
   },
   section: {
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xl,
   },
   sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    ...displayTypography.sectionTitle,
+    fontSize: 14,
     marginBottom: spacing.sm,
     marginLeft: spacing.xs,
   },
@@ -1332,7 +1267,7 @@ const styles = StyleSheet.create({
   avatarPreview: {
     width: 160,
     height: 160,
-    borderRadius: 32,
+    borderRadius: 80,
     overflow: 'hidden',
     marginBottom: spacing.lg,
   },
@@ -1383,8 +1318,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   guestTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontFamily: 'BebasNeue',
+    fontSize: 26,
     marginBottom: spacing.xs,
   },
   guestSubtext: {
@@ -1402,8 +1337,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   guestStatValue: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontFamily: 'BebasNeue',
+    fontSize: 32,
   },
   guestStatLabel: {
     fontSize: 12,

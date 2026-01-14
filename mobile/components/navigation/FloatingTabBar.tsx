@@ -257,8 +257,9 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   tabLabel: {
-    fontSize: 10,
-    fontWeight: '500',
+    fontFamily: 'BebasNeue',
+    fontSize: 11,
+    letterSpacing: 0.3,
   },
   guestDot: {
     position: 'absolute',

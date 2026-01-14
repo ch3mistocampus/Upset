@@ -10,7 +10,7 @@ import { useFocusEffect } from 'expo-router';
 import { useAuth } from '../../hooks/useAuth';
 import { useUpcomingEvents, useBoutsCount, useUserPicksCount } from '../../hooks/useQueries';
 import { useTheme } from '../../lib/theme';
-import { spacing, typography } from '../../lib/tokens';
+import { spacing, typography, displayTypography } from '../../lib/tokens';
 import { isEventSubmitted } from '../../lib/storage';
 import { EmptyState, SurfaceCard } from '../../components/ui';
 import { ErrorState } from '../../components/ErrorState';
@@ -236,7 +236,7 @@ export default function Pick() {
         <EmptyState
           icon="calendar-outline"
           title="No Upcoming Events"
-          message="There are no scheduled UFC events at the moment. Check back soon!"
+          message="No fights scheduled. Every fight is an upset waiting to happen."
           actionLabel="Refresh"
           onAction={onRefresh}
         />
@@ -269,7 +269,7 @@ export default function Pick() {
           Upcoming Events
         </Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Tap an event to make your picks
+          Call it before it happens
         </Text>
       </Animated.View>
 
@@ -296,7 +296,9 @@ const styles = StyleSheet.create({
     paddingBottom: 100, // Account for floating tab bar
   },
   sectionTitle: {
-    ...typography.h2,
+    fontFamily: 'BebasNeue',
+    fontSize: 26,
+    letterSpacing: 0.5,
     marginBottom: spacing.xs,
   },
   subtitle: {

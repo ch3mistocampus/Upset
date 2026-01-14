@@ -23,7 +23,7 @@ import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../lib/theme';
-import { spacing, radius, typography } from '../../lib/tokens';
+import { spacing, radius, typography, displayTypography } from '../../lib/tokens';
 import {
   useDiscoverFeed,
   useFollowingFeed,
@@ -358,7 +358,7 @@ export default function DiscoverScreen() {
           {isGuestFollowing
             ? 'Sign up to follow other pickers and see their activity here'
             : activeTab === 'discover'
-            ? 'Be the first to make some picks or explore fighters'
+            ? 'Be the first to call it—or explore the roster'
             : 'Find and follow people to see their activity here'}
         </Text>
 
@@ -607,8 +607,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
   },
   tabText: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.semibold as '600',
+    fontFamily: 'BebasNeue',
+    fontSize: 18,
+    letterSpacing: 0.5,
   },
   listContent: {
     paddingTop: spacing.xs,
@@ -632,8 +633,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   sectionTitle: {
-    fontSize: typography.sizes.lg,
-    fontWeight: typography.weights.bold as '700',
+    fontFamily: 'BebasNeue',
+    fontSize: 20,
+    letterSpacing: 0.5,
     marginBottom: spacing.md,
   },
   trendingList: {
@@ -697,13 +699,13 @@ const styles = StyleSheet.create({
   trendingAvatar: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 12,
     marginBottom: spacing.sm,
   },
   trendingAvatarPlaceholder: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 12,
     marginBottom: spacing.sm,
     justifyContent: 'center',
     alignItems: 'center',
@@ -723,9 +725,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   followButtonText: {
+    fontFamily: 'BebasNeue',
     color: '#FFFFFF',
-    fontSize: typography.sizes.xs,
-    fontWeight: typography.weights.semibold as '600',
+    fontSize: 12,
+    letterSpacing: 0.3,
   },
 
   // Activity Items
@@ -741,13 +744,13 @@ const styles = StyleSheet.create({
   avatar: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 11,
     marginRight: spacing.md,
   },
   avatarPlaceholder: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 11,
     marginRight: spacing.md,
     justifyContent: 'center',
     alignItems: 'center',
@@ -816,8 +819,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xxl,
   },
   emptyTitle: {
-    fontSize: typography.sizes.lg,
-    fontWeight: typography.weights.semibold as '600',
+    fontFamily: 'BebasNeue',
+    fontSize: 22,
+    letterSpacing: 0.3,
     marginTop: spacing.md,
     marginBottom: spacing.xs,
   },
@@ -833,17 +837,19 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   emptyActionText: {
+    fontFamily: 'BebasNeue',
     color: '#FFFFFF',
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.semibold as '600',
+    fontSize: 17,
+    letterSpacing: 0.5,
   },
   emptySecondaryLink: {
     marginTop: spacing.sm,
     padding: spacing.xs,
   },
   emptySecondaryText: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.medium as '500',
+    fontFamily: 'BebasNeue',
+    fontSize: 15,
+    letterSpacing: 0.3,
   },
 
   // Like button states

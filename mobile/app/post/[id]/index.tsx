@@ -398,8 +398,9 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   displayName: {
-    fontSize: typography.body.fontSize,
-    fontWeight: '600',
+    fontFamily: 'BebasNeue',
+    fontSize: 16,
+    letterSpacing: 0.3,
   },
   username: {
     fontSize: typography.meta.fontSize,
@@ -427,8 +428,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   systemBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontFamily: 'BebasNeue',
+    fontSize: 11,
     letterSpacing: 0.5,
   },
   contentText: {
@@ -440,7 +441,9 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
   commentsHeader: {
-    ...typography.h3,
+    fontFamily: 'BebasNeue',
+    fontSize: 20,
+    letterSpacing: 0.3,
     marginBottom: spacing.md,
   },
   noComments: {

@@ -10,7 +10,7 @@ import * as Linking from 'expo-linking';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { useTheme } from '../lib/theme';
-import { spacing, radius, typography } from '../lib/tokens';
+import { spacing, radius, typography, displayTypography } from '../lib/tokens';
 import * as Sentry from '@sentry/react-native';
 import { SettingsRow } from '../components/SettingsRow';
 import { SurfaceCard, SegmentedControl } from '../components/ui';
@@ -299,13 +299,16 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   sectionLabel: {
-    ...typography.caption,
+    fontFamily: 'BebasNeue',
+    fontSize: 14,
+    letterSpacing: 1,
     marginBottom: spacing.xs,
     paddingHorizontal: spacing.xs,
   },
   themeLabel: {
-    fontSize: 13,
-    fontWeight: '500',
+    fontFamily: 'BebasNeue',
+    fontSize: 14,
+    letterSpacing: 0.5,
     marginBottom: spacing.sm,
   },
   versionContainer: {
@@ -313,8 +316,8 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
   },
   versionText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontFamily: 'BebasNeue',
+    fontSize: 20,
     marginBottom: 4,
   },
   versionNumber: {

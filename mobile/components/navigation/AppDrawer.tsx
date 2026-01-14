@@ -31,7 +31,7 @@ import { useTheme } from '../../lib/theme';
 import { useAuth } from '../../hooks/useAuth';
 import { useDrawer } from '../../lib/DrawerContext';
 import { useUserStats } from '../../hooks/useQueries';
-import { spacing, radius } from '../../lib/tokens';
+import { spacing, radius, displayTypography } from '../../lib/tokens';
 import type { ThemeMode } from '../../lib/tokens';
 import { MmaGloveIcon } from '../icons';
 
@@ -497,14 +497,14 @@ const styles = StyleSheet.create({
   guestAvatar: {
     width: 64,
     height: 64,
-    borderRadius: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
   },
   guestTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontFamily: 'BebasNeue',
+    fontSize: 22,
     marginBottom: spacing.xs,
   },
   guestSubtitle: {
@@ -543,8 +543,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   displayName: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontFamily: 'BebasNeue',
+    fontSize: 22,
   },
   username: {
     fontSize: 14,
@@ -558,9 +558,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
+    fontFamily: 'BebasNeue',
+    fontSize: 20,
   },
   statLabel: {
     fontSize: 11,
@@ -590,8 +589,8 @@ const styles = StyleSheet.create({
   },
   navLabel: {
     flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
+    fontFamily: 'BebasNeue',
+    fontSize: 18,
   },
   themeValue: {
     fontSize: 14,

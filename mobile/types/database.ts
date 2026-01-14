@@ -453,6 +453,12 @@ export interface UFCFighter {
   ranking: number | null;
   weight_class: string | null;
   espn_fighter_id: string | null;  // ESPN ID for MMA API integration
+  // Win method breakdown (calculated from ufc_fights)
+  ko_tko_wins: number;
+  submission_wins: number;
+  decision_wins: number;
+  ko_percentage: number;  // Percentage of wins by KO/TKO
+  sub_percentage: number;  // Percentage of wins by Submission
 }
 
 export interface UFCFighterSearchResult {

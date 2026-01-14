@@ -17,16 +17,22 @@ import {
   Dimensions,
   Modal,
   Alert,
+  ActionSheetIOS,
+  Platform,
+  TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../../lib/supabase';
 import { logger } from '../../../lib/logger';
 import { useAuth } from '../../../hooks/useAuth';
+import * as FileSystem from 'expo-file-system/legacy';
+import { decode } from 'base64-arraybuffer';
 import { AuthPromptModal } from '../../../components/AuthPromptModal';
 import { useFriends } from '../../../hooks/useFriends';
 import { useBlocking } from '../../../hooks/useBlocking';
@@ -87,7 +93,7 @@ export default function UserProfile() {
   const router = useRouter();
   const toast = useToast();
   const insets = useSafeAreaInsets();
-  const { user, isGuest } = useAuth();
+  const { user, isGuest, updateProfile: authUpdateProfile, profile: authProfile } = useAuth();
   const { follow, unfollow, followLoading, unfollowLoading } = useFriends();
   const { blockedUsers, block, unblock, blockLoading } = useBlocking();
   const { mutedUsers, mute, unmute, isMuting } = useMute();
@@ -104,6 +110,13 @@ export default function UserProfile() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [showUnfollowConfirm, setShowUnfollowConfirm] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+
+  // Edit profile state (for own profile)
+  const [showBioModal, setShowBioModal] = useState(false);
+  const [bioText, setBioText] = useState('');
+  const [savingBio, setSavingBio] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
 
   // Fetch user's posts
   const userPosts = useUserPosts(id || '');
@@ -171,6 +184,212 @@ export default function UserProfile() {
     }
   }, [showAvatarModal, modalScale, modalOpacity]);
 
+  // Sync bio text when profile loads (for own profile editing)
+  useEffect(() => {
+    if (isOwnProfile && profile?.bio) {
+      setBioText(profile.bio);
+    }
+  }, [isOwnProfile, profile?.bio]);
+
+  // ===== Profile Editing Functions (own profile only) =====
+  const showEditOptions = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Change Photo', 'Change Banner', 'Edit Bio'],
+          cancelButtonIndex: 0,
+          title: 'Edit Profile',
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) showAvatarOptions();
+          else if (buttonIndex === 2) showBannerOptions();
+          else if (buttonIndex === 3) {
+            setBioText(profile?.bio || '');
+            setShowBioModal(true);
+          }
+        }
+      );
+    } else {
+      Alert.alert('Edit Profile', undefined, [
+        { text: 'Change Photo', onPress: showAvatarOptions },
+        { text: 'Change Banner', onPress: showBannerOptions },
+        { text: 'Edit Bio', onPress: () => {
+          setBioText(profile?.bio || '');
+          setShowBioModal(true);
+        }},
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
+  };
+
+  const showAvatarOptions = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Take Photo', 'Choose from Library', 'Remove Photo'],
+          destructiveButtonIndex: 3,
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) pickImage('camera', 'avatar');
+          else if (buttonIndex === 2) pickImage('library', 'avatar');
+          else if (buttonIndex === 3) removeAvatar();
+        }
+      );
+    } else {
+      Alert.alert('Change Photo', undefined, [
+        { text: 'Take Photo', onPress: () => pickImage('camera', 'avatar') },
+        { text: 'Choose from Library', onPress: () => pickImage('library', 'avatar') },
+        { text: 'Remove Photo', onPress: removeAvatar, style: 'destructive' },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
+  };
+
+  const showBannerOptions = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Take Photo', 'Choose from Library', 'Remove Banner'],
+          destructiveButtonIndex: 3,
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) pickImage('camera', 'banner');
+          else if (buttonIndex === 2) pickImage('library', 'banner');
+          else if (buttonIndex === 3) removeBanner();
+        }
+      );
+    } else {
+      Alert.alert('Change Banner', undefined, [
+        { text: 'Take Photo', onPress: () => pickImage('camera', 'banner') },
+        { text: 'Choose from Library', onPress: () => pickImage('library', 'banner') },
+        { text: 'Remove Banner', onPress: removeBanner, style: 'destructive' },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
+  };
+
+  const pickImage = async (source: 'camera' | 'library', type: 'avatar' | 'banner') => {
+    try {
+      const ImagePicker = await import('expo-image-picker');
+      if (source === 'camera') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          toast.showError('Camera permission required');
+          return;
+        }
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          toast.showError('Photo library permission required');
+          return;
+        }
+      }
+
+      const aspect: [number, number] = type === 'avatar' ? [1, 1] : [3, 1];
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], allowsEditing: true, aspect, quality: 0.8 })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect, quality: 0.8 });
+
+      if (!result.canceled && result.assets[0]) {
+        if (type === 'avatar') await uploadAvatar(result.assets[0].uri);
+        else await uploadBanner(result.assets[0].uri);
+      }
+    } catch (error: any) {
+      logger.error('Image picker error', error);
+      toast.showError('Photo editing requires a development build');
+    }
+  };
+
+  const uploadAvatar = async (uri: string) => {
+    if (!user?.id) return;
+    try {
+      setUploadingAvatar(true);
+      const ext = uri.split('.').pop()?.toLowerCase() || 'jpg';
+      const fileName = `avatar-${user.id}-${Date.now()}.${ext}`;
+      const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+      const arrayBuffer = decode(base64);
+
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, arrayBuffer, { contentType: `image/${ext}`, upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
+      await authUpdateProfile({ avatar_url: publicUrl });
+      setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : null);
+      toast.showNeutral('Photo updated');
+    } catch (error: any) {
+      toast.showError(error.message || 'Failed to upload photo');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const uploadBanner = async (uri: string) => {
+    if (!user?.id) return;
+    try {
+      setUploadingBanner(true);
+      const ext = uri.split('.').pop()?.toLowerCase() || 'jpg';
+      const fileName = `banner-${user.id}-${Date.now()}.${ext}`;
+      const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+      const arrayBuffer = decode(base64);
+
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, arrayBuffer, { contentType: `image/${ext}`, upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
+      await authUpdateProfile({ banner_url: publicUrl });
+      setProfile(prev => prev ? { ...prev, banner_url: publicUrl } : null);
+      toast.showNeutral('Banner updated');
+    } catch (error: any) {
+      toast.showError(error.message || 'Failed to upload banner');
+    } finally {
+      setUploadingBanner(false);
+    }
+  };
+
+  const removeAvatar = async () => {
+    try {
+      setUploadingAvatar(true);
+      await authUpdateProfile({ avatar_url: null });
+      setProfile(prev => prev ? { ...prev, avatar_url: null } : null);
+      toast.showNeutral('Photo removed');
+    } catch (error: any) {
+      toast.showError(error.message || 'Failed to remove photo');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const removeBanner = async () => {
+    try {
+      setUploadingBanner(true);
+      await authUpdateProfile({ banner_url: null });
+      setProfile(prev => prev ? { ...prev, banner_url: null } : null);
+      toast.showNeutral('Banner removed');
+    } catch (error: any) {
+      toast.showError(error.message || 'Failed to remove banner');
+    } finally {
+      setUploadingBanner(false);
+    }
+  };
+
+  const handleSaveBio = async () => {
+    try {
+      setSavingBio(true);
+      await authUpdateProfile({ bio: bioText.trim() || null });
+      setProfile(prev => prev ? { ...prev, bio: bioText.trim() || null } : null);
+      setShowBioModal(false);
+      toast.showNeutral('Bio updated');
+    } catch (error: any) {
+      toast.showError(error.message || 'Failed to update bio');
+    } finally {
+      setSavingBio(false);
+    }
+  };
+  // ===== End Profile Editing Functions =====
+
   const fetchUserData = async () => {
     if (!id) return;
 
@@ -180,7 +399,7 @@ export default function UserProfile() {
       // Fetch user's profile and stats
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('username, bio, avatar_url')
+        .select('username, bio, avatar_url, banner_url')
         .eq('user_id', id)
         .single();
 
@@ -214,7 +433,7 @@ export default function UserProfile() {
         username: profileData.username,
         bio: profileData.bio,
         avatar_url: profileData.avatar_url || null,
-        banner_url: null, // Not stored in DB yet, use gradient fallback
+        banner_url: profileData.banner_url || null,
         total_picks: totalPicks,
         correct_picks: correctPicks,
         accuracy,
@@ -425,7 +644,11 @@ export default function UserProfile() {
   const handleShare = async () => {
     setShowActionMenu(false);
     if (profile) {
-      await shareProfile(id!, profile.username);
+      await shareProfile({
+        username: profile.username,
+        accuracy: profile.accuracy,
+        totalPicks: profile.total_picks,
+      });
     }
   };
 
@@ -435,21 +658,9 @@ export default function UserProfile() {
   };
 
   const renderFollowAction = () => {
-    // If viewing own profile, show edit profile button
+    // If viewing own profile, no action button needed (they can go back to profile tab)
     if (isOwnProfile) {
-      return (
-        <TouchableOpacity
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            router.push('/(tabs)/profile');
-          }}
-          activeOpacity={0.8}
-          style={[styles.followBadge, { backgroundColor: colors.accent }]}
-        >
-          <Ionicons name="pencil" size={14} color="#fff" />
-          <Text style={[styles.followBadgeText, { color: '#fff' }]}>Edit Profile</Text>
-        </TouchableOpacity>
-      );
+      return null;
     }
 
     const isActionLoading = followLoading || unfollowLoading;
@@ -506,12 +717,10 @@ export default function UserProfile() {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <Stack.Screen options={{ headerShown: false, gestureEnabled: true }} />
-        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border, paddingTop: insets.top + spacing.sm }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
+        <View style={[styles.loadingHeader, { paddingTop: insets.top + spacing.sm }]}>
+          <TouchableOpacity onPress={() => router.back()} style={[styles.backButton, { backgroundColor: colors.surfaceAlt }]}>
+            <Ionicons name="arrow-back" size={22} color={colors.text} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Loading...</Text>
-          <View style={styles.placeholder} />
         </View>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
           <SkeletonCard />
@@ -527,12 +736,10 @@ export default function UserProfile() {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <Stack.Screen options={{ headerShown: false, gestureEnabled: true }} />
-        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border, paddingTop: insets.top + spacing.sm }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
+        <View style={[styles.loadingHeader, { paddingTop: insets.top + spacing.sm }]}>
+          <TouchableOpacity onPress={() => router.back()} style={[styles.backButton, { backgroundColor: colors.surfaceAlt }]}>
+            <Ionicons name="arrow-back" size={22} color={colors.text} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Error</Text>
-          <View style={styles.placeholder} />
         </View>
         <ErrorState
           message={error || 'Failed to load user profile'}
@@ -602,30 +809,19 @@ export default function UserProfile() {
       <Stack.Screen options={{ headerShown: false, gestureEnabled: true }} />
       {/* Header */}
       <Animated.View style={{ opacity: headerOpacity }}>
-        <View style={[styles.header, { backgroundColor: colors.background, paddingTop: insets.top + spacing.sm }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
+        <View style={[styles.header, { backgroundColor: 'transparent', paddingTop: insets.top + spacing.xs }]}>
+          <TouchableOpacity onPress={() => router.back()} style={[styles.backButton, { backgroundColor: 'rgba(0,0,0,0.3)' }]}>
+            <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Profile</Text>
-          {isOwnProfile ? (
-            <TouchableOpacity
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/settings');
-              }}
-              style={styles.menuButton}
-            >
-              <Ionicons name="settings-outline" size={24} color={colors.text} />
-            </TouchableOpacity>
-          ) : (
+          {!isOwnProfile && (
             <TouchableOpacity
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setShowActionMenu(true);
               }}
-              style={styles.menuButton}
+              style={[styles.menuButton, { backgroundColor: 'rgba(0,0,0,0.3)' }]}
             >
-              <Ionicons name="ellipsis-horizontal" size={24} color={colors.text} />
+              <Ionicons name="ellipsis-horizontal" size={22} color="#fff" />
             </TouchableOpacity>
           )}
         </View>
@@ -650,7 +846,22 @@ export default function UserProfile() {
             )}
           </View>
 
-          {/* Avatar - Rounded square, clickable to enlarge */}
+          {/* Edit Profile Button - Under Banner, Right Aligned */}
+          {isOwnProfile && (
+            <View style={styles.editProfileRow}>
+              <TouchableOpacity
+                style={[styles.editProfilePill, { borderColor: colors.border, backgroundColor: colors.surface }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  showEditOptions();
+                }}
+              >
+                <Text style={[styles.editProfileText, { color: colors.text }]}>Edit profile</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Avatar - Tappable to expand preview */}
           <TouchableOpacity
             style={styles.avatarContainer}
             onPress={() => {
@@ -746,13 +957,12 @@ export default function UserProfile() {
             </TouchableOpacity>
           </View>
 
-          {/* Follow action */}
-          <View style={styles.actionContainer}>
-            {renderFollowAction()}
-          </View>
-
-          {/* Red Divider */}
-          <View style={[styles.sectionDivider, { backgroundColor: colors.danger }]} />
+          {/* Follow button (only for other users) */}
+          {!isOwnProfile && (
+            <View style={styles.actionContainer}>
+              {renderFollowAction()}
+            </View>
+          )}
         </View>
 
         {/* Tabs */}
@@ -829,19 +1039,51 @@ export default function UserProfile() {
           />
         }
       >
-        {activeTab === 'picks' && (
-          eventGroups.length === 0 ? (
-            <EmptyState
-              icon="clipboard-outline"
-              title="No Picks Yet"
-              message={`@${profile.username} hasn't made any picks yet.`}
-            />
-          ) : (
+        {activeTab === 'picks' && (() => {
+          const now = new Date();
+          now.setHours(0, 0, 0, 0);
+          const upcomingEvents = eventGroups.filter(
+            (group) => new Date(group.event_date) >= now
+          );
+          const pastEvents = eventGroups.filter(
+            (group) => new Date(group.event_date) < now
+          );
+
+          if (eventGroups.length === 0) {
+            return (
+              <EmptyState
+                icon="clipboard-outline"
+                title="No Picks Yet"
+                message={`@${profile.username} hasn't made any picks yet.`}
+              />
+            );
+          }
+
+          return (
             <View style={styles.eventsList}>
-              {eventGroups.map((group, index) => renderEventCard(group, index))}
+              {upcomingEvents.length > 0 && (
+                <>
+                  <Text style={[styles.eventSectionHeader, { color: colors.textSecondary }]}>
+                    UPCOMING EVENTS
+                  </Text>
+                  {upcomingEvents.map((group, index) => renderEventCard(group, index))}
+                </>
+              )}
+              {pastEvents.length > 0 && (
+                <>
+                  <Text style={[
+                    styles.eventSectionHeader,
+                    { color: colors.textSecondary },
+                    upcomingEvents.length > 0 && { marginTop: spacing.lg }
+                  ]}>
+                    PAST EVENTS
+                  </Text>
+                  {pastEvents.map((group, index) => renderEventCard(group, index))}
+                </>
+              )}
             </View>
-          )
-        )}
+          );
+        })()}
 
         {activeTab === 'posts' && (
           userPosts.isLoading ? (
@@ -1139,6 +1381,74 @@ export default function UserProfile() {
         }}
         context="social"
       />
+
+      {/* Bio Edit Modal (own profile only) */}
+      <Modal
+        visible={showBioModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowBioModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.bioModalBackdrop}
+        >
+          <TouchableOpacity
+            style={styles.bioModalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowBioModal(false)}
+          />
+          <View style={[styles.bioModalContent, { backgroundColor: colors.surface }]}>
+            <View style={styles.bioModalHeader}>
+              <Text style={[styles.bioModalTitle, { color: colors.text }]}>Edit Bio</Text>
+              <TouchableOpacity
+                onPress={() => setShowBioModal(false)}
+                style={styles.bioModalClose}
+              >
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              style={[
+                styles.bioInput,
+                {
+                  backgroundColor: colors.surfaceAlt,
+                  color: colors.text,
+                  borderColor: colors.border,
+                },
+              ]}
+              value={bioText}
+              onChangeText={setBioText}
+              placeholder="Write something about yourself..."
+              placeholderTextColor={colors.textTertiary}
+              multiline
+              maxLength={150}
+              autoFocus
+            />
+
+            <Text style={[styles.bioCharCount, { color: colors.textTertiary }]}>
+              {bioText.length}/150
+            </Text>
+
+            <TouchableOpacity
+              style={[
+                styles.bioSaveButton,
+                { backgroundColor: colors.accent },
+                savingBio && { opacity: 0.7 },
+              ]}
+              onPress={handleSaveBio}
+              disabled={savingBio}
+            >
+              {savingBio ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.bioSaveText}>Save</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -1148,22 +1458,34 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
-    paddingTop: 60,
+    zIndex: 10,
+  },
+  loadingHeader: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.md,
     paddingBottom: spacing.sm,
   },
   backButton: {
-    padding: 4,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  placeholder: {
-    width: 32,
+  menuButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   // Hero Section
   heroSection: {
@@ -1171,8 +1493,7 @@ const styles = StyleSheet.create({
   },
   bannerContainer: {
     width: '100%',
-    height: 100,
-    position: 'relative',
+    height: 140,
   },
   bannerGradient: {
     width: '100%',
@@ -1182,19 +1503,31 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  // Edit Profile Row - positioned to align with avatar
+  editProfileRow: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: spacing.md,
+    marginTop: -44,
+    marginBottom: 0,
+    zIndex: 1,
+  },
   avatarContainer: {
-    marginTop: -40,
-    marginBottom: spacing.sm,
+    marginTop: -50,
+    marginBottom: spacing.md,
   },
   avatarSquare: {
-    width: 80,
-    height: 80,
-    borderRadius: 18,
+    width: 88,
+    height: 88,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 4,
+    borderColor: '#fff',
   },
   avatarText: {
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: '600',
     color: '#fff',
   },
@@ -1279,14 +1612,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   actionContainer: {
-    marginTop: 2,
+    marginTop: spacing.sm,
     marginBottom: spacing.md,
-  },
-  // Section Divider
-  sectionDivider: {
-    height: 1,
-    marginHorizontal: spacing.md,
-    width: SCREEN_WIDTH - spacing.md * 2,
   },
   // Avatar Modal
   avatarModalBackdrop: {
@@ -1335,7 +1662,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: radius.md,
+    borderRadius: radius.input,
     gap: spacing.xs,
   },
   pendingText: {
@@ -1354,6 +1681,16 @@ const styles = StyleSheet.create({
   },
   followBadgeText: {
     fontSize: 13,
+    fontWeight: '600',
+  },
+  editProfilePill: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  editProfileText: {
+    fontSize: 12,
     fontWeight: '600',
   },
   tabContainer: {
@@ -1381,6 +1718,12 @@ const styles = StyleSheet.create({
   // Compact event cards
   eventsList: {
     gap: spacing.sm,
+  },
+  eventSectionHeader: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    marginBottom: spacing.xs,
   },
   eventCard: {
     paddingVertical: spacing.sm,
@@ -1515,10 +1858,6 @@ const styles = StyleSheet.create({
     height: 1,
     marginTop: spacing.sm,
   },
-  // Menu button
-  menuButton: {
-    padding: 4,
-  },
   // Action Menu
   actionMenuBackdrop: {
     flex: 1,
@@ -1526,8 +1865,8 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   actionMenuContainer: {
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
+    borderTopLeftRadius: radius.card,
+    borderTopRightRadius: radius.card,
     paddingTop: spacing.md,
     paddingBottom: 34,
     paddingHorizontal: spacing.md,
@@ -1567,5 +1906,58 @@ const styles = StyleSheet.create({
   loadMoreText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  // Bio modal styles
+  bioModalBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  bioModalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  bioModalContent: {
+    borderTopLeftRadius: radius.card,
+    borderTopRightRadius: radius.card,
+    padding: spacing.lg,
+    paddingBottom: 40,
+  },
+  bioModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  bioModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  bioModalClose: {
+    padding: 4,
+  },
+  bioInput: {
+    borderWidth: 1,
+    borderRadius: radius.input,
+    padding: spacing.md,
+    fontSize: 16,
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  bioCharCount: {
+    fontSize: 12,
+    textAlign: 'right',
+    marginTop: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  bioSaveButton: {
+    paddingVertical: spacing.md,
+    borderRadius: radius.input,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bioSaveText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });

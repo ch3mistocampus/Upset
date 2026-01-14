@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../lib/theme';
-import { spacing, radius, typography } from '../lib/tokens';
+import { spacing, radius, typography, displayTypography } from '../lib/tokens';
 import { SurfaceCard } from './ui';
 import { Event } from '../types/database';
 
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
   },
   eventName: {
-    ...typography.h3,
+    ...displayTypography.eventTitle,
     flex: 1,
   },
   liveBadge: {

@@ -179,12 +179,12 @@ export function EventScorecardsSkeleton({ count = 5 }: { count?: number }) {
             <SkeletonBox width={60} height={20} style={{ borderRadius: 10 }} />
           </View>
           <View style={styles.scorecardScores}>
-            <SkeletonBox width={48} height={48} style={{ borderRadius: 24 }} />
+            <SkeletonBox width={48} height={48} style={{ borderRadius: 12 }} />
             <View style={styles.scorecardMiddle}>
               <SkeletonBox width={70} height={12} />
               <SkeletonBox width={50} height={10} style={{ marginTop: 4 }} />
             </View>
-            <SkeletonBox width={48} height={48} style={{ borderRadius: 24 }} />
+            <SkeletonBox width={48} height={48} style={{ borderRadius: 12 }} />
           </View>
           <View style={styles.scorecardRounds}>
             {Array.from({ length: 3 }, (_, j) => (

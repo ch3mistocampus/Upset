@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     borderRadius: 100,
   },
   text: {
-    fontWeight: '700',
+    fontFamily: 'BebasNeue',
     letterSpacing: 0.5,
   },
 });

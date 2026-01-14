@@ -15,7 +15,8 @@ export default function TabsLayout() {
         },
         headerTintColor: colors.textPrimary,
         headerTitleStyle: {
-          fontWeight: 'bold',
+          fontFamily: 'BebasNeue',
+          fontSize: 24,
         },
         // Hide default tab bar (we're using FloatingTabBar)
         tabBarStyle: { display: 'none' },

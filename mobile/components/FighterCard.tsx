@@ -8,7 +8,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../lib/theme';
-import { spacing, radius, typography } from '../lib/tokens';
+import { spacing, radius, typography, displayTypography } from '../lib/tokens';
 import { UFCFighter, UFCFighterSearchResult } from '../types/database';
 import {
   formatHeight,
@@ -189,8 +189,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   name: {
-    fontSize: 17,
-    fontWeight: '700',
+    ...displayTypography.fighterName,
     marginBottom: 2,
   },
   nickname: {
@@ -209,8 +208,9 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   badgeText: {
+    fontFamily: 'BebasNeue',
     fontSize: 11,
-    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   rankBadge: {
     paddingHorizontal: 8,
@@ -220,8 +220,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   rankBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontFamily: 'BebasNeue',
+    fontSize: 12,
+    letterSpacing: 0.3,
     color: '#fff',
   },
   divider: {
@@ -247,9 +248,9 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   statLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.3,
+    fontFamily: 'BebasNeue',
+    fontSize: 11,
+    letterSpacing: 0.5,
   },
 
   // Compact card styles

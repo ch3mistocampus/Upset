@@ -7,7 +7,7 @@ import { View, Text, StyleSheet, Modal, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../lib/theme';
-import { spacing, radius, typography } from '../lib/tokens';
+import { spacing, radius, typography, displayTypography } from '../lib/tokens';
 import { Button } from './ui';
 
 interface FirstGradedModalProps {
@@ -42,7 +42,7 @@ export function FirstGradedModal({ visible, correct, total, onDismiss }: FirstGr
           </View>
 
           <Text style={[styles.title, { color: colors.textPrimary }]}>
-            Your first event is graded!
+            The Tape Don't Lie
           </Text>
 
           <View style={styles.statsContainer}>
@@ -55,7 +55,7 @@ export function FirstGradedModal({ visible, correct, total, onDismiss }: FirstGr
           </View>
 
           <Text style={[styles.body, { color: colors.textSecondary }]}>
-            Track your progress over time and see how you compare to friends.
+            The truth is in the tape. See how your calls stack up.
           </Text>
 
           <View style={styles.actions}>
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   title: {
-    ...typography.h2,
+    ...displayTypography.eventTitle,
     textAlign: 'center',
     marginBottom: spacing.md,
   },
@@ -111,8 +111,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   statsValue: {
-    fontSize: 32,
-    fontWeight: '700',
+    fontFamily: 'BebasNeue',
+    fontSize: 36,
   },
   statsLabel: {
     ...typography.body,

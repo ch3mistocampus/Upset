@@ -16,7 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../lib/theme';
-import { spacing, radius, typography } from '../lib/tokens';
+import { spacing, radius, typography, displayTypography } from '../lib/tokens';
 
 // Method categories and options
 export const METHODS = {
@@ -384,17 +384,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    ...typography.h3,
-    fontWeight: '700',
+    fontFamily: 'BebasNeue',
+    fontSize: 22,
+    letterSpacing: 0.3,
   },
   fighterBanner: {
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
   },
   fighterName: {
+    fontFamily: 'BebasNeue',
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    letterSpacing: 0.3,
     textAlign: 'center',
   },
   scrollContent: {
@@ -404,8 +406,9 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   sectionTitle: {
-    ...typography.body,
-    fontWeight: '600',
+    fontFamily: 'BebasNeue',
+    fontSize: 16,
+    letterSpacing: 0.5,
     marginBottom: spacing.sm,
   },
   categoryContainer: {
@@ -470,8 +473,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   roundText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontFamily: 'BebasNeue',
+    fontSize: 18,
+    letterSpacing: 0.3,
   },
   footer: {
     flexDirection: 'row',
@@ -486,8 +490,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.button,
   },
   skipButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontFamily: 'BebasNeue',
+    fontSize: 16,
+    letterSpacing: 0.3,
   },
   confirmButton: {
     flex: 1,
@@ -496,7 +501,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   confirmButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontFamily: 'BebasNeue',
+    fontSize: 17,
+    letterSpacing: 0.3,
   },
 });

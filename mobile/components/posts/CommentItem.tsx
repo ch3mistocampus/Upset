@@ -171,9 +171,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   authorName: {
-    ...typography.body,
-    fontWeight: '600',
-    fontSize: 14,
+    fontFamily: 'BebasNeue',
+    fontSize: 15,
+    letterSpacing: 0.3,
   },
   timestamp: {
     ...typography.meta,
@@ -198,9 +198,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   actionText: {
-    ...typography.meta,
+    fontFamily: 'BebasNeue',
     fontSize: 12,
-    fontWeight: '500',
+    letterSpacing: 0.3,
   },
   replies: {
     marginTop: spacing.sm,

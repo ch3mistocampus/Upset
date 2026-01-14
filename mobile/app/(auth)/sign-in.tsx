@@ -17,7 +17,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { logger } from '../../lib/logger';
 import { useTheme } from '../../lib/theme';
-import { spacing, radius, typography } from '../../lib/tokens';
+import { spacing, radius, typography, displayTypography } from '../../lib/tokens';
 import { Button, LinkButton, Input } from '../../components/ui';
 import { SocialAuthButtons } from '../../components/auth';
 import { validateEmail, isEmail, getAuthErrorMessage } from '../../lib/validation';
@@ -318,7 +318,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xxl,
   },
   title: {
-    ...typography.h1,
+    fontFamily: 'BebasNeue',
+    fontSize: 36,
+    letterSpacing: 0.5,
     textAlign: 'center',
     marginBottom: spacing.sm,
   },
@@ -340,8 +342,9 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tabText: {
-    ...typography.body,
-    fontWeight: '500',
+    fontFamily: 'BebasNeue',
+    fontSize: 16,
+    letterSpacing: 0.3,
   },
   tabContent: {
     marginTop: spacing.sm,

@@ -6,7 +6,7 @@
 import { View, Text, StyleSheet, Modal, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../lib/theme';
-import { spacing, radius, typography } from '../lib/tokens';
+import { spacing, radius, typography, displayTypography } from '../lib/tokens';
 import { Button } from './ui';
 
 export type AuthContext = 'friends' | 'leaderboard' | 'history' | 'sync' | 'picks' | 'social' | 'settings';
@@ -141,7 +141,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   title: {
-    ...typography.h3,
+    ...displayTypography.sectionTitle,
+    fontSize: 22,
     textAlign: 'center',
     marginBottom: spacing.sm,
   },

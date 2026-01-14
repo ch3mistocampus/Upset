@@ -145,11 +145,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   errorLabel: {
-    fontSize: 16,
-    fontWeight: '900',
+    fontFamily: 'BebasNeue',
+    fontSize: 20,
     letterSpacing: 3,
     marginBottom: spacing.sm,
-    textTransform: 'uppercase',
   },
   message: {
     fontSize: 16,
@@ -188,11 +187,10 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   retryText: {
+    fontFamily: 'BebasNeue',
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '900',
+    fontSize: 18,
     letterSpacing: 2,
-    textTransform: 'uppercase',
   },
   helpText: {
     marginTop: spacing.lg,

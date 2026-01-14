@@ -251,8 +251,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: typography.sizes.xl,
-    fontWeight: typography.weights.bold as '700',
+    fontFamily: 'BebasNeue',
+    fontSize: 24,
+    letterSpacing: 0.5,
   },
   content: {
     padding: spacing.md,
@@ -264,10 +265,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   sectionTitle: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.semibold as '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontFamily: 'BebasNeue',
+    fontSize: 14,
+    letterSpacing: 1,
     marginBottom: spacing.md,
   },
   infoRow: {
@@ -294,8 +294,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   dangerButtonText: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.semibold as '600',
+    fontFamily: 'BebasNeue',
+    fontSize: 16,
+    letterSpacing: 0.3,
   },
   dangerWarning: {
     fontSize: typography.sizes.sm,
@@ -318,8 +319,9 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.md,
   },
   modalTitle: {
-    fontSize: typography.sizes.lg,
-    fontWeight: typography.weights.semibold as '600',
+    fontFamily: 'BebasNeue',
+    fontSize: 22,
+    letterSpacing: 0.3,
   },
   modalContent: {
     flex: 1,
@@ -332,8 +334,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   warningTitle: {
-    fontSize: typography.sizes.lg,
-    fontWeight: typography.weights.bold as '700',
+    fontFamily: 'BebasNeue',
+    fontSize: 22,
+    letterSpacing: 0.3,
     marginTop: spacing.sm,
     marginBottom: spacing.sm,
   },
@@ -375,8 +378,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   deleteButtonText: {
+    fontFamily: 'BebasNeue',
     color: '#FFFFFF',
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.semibold as '600',
+    fontSize: 17,
+    letterSpacing: 0.3,
   },
 });

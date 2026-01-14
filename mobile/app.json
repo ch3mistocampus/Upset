@@ -47,7 +47,8 @@
           "project": "react-native",
           "organization": "upset"
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "eas": {

@@ -313,8 +313,9 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontFamily: 'BebasNeue',
+    fontSize: 24,
+    letterSpacing: 0.5,
   },
   placeholder: {
     width: 32,
@@ -340,8 +341,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   sectionTitle: {
-    ...typography.body,
-    fontWeight: '600',
+    fontFamily: 'BebasNeue',
+    fontSize: 18,
+    letterSpacing: 0.3,
     marginBottom: 4,
   },
   sectionDescription: {
@@ -370,8 +372,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   helpTitle: {
-    ...typography.body,
-    fontWeight: '600',
+    fontFamily: 'BebasNeue',
+    fontSize: 18,
+    letterSpacing: 0.3,
     marginBottom: spacing.sm,
   },
   helpItem: {

@@ -7,7 +7,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../lib/theme';
-import { spacing, radius, typography } from '../lib/tokens';
+import { spacing, radius, typography, displayTypography } from '../lib/tokens';
 import { Card, Button } from './ui';
 import { useOnboarding } from '../hooks/useOnboarding';
 
@@ -40,16 +40,16 @@ export function FirstLaunchHero({ eventId }: FirstLaunchHeroProps) {
       </View>
 
       <Text style={[styles.title, { color: colors.textPrimary }]}>
-        Make picks for UFC events
+        Call the Fight
       </Text>
 
       <Text style={[styles.body, { color: colors.textSecondary }]}>
-        Pick winners before fights start, then track your accuracy and streaks.
+        Where confidence meets chaos. Call it before it happens.
       </Text>
 
       <View style={styles.actions}>
         <Button
-          title="Make your first picks"
+          title="Make Your First Call"
           onPress={handleGetStarted}
           variant="primary"
         />
@@ -77,7 +77,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   title: {
-    ...typography.h2,
+    ...displayTypography.sectionTitle,
+    fontSize: 24,
     textAlign: 'center',
     marginBottom: spacing.sm,
   },

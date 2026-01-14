@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
   systemAvatar: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -343,8 +343,9 @@ const styles = StyleSheet.create({
     minWidth: 0, // Enables text truncation
   },
   displayName: {
-    fontSize: typography.body.fontSize,
-    fontWeight: '600',
+    fontFamily: 'BebasNeue',
+    fontSize: 16,
+    letterSpacing: 0.3,
     flexShrink: 0, // Don't shrink display name
     maxWidth: '40%', // Limit width to allow room for meta
   },
@@ -366,8 +367,8 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   systemBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontFamily: 'BebasNeue',
+    fontSize: 11,
     letterSpacing: 0.5,
   },
   contentText: {

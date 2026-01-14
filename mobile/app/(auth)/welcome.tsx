@@ -8,7 +8,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../lib/theme';
-import { spacing, typography } from '../../lib/tokens';
+import { spacing, typography, displayTypography } from '../../lib/tokens';
 import { Button } from '../../components/ui';
 
 export default function Welcome() {
@@ -41,26 +41,26 @@ export default function Welcome() {
 
         {/* Tagline */}
         <Text style={[styles.tagline, { color: colors.textSecondary }]}>
-          Make picks, track your accuracy, compete with friends
+          Where chaos proves who's right.
         </Text>
 
         {/* Features List */}
         <View style={styles.features}>
           <FeatureItem
             icon="checkmark-circle"
-            text="Pick winners before fights start"
+            text="Call it before it happens"
             color={colors.accent}
             textColor={colors.textSecondary}
           />
           <FeatureItem
             icon="stats-chart"
-            text="Track your accuracy and streaks"
+            text="The truth is in the tape"
             color={colors.accent}
             textColor={colors.textSecondary}
           />
           <FeatureItem
             icon="people"
-            text="Compete on leaderboards"
+            text="Prove you're right"
             color={colors.accent}
             textColor={colors.textSecondary}
           />
@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   title: {
-    ...typography.h1,
+    ...displayTypography.hero,
     textAlign: 'center',
     marginBottom: spacing.sm,
   },

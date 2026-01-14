@@ -196,8 +196,9 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   text: {
-    ...typography.body,
-    fontWeight: '700',
+    fontFamily: 'BebasNeue',
+    fontSize: 17,
+    letterSpacing: 0.5,
   },
   linkText: {
     ...typography.body,

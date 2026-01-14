@@ -57,6 +57,7 @@ export interface PrivacySettingsUpdate {
 export interface LeaderboardEntry {
   user_id: string;
   username: string;
+  avatar_url?: string | null;
   total_picks: number;
   correct_picks: number;
   accuracy: number;

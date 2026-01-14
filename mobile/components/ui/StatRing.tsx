@@ -96,11 +96,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   percentage: {
-    ...typography.h1,
-    fontSize: 32,
+    fontFamily: 'BebasNeue',
+    fontSize: 36,
+    letterSpacing: -0.5,
   },
   label: {
-    ...typography.caption,
+    fontFamily: 'BebasNeue',
+    fontSize: 12,
+    letterSpacing: 1,
     marginTop: spacing.xs,
   },
 });

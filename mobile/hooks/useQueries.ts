@@ -561,6 +561,117 @@ export function useRecentPicksSummary(userId: string | null, limit = 5) {
 }
 
 // ============================================================================
+// TICKER DATA
+// ============================================================================
+
+/**
+ * Ticker item for community pick percentages
+ */
+export interface TickerData {
+  boutId: string;
+  fighterName: string;
+  pct: number;
+}
+
+/**
+ * Get community pick percentages for the next upcoming event
+ * Returns fighter names with their pick percentages for the ticker
+ */
+export function useTickerData() {
+  return useQuery({
+    queryKey: ['ticker', 'community-picks'],
+    queryFn: async (): Promise<TickerData[]> => {
+      // Get the next upcoming event
+      const { data: nextEvent, error: eventError } = await supabase
+        .from('events')
+        .select('id')
+        .neq('status', 'completed')
+        .order('event_date', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (eventError && eventError.code !== 'PGRST116') {
+        throw eventError;
+      }
+
+      if (!nextEvent) return [];
+
+      // Get all bouts for this event with pick counts
+      const { data: bouts, error: boutsError } = await supabase
+        .from('bouts')
+        .select('id, red_name, blue_name, order_index')
+        .eq('event_id', nextEvent.id)
+        .neq('red_name', 'TBA')
+        .neq('blue_name', 'TBA')
+        .neq('red_name', 'Opponent TBA')
+        .neq('blue_name', 'Opponent TBA')
+        .order('order_index', { ascending: true });
+
+      if (boutsError) throw boutsError;
+      if (!bouts || bouts.length === 0) return [];
+
+      const boutIds = bouts.map((b) => b.id);
+
+      // Get all picks for these bouts
+      const { data: picks, error: picksError } = await supabase
+        .from('picks')
+        .select('bout_id, picked_corner')
+        .in('bout_id', boutIds);
+
+      if (picksError) throw picksError;
+
+      // Calculate percentages per bout
+      const picksByBout = new Map<string, { red: number; blue: number }>();
+      (picks || []).forEach((pick) => {
+        if (!picksByBout.has(pick.bout_id)) {
+          picksByBout.set(pick.bout_id, { red: 0, blue: 0 });
+        }
+        const counts = picksByBout.get(pick.bout_id)!;
+        if (pick.picked_corner === 'red') {
+          counts.red++;
+        } else {
+          counts.blue++;
+        }
+      });
+
+      // Build ticker items - show the leading fighter for each bout
+      const tickerItems: TickerData[] = [];
+
+      bouts.forEach((bout) => {
+        const counts = picksByBout.get(bout.id) || { red: 0, blue: 0 };
+        const total = counts.red + counts.blue;
+
+        if (total === 0) return; // Skip bouts with no picks
+
+        const redPct = Math.round((counts.red / total) * 100);
+        const bluePct = Math.round((counts.blue / total) * 100);
+
+        // Add the fighter with more picks (or red if tied)
+        if (redPct >= bluePct) {
+          // Extract last name for cleaner display
+          const lastName = bout.red_name.split(' ').pop() || bout.red_name;
+          tickerItems.push({
+            boutId: bout.id,
+            fighterName: lastName,
+            pct: redPct,
+          });
+        } else {
+          const lastName = bout.blue_name.split(' ').pop() || bout.blue_name;
+          tickerItems.push({
+            boutId: bout.id,
+            fighterName: lastName,
+            pct: bluePct,
+          });
+        }
+      });
+
+      return tickerItems;
+    },
+    staleTime: 1000 * 60 * 2, // 2 minutes - picks can change frequently
+  });
+}
+
+// ============================================================================
 // UTILS
 // ============================================================================
 

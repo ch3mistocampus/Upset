@@ -68,7 +68,7 @@ function NotificationToggle({
         value={value}
         onValueChange={onValueChange}
         disabled={disabled}
-        trackColor={{ false: colors.border, true: colors.primary }}
+        trackColor={{ false: colors.border, true: colors.accent }}
         thumbColor="#FFFFFF"
       />
     </View>
@@ -124,7 +124,7 @@ export default function NotificationSettingsScreen() {
   if (preferencesLoading) {
     return (
       <View style={[styles.container, styles.centered, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }
@@ -132,7 +132,7 @@ export default function NotificationSettingsScreen() {
   if (!isAvailable) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.unavailableCard, { backgroundColor: colors.card }]}>
+        <View style={[styles.unavailableCard, { backgroundColor: colors.surface }]}>
           <Ionicons name="notifications-off-outline" size={48} color={colors.textSecondary} />
           <Text style={[styles.unavailableTitle, { color: colors.text }]}>
             Notifications Not Available
@@ -160,7 +160,7 @@ export default function NotificationSettingsScreen() {
       </View>
 
       {/* Activity Notifications */}
-      <View style={[styles.section, { backgroundColor: colors.card }]}>
+      <View style={[styles.section, { backgroundColor: colors.surface }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Activity</Text>
 
         <NotificationToggle
@@ -192,7 +192,7 @@ export default function NotificationSettingsScreen() {
       </View>
 
       {/* Reminders */}
-      <View style={[styles.section, { backgroundColor: colors.card }]}>
+      <View style={[styles.section, { backgroundColor: colors.surface }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Reminders</Text>
 
         <NotificationToggle
@@ -224,7 +224,7 @@ export default function NotificationSettingsScreen() {
       </View>
 
       {/* Updates */}
-      <View style={[styles.section, { backgroundColor: colors.card }]}>
+      <View style={[styles.section, { backgroundColor: colors.surface }]}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Updates</Text>
 
         <NotificationToggle
@@ -238,11 +238,11 @@ export default function NotificationSettingsScreen() {
       </View>
 
       {/* Notification History */}
-      <View style={[styles.section, { backgroundColor: colors.card }]}>
+      <View style={[styles.section, { backgroundColor: colors.surface }]}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent</Text>
           {unreadCount > 0 && (
-            <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
+            <View style={[styles.unreadBadge, { backgroundColor: colors.accent }]}>
               <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
             </View>
           )}
@@ -250,7 +250,7 @@ export default function NotificationSettingsScreen() {
 
         {historyLoading ? (
           <View style={styles.historyLoading}>
-            <ActivityIndicator size="small" color={colors.primary} />
+            <ActivityIndicator size="small" color={colors.accent} />
           </View>
         ) : notificationHistory.length === 0 ? (
           <View style={styles.emptyHistory}>
@@ -266,11 +266,15 @@ export default function NotificationSettingsScreen() {
               style={[
                 styles.notificationItem,
                 { borderBottomColor: colors.border },
-                !notification.read_at && { backgroundColor: colors.surfaceAlt || colors.card },
+                !notification.read_at && { backgroundColor: colors.surfaceAlt || colors.surface },
               ]}
               onPress={async () => {
-                if (!notification.read_at) {
-                  await markAsRead(notification.id);
+                try {
+                  if (!notification.read_at) {
+                    await markAsRead(notification.id);
+                  }
+                } catch {
+                  // Silently handle - notification may already be read or not exist
                 }
                 // Navigate based on notification data
                 const data = notification.data || {};
@@ -295,7 +299,7 @@ export default function NotificationSettingsScreen() {
                     {notification.title}
                   </Text>
                   {!notification.read_at && (
-                    <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} />
+                    <View style={[styles.unreadDot, { backgroundColor: colors.accent }]} />
                   )}
                 </View>
                 <Text
@@ -349,20 +353,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: typography.sizes.xl,
-    fontWeight: typography.weights.bold as '700',
+    fontFamily: 'BebasNeue',
+    fontSize: 24,
+    letterSpacing: 0.5,
   },
   section: {
     marginHorizontal: spacing.md,
     marginBottom: spacing.lg,
-    borderRadius: radius.lg,
+    borderRadius: radius.card,
     overflow: 'hidden',
   },
   sectionTitle: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.semibold as '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontFamily: 'BebasNeue',
+    fontSize: 14,
+    letterSpacing: 1,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
@@ -402,12 +406,13 @@ const styles = StyleSheet.create({
   unavailableCard: {
     margin: spacing.lg,
     padding: spacing.xl,
-    borderRadius: radius.lg,
+    borderRadius: radius.card,
     alignItems: 'center',
   },
   unavailableTitle: {
-    fontSize: typography.sizes.lg,
-    fontWeight: typography.weights.semibold as '600',
+    fontFamily: 'BebasNeue',
+    fontSize: 22,
+    letterSpacing: 0.3,
     marginTop: spacing.md,
     marginBottom: spacing.sm,
   },
@@ -430,9 +435,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   unreadBadgeText: {
+    fontFamily: 'BebasNeue',
     color: '#fff',
     fontSize: 12,
-    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   historyLoading: {
     padding: spacing.xl,

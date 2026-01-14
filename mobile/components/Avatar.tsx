@@ -41,6 +41,14 @@ const SIZES = {
   xlarge: 120,
 };
 
+// Square with rounded corners (not circular)
+const BORDER_RADII = {
+  small: 10,
+  medium: 14,
+  large: 18,
+  xlarge: 24,
+};
+
 const FONT_SIZES = {
   small: 16,
   medium: 22,
@@ -61,6 +69,7 @@ export const Avatar: React.FC<AvatarProps> = ({
   const [imageError, setImageError] = useState(false);
 
   const avatarSize = SIZES[size];
+  const borderRadius = BORDER_RADII[size];
   const fontSize = FONT_SIZES[size];
   const initials = username?.charAt(0).toUpperCase() || '?';
 
@@ -81,7 +90,7 @@ export const Avatar: React.FC<AvatarProps> = ({
         {
           width: avatarSize,
           height: avatarSize,
-          borderRadius: avatarSize / 2,
+          borderRadius,
           backgroundColor: hasValidImage ? colors.surfaceAlt : colors.accentSoft,
         },
       ]}
@@ -102,7 +111,7 @@ export const Avatar: React.FC<AvatarProps> = ({
               {
                 width: avatarSize,
                 height: avatarSize,
-                borderRadius: avatarSize / 2,
+                borderRadius,
               },
             ]}
             onLoadStart={() => setImageLoading(true)}

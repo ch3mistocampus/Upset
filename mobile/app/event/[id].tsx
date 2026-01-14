@@ -17,7 +17,7 @@ import { useEventCommunityPercentages } from '../../hooks/useLeaderboard';
 import { useToast } from '../../hooks/useToast';
 import { useOnboarding } from '../../hooks/useOnboarding';
 import { useTheme } from '../../lib/theme';
-import { spacing, radius, typography } from '../../lib/tokens';
+import { spacing, radius, typography, displayTypography } from '../../lib/tokens';
 import { submitEvent, isEventSubmitted, unsubmitEvent } from '../../lib/storage';
 import { SurfaceCard, EmptyState, LiveBadge } from '../../components/ui';
 import { ErrorState } from '../../components/ErrorState';
@@ -1461,8 +1461,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    ...displayTypography.eventTitle,
     textAlign: 'center',
     marginBottom: spacing.sm,
   },

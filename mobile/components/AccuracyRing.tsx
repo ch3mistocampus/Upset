@@ -123,17 +123,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   value: {
+    fontFamily: 'BebasNeue',
     fontSize: 48,
-    fontWeight: '800',
     letterSpacing: -1,
   },
   percent: {
+    fontFamily: 'BebasNeue',
     fontSize: 28,
-    fontWeight: '600',
   },
   label: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontFamily: 'BebasNeue',
+    fontSize: 12,
     letterSpacing: 1.5,
     marginTop: 2,
   },

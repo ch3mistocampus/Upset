@@ -376,8 +376,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   postButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontFamily: 'BebasNeue',
+    fontSize: 16,
+    letterSpacing: 0.3,
   },
   scrollView: {
     flex: 1,

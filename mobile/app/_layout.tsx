@@ -7,6 +7,8 @@ import { View } from 'react-native';
 import { Stack } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
 import { ToastProvider } from '../hooks/useToast';
 import { OnboardingProvider } from '../hooks/useOnboarding';
 import { GuestPicksProvider } from '../hooks/useGuestPicks';
@@ -16,6 +18,9 @@ import { DrawerProvider } from '../lib/DrawerContext';
 import { AppDrawer } from '../components/navigation/AppDrawer';
 import { initSentry } from '../lib/sentry';
 import { NetworkStatusBanner } from '../components/ui';
+
+// Keep splash screen visible while loading fonts
+SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -84,6 +89,20 @@ function RootNavigator() {
             animationDuration: 200,
           }}
         />
+        <Stack.Screen
+          name="my-record"
+          options={{
+            headerShown: false,
+            gestureEnabled: true,
+          }}
+        />
+        <Stack.Screen
+          name="crowd"
+          options={{
+            headerShown: false,
+            gestureEnabled: true,
+          }}
+        />
         <Stack.Screen name="admin" options={{ headerShown: false }} />
       </Stack>
       <AppDrawer />
@@ -92,10 +111,30 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
+  // Load custom fonts
+  const [fontsLoaded, fontError] = useFonts({
+    'BebasNeue': require('../assets/fonts/BebasNeue-Regular.ttf'),
+  });
+
   // Initialize Sentry after component mounts
   useEffect(() => {
     initSentry();
   }, []);
+
+  // Hide splash when fonts load or error
+  useEffect(() => {
+    if (fontError) {
+      console.warn('Font loading error:', fontError);
+    }
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
+  // Don't render until fonts are loaded (or errored)
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
