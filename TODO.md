@@ -2,7 +2,7 @@
 
 **Target**: App Store Launch
 **Current Status**: 75% ready
-**Last Updated**: 2026-01-10
+**Last Updated**: 2026-01-13
 
 ---
 
@@ -21,6 +21,13 @@
 ### Data Source Compliance
 - [x] Document data source status - see `legal/DATA_SOURCE_COMPLIANCE.md`
 - [x] MMA API integration scripts ready (RapidAPI)
+- [x] **SportsData.io API Investigation** - COMPLETED 2026-01-13
+  - Feasibility report: `docs/sportsdata-api-report.md`
+  - API integration code: `mobile/lib/sportsdata/`
+  - Trial key tested - requires paid subscription for full access
+  - **Missing data**: Career stats (SLpM, str_acc, etc.), stance, rankings
+  - **Recommendation**: Use SportsData.io for events + keep UFCStats for fighter stats
+- [ ] Contact SportsData.io sales for pricing (sales@sportsdata.io)
 - [ ] Subscribe to MMA API and test in production
 - [ ] Migrate from UFCStats scraping to official API
 - [ ] Document data source in App Store review notes
@@ -45,8 +52,7 @@
   ```
 
 ### Database
-- [ ] Fix migration conflict - rename duplicate timestamp:
-  - `20260110000001_update_ufc_rankings_dec2025.sql` → `20260110000002_...`
+- [x] Fix migration conflict - renamed `20260110000001_update_fighter_profile_rpc.sql` → `20260110000002_...`
 
 ### OAuth Testing
 - [ ] Test Google Sign-In on real iOS device
@@ -113,13 +119,13 @@ eas build --platform android --profile production
 | Priority | Bug | Details |
 |----------|-----|---------|
 | P0 | Event scraper not fetching real data | Shows test data, scraper needs to pull from UFCStats |
-| P0 | Picks not saving to database | Auth/RLS issue - test users can't save picks |
-| P1 | Friends tab database errors | `correct_picks` column doesn't exist - should be `correct_winner` |
 | P1 | Fighter selection UI | Needs visual highlight/animation when selecting |
+| P2 | Users without profiles | 2 users in auth.users lack profiles - need onboarding fix |
 
-### Database Fix Required
-Social RPC functions reference `us.correct_picks` but `user_stats` table uses `correct_winner`.
-Run migration to fix column references.
+### Fixed Bugs
+- [x] **Picks not saving to database** - Verified working. 835 picks exist. RLS policies correct.
+- [x] **Friends tab database errors** - All social functions already use `correct_winner` correctly.
+- [x] **Migration timestamp conflict** - Renamed duplicate `20260110000001` files.
 
 ---
 
@@ -143,7 +149,9 @@ Run migration to fix column references.
 
 ### Global Scorecard Feature
 - [ ] WebSocket/Realtime for instant updates
-- [ ] Provider integration (Sportradar, SportsData.io)
+- [x] Provider integration research (SportsData.io) - see `docs/sportsdata-api-report.md`
+  - Live fight data available with 10-second refresh (paid tier)
+  - Fantasy points and round-by-round win tracking included
 - [ ] Historical scorecard viewing
 - [ ] Scorecard sharing/export
 - [ ] Round-by-round predictions before scoring opens
@@ -167,6 +175,11 @@ Run migration to fix column references.
 - [x] 39 unit tests passing
 - [x] GitHub Actions CI configured
 - [x] Structured logging in Edge Functions
+- [x] **SportsData.io API investigation** (2026-01-13)
+  - Full feasibility report with data comparison
+  - TypeScript API client with typed responses
+  - React Query hooks for data fetching
+  - Schema mappers for database integration
 
 ---
 
@@ -198,11 +211,16 @@ Run migration to fix column references.
 
 | Category | Count | Status |
 |----------|-------|--------|
-| Critical (Blocking) | 6 | Not started |
-| High Priority | 7 | Partial |
+| Critical (Blocking) | 5 remaining | API investigation done |
+| High Priority | 6 | Partial (migration fix done) |
 | Medium Priority | 12 | Not started |
 | Low Priority | 6 | Not started |
-| Known Bugs | 4 | Needs fixing |
+| Known Bugs | 2 remaining | 3 fixed |
 | Future Features | 17 | Backlog |
 
-**Biggest blockers**: Privacy Policy, Terms of Service, data source compliance
+**Biggest blockers**: API subscription decision, hosting legal pages, Android OAuth
+
+**Recent Progress (2026-01-13)**:
+- SportsData.io API fully investigated and documented
+- API integration code ready at `mobile/lib/sportsdata/`
+- Next step: Contact sales for pricing, decide on hybrid approach
