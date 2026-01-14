@@ -1,51 +1,105 @@
 /**
- * PostImageGrid - Twitter-style image grid for posts
+ * PostImageGrid - Adaptive image grid for posts
  *
  * Smart grid layouts based on image count:
- * - 1 image: Full width
+ * - 1 image: Dynamic height based on aspect ratio (clamped)
  * - 2 images: Side by side
  * - 3 images: Large left + 2 stacked right
  * - 4 images: 2x2 grid
  */
 
 import { View, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '../../lib/theme';
 import { radius, spacing } from '../../lib/tokens';
 import type { PostImage } from '../../types/posts';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
+const CONTENT_WIDTH = SCREEN_WIDTH - 40 - spacing.md * 2 - spacing.sm; // Account for avatar + padding
 const GRID_GAP = 4;
+
+// Aspect ratio bounds for single images
+const MIN_ASPECT_RATIO = 0.5;  // Tallest allowed (2:1 portrait)
+const MAX_ASPECT_RATIO = 2.5;  // Widest allowed (2.5:1 landscape)
+const DEFAULT_ASPECT_RATIO = 1.5; // Default if unknown (3:2 landscape)
 
 interface PostImageGridProps {
   images: PostImage[];
   onImagePress?: (index: number) => void;
-  /** Compact mode for X/Twitter-style feed with clamped heights */
+  /** Compact mode for feed with slightly reduced heights */
   compact?: boolean;
+}
+
+interface ImageDimensions {
+  width: number;
+  height: number;
+  aspectRatio: number;
 }
 
 export function PostImageGrid({ images, onImagePress, compact = false }: PostImageGridProps) {
   const { colors } = useTheme();
+  const [firstImageDimensions, setFirstImageDimensions] = useState<ImageDimensions | null>(null);
 
   if (!images || images.length === 0) return null;
 
   // Sort by display_order
   const sortedImages = [...images].sort((a, b) => a.display_order - b.display_order);
   const count = Math.min(sortedImages.length, 4);
+  const firstImageUrl = sortedImages[0]?.image_url;
 
-  const handlePress = (index: number) => {
+  const handlePress = useCallback((index: number) => {
     onImagePress?.(index);
+  }, [onImagePress]);
+
+  // Fetch dimensions for single image to calculate dynamic height
+  useEffect(() => {
+    if (count === 1 && firstImageUrl) {
+      Image.getSize(
+        firstImageUrl,
+        (width, height) => {
+          const aspectRatio = width / height;
+          setFirstImageDimensions({ width, height, aspectRatio });
+        },
+        () => {
+          // On error, use default
+          setFirstImageDimensions({ width: 3, height: 2, aspectRatio: DEFAULT_ASPECT_RATIO });
+        }
+      );
+    }
+  }, [count, firstImageUrl]);
+
+  // Calculate dynamic height for single image based on aspect ratio
+  const getSingleImageHeight = (): number => {
+    if (!firstImageDimensions) {
+      // Default height while loading
+      return compact ? 200 : 250;
+    }
+
+    // Clamp aspect ratio to reasonable bounds
+    const clampedRatio = Math.max(MIN_ASPECT_RATIO, Math.min(MAX_ASPECT_RATIO, firstImageDimensions.aspectRatio));
+
+    // Calculate height based on content width and clamped aspect ratio
+    const calculatedHeight = CONTENT_WIDTH / clampedRatio;
+
+    // Apply min/max bounds
+    const minHeight = compact ? 150 : 180;
+    const maxHeight = compact ? 350 : 400;
+
+    return Math.max(minHeight, Math.min(maxHeight, calculatedHeight));
   };
 
-  // Clamped heights for compact mode (feed density optimization)
-  const singleHeight = compact ? 160 : 200;
-  const twoImageHeight = compact ? 140 : 180;
-  const threeImageHeight = compact ? 160 : 200;
-  const fourImageRowHeight = compact ? 80 : 100;
+  // Multi-image heights (these stay fixed for consistent grid layouts)
+  const twoImageHeight = compact ? 180 : 220;
+  const threeImageHeight = compact ? 200 : 240;
+  const fourImageRowHeight = compact ? 100 : 120;
 
   const containerStyle = compact ? styles.containerCompact : styles.container;
 
-  // Single image - full width
+  // Single image - dynamic height based on aspect ratio
   if (count === 1) {
+    const height = getSingleImageHeight();
+    const isPortrait = firstImageDimensions && firstImageDimensions.aspectRatio < 1;
+
     return (
       <View style={[containerStyle, { borderColor: colors.border }]}>
         <TouchableOpacity
@@ -57,8 +111,14 @@ export function PostImageGrid({ images, onImagePress, compact = false }: PostIma
         >
           <Image
             source={{ uri: sortedImages[0].image_url }}
-            style={[styles.singleImage, { height: singleHeight, backgroundColor: colors.surfaceAlt }]}
-            resizeMode="cover"
+            style={[
+              styles.singleImage,
+              {
+                height,
+                backgroundColor: colors.surfaceAlt,
+              }
+            ]}
+            resizeMode={isPortrait ? "contain" : "cover"}
           />
         </TouchableOpacity>
       </View>

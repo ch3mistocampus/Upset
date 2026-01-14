@@ -103,8 +103,7 @@ export default function CreatePostScreen() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [16, 9],
+      allowsEditing: false, // Don't force crop - let user keep full image
       quality: 0.8,
     });
 
@@ -411,7 +410,7 @@ const styles = StyleSheet.create({
   imageWrapper: {
     position: 'relative',
     width: '100%',
-    aspectRatio: 16 / 9,
+    aspectRatio: 4 / 3, // More flexible aspect ratio for preview
     borderRadius: radius.card,
     overflow: 'hidden',
     borderWidth: 1,
