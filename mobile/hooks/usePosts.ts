@@ -17,12 +17,13 @@ import {
   CreatePostInput,
   CreateCommentInput,
   CommentWithReplies,
+  FeedSortOption,
 } from '../types/posts';
 
 // Query keys for cache management
 export const postKeys = {
   all: ['posts'] as const,
-  feed: () => [...postKeys.all, 'feed'] as const,
+  feed: (sortBy?: FeedSortOption) => [...postKeys.all, 'feed', sortBy || 'top'] as const,
   followingFeed: (userId: string) => [...postKeys.all, 'following', userId] as const,
   detail: (id: string) => [...postKeys.all, 'detail', id] as const,
   userPosts: (userId: string) => [...postKeys.all, 'user', userId] as const,
@@ -32,17 +33,19 @@ const PAGE_SIZE = 20;
 
 /**
  * Fetch posts feed with infinite pagination
+ * @param sortBy - 'top' for engagement-based ranking, 'recent' for chronological
  */
-export function usePostsFeed() {
+export function usePostsFeed(sortBy: FeedSortOption = 'top') {
   return useInfiniteQuery({
-    queryKey: postKeys.feed(),
+    queryKey: postKeys.feed(sortBy),
     queryFn: async ({ pageParam = 0 }): Promise<Post[]> => {
-      logger.breadcrumb('Fetching posts feed', 'posts', { offset: pageParam });
+      logger.breadcrumb('Fetching posts feed', 'posts', { offset: pageParam, sortBy });
 
       try {
         const { data, error } = await supabase.rpc('get_posts_feed', {
           p_limit: PAGE_SIZE,
           p_offset: pageParam,
+          p_sort_by: sortBy,
         });
 
         if (error) {
@@ -50,7 +53,7 @@ export function usePostsFeed() {
           return [];
         }
 
-        logger.debug('Posts feed fetched', { count: data?.length || 0 });
+        logger.debug('Posts feed fetched', { count: data?.length || 0, sortBy });
         return (data as Post[]) || [];
       } catch (err) {
         logger.error('Exception fetching posts feed', err);
