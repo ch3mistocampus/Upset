@@ -51,6 +51,7 @@ const MIN_COMMUNITY_PICKS = 5;
 
 // Fighter Pill Button - horizontal pill with checkmark when selected
 // Supports navigation to fighter info via long press or info button
+// Includes smooth selection animations: color transition, checkmark bounce, pulse effect
 const FighterPill: React.FC<{
   name: string;
   corner: 'red' | 'blue';
@@ -63,8 +64,66 @@ const FighterPill: React.FC<{
   const { colors } = useTheme();
   const cornerColors = useCornerColors();
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const selectionAnim = useRef(new Animated.Value(isSelected ? 1 : 0)).current;
+  const checkmarkAnim = useRef(new Animated.Value(isSelected ? 1 : 0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const prevSelected = useRef(isSelected);
 
   const cornerColor = corner === 'red' ? cornerColors.red : cornerColors.blue;
+
+  // Animate selection state changes
+  useEffect(() => {
+    if (isSelected !== prevSelected.current) {
+      prevSelected.current = isSelected;
+
+      if (isSelected) {
+        // Selection animation sequence
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+        // Animate background fill
+        Animated.spring(selectionAnim, {
+          toValue: 1,
+          useNativeDriver: false,
+          tension: 80,
+          friction: 8,
+        }).start();
+
+        // Checkmark bounce in
+        checkmarkAnim.setValue(0);
+        Animated.spring(checkmarkAnim, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 200,
+          friction: 6,
+        }).start();
+
+        // Pulse effect
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.05,
+            duration: 100,
+            useNativeDriver: true,
+            easing: Easing.out(Easing.ease),
+          }),
+          Animated.spring(pulseAnim, {
+            toValue: 1,
+            useNativeDriver: true,
+            tension: 100,
+            friction: 8,
+          }),
+        ]).start();
+      } else {
+        // Deselection animation
+        Animated.spring(selectionAnim, {
+          toValue: 0,
+          useNativeDriver: false,
+          tension: 80,
+          friction: 8,
+        }).start();
+        checkmarkAnim.setValue(0);
+      }
+    }
+  }, [isSelected, selectionAnim, checkmarkAnim, pulseAnim]);
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, { toValue: 0.96, useNativeDriver: true, tension: 150, friction: 5 }).start();
@@ -81,16 +140,27 @@ const FighterPill: React.FC<{
     }
   };
 
+  // Interpolate background color based on selection state
+  const backgroundColor = selectionAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [colors.surfaceAlt, cornerColor],
+  });
+
+  // Interpolate border opacity (fade out when selected)
+  const borderOpacity = selectionAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0],
+  });
+
+  // Checkmark scale animation
+  const checkmarkScale = checkmarkAnim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [0, 1.2, 1],
+  });
+
   return (
-    <Animated.View style={[pillStyles.wrapper, { transform: [{ scale: scaleAnim }] }]}>
+    <Animated.View style={[pillStyles.wrapper, { transform: [{ scale: scaleAnim }, { scale: pulseAnim }] }]}>
       <TouchableOpacity
-        style={[
-          pillStyles.pill,
-          isSelected
-            ? { backgroundColor: cornerColor }
-            : { backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
-          locked && pillStyles.disabled,
-        ]}
         onPress={onPress}
         onLongPress={handleLongPress}
         onPressIn={handlePressIn}
@@ -99,33 +169,64 @@ const FighterPill: React.FC<{
         activeOpacity={0.85}
         delayLongPress={300}
       >
-        {isSelected && (
-          <Ionicons name="checkmark" size={14} color="#fff" style={pillStyles.checkIcon} />
-        )}
-        <Text
+        <Animated.View
           style={[
-            pillStyles.name,
-            {
-              color: isSelected ? '#fff' : colors.text,
-              fontWeight: isSelected ? '700' : '500',
-            },
+            pillStyles.pill,
+            { backgroundColor },
+            locked && pillStyles.disabled,
           ]}
-          numberOfLines={2}
         >
-          {name}
-        </Text>
-        {fighterId && onFighterInfo && (
-          <TouchableOpacity
-            style={pillStyles.infoButton}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              onFighterInfo(fighterId);
-            }}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          {/* Border overlay that fades out when selected */}
+          <Animated.View
+            style={[
+              pillStyles.borderOverlay,
+              {
+                borderColor: colors.border,
+                opacity: borderOpacity,
+              },
+            ]}
+            pointerEvents="none"
+          />
+
+          {isSelected && (
+            <Animated.View style={{ transform: [{ scale: checkmarkScale }] }}>
+              <Ionicons name="checkmark" size={14} color="#fff" style={pillStyles.checkIcon} />
+            </Animated.View>
+          )}
+          <Animated.Text
+            style={[
+              pillStyles.name,
+              {
+                color: selectionAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [colors.text, '#fff'],
+                }),
+                fontWeight: isSelected ? '700' : '500',
+              },
+            ]}
+            numberOfLines={2}
           >
-            <Ionicons name="information-circle-outline" size={16} color={isSelected ? '#fff' : colors.textTertiary} />
-          </TouchableOpacity>
-        )}
+            {name}
+          </Animated.Text>
+          {fighterId && onFighterInfo && (
+            <TouchableOpacity
+              style={pillStyles.infoButton}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onFighterInfo(fighterId);
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Animated.View>
+                <Ionicons
+                  name="information-circle-outline"
+                  size={16}
+                  color={isSelected ? '#fff' : colors.textTertiary}
+                />
+              </Animated.View>
+            </TouchableOpacity>
+          )}
+        </Animated.View>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -143,6 +244,12 @@ const pillStyles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     borderRadius: radius.button,
     minHeight: 36,
+    overflow: 'hidden',
+  },
+  borderOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderWidth: 1,
+    borderRadius: radius.button,
   },
   disabled: {
     opacity: 0.5,

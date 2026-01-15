@@ -2,16 +2,14 @@
  * sync-next-event-card Edge Function
  * Syncs bouts for the next upcoming UFC event
  * Detects canceled/changed fights and voids affected picks
- * Supports both UFCStats and MMA API data sources
+ * Uses UFCStats data source
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { createMMAApiProvider } from "../_shared/mma-api-provider.ts";
 import { createUFCStatsProvider } from "../_shared/ufcstats-provider.ts";
 import { healthCheck as scraperHealthCheck } from "../_shared/ufcstats-scraper.ts";
 import { createLogger } from "../_shared/logger.ts";
-import type { DataProvider, DataProviderType } from "../_shared/data-provider-types.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -45,31 +43,10 @@ serve(async (req) => {
     const eventIdOverride = url.searchParams.get("event_id");
     const force = url.searchParams.get('force') === 'true';
 
-    // Get data source settings
-    const { data: settings } = await supabase.rpc('get_data_source_settings');
-    const dataSource: DataProviderType = settings?.primary_data_source || 'ufcstats';
+    logger.info("Using data source: UFCStats");
 
-    logger.info(`Using data source: ${dataSource}`);
-
-    // Create usage tracker for MMA API
-    const trackUsage = async (endpoint: string, count: number) => {
-      await supabase.rpc('track_api_usage', {
-        p_provider: 'mma-api',
-        p_endpoint: endpoint,
-        p_count: count,
-      });
-    };
-
-    // Create provider based on settings
-    let provider: DataProvider;
-    if (dataSource === 'mma-api') {
-      provider = createMMAApiProvider({
-        apiKey: Deno.env.get("MMA_API_KEY"),
-        usageTracker: trackUsage,
-      });
-    } else {
-      provider = createUFCStatsProvider();
-    }
+    // Create UFCStats provider
+    const provider = createUFCStatsProvider();
 
     let event: any;
 
@@ -169,39 +146,28 @@ serve(async (req) => {
       );
     }
 
-    // Get the external ID based on data source
-    const externalId = dataSource === 'mma-api'
-      ? event.espn_event_id
-      : event.ufcstats_event_id;
+    // Get the UFCStats event ID
+    const externalId = event.ufcstats_event_id;
 
     if (!externalId) {
-      logger.warn("Event missing external ID for data source", {
-        dataSource,
+      logger.warn("Event missing UFCStats ID", {
         eventName: event.name,
-        hasUfcstatsId: !!event.ufcstats_event_id,
-        hasEspnId: !!event.espn_event_id,
       });
 
-      // Fall back to UFCStats if available
-      if (dataSource === 'mma-api' && event.ufcstats_event_id) {
-        logger.info("Falling back to UFCStats scraper");
-        provider = createUFCStatsProvider();
-      } else {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: "Event missing external ID",
-            message: `Event "${event.name}" has no ${dataSource} ID`,
-            event: { id: event.id, name: event.name },
-          }),
-          { status: 400, headers: { "Content-Type": "application/json" } }
-        );
-      }
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Event missing UFCStats ID",
+          message: `Event "${event.name}" has no ufcstats_event_id`,
+          event: { id: event.id, name: event.name },
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     // Fetch fight card from provider
     logger.info("Fetching event card from provider");
-    const fights = await provider.getEventFightCard(externalId || event.ufcstats_event_id);
+    const fights = await provider.getEventFightCard(externalId);
 
     if (fights.length === 0) {
       logger.warn("No fights returned from provider - skipping to avoid data loss");
@@ -226,17 +192,14 @@ serve(async (req) => {
 
     logger.info("Fetched fights", { count: fights.length, provider: provider.name });
 
-    // Determine which ID field to use based on provider
-    const idField = provider.idType === 'espn' ? 'espn_fight_id' : 'ufcstats_fight_id';
-
     // Get existing bouts for this event
     const { data: existingBouts } = await supabase
       .from("bouts")
-      .select(`${idField}, id`)
+      .select("ufcstats_fight_id, id")
       .eq("event_id", event.id);
 
     const existingFightIds = new Set(
-      existingBouts?.map((b) => b[idField]).filter(Boolean) || []
+      existingBouts?.map((b) => b.ufcstats_fight_id).filter(Boolean) || []
     );
 
     // Track fetched fight IDs to detect cancellations
@@ -244,7 +207,7 @@ serve(async (req) => {
 
     // Detect canceled fights (existed before, now missing)
     const canceledFights = existingBouts?.filter(
-      (b) => b[idField] && !fetchedFightIds.has(b[idField])
+      (b) => b.ufcstats_fight_id && !fetchedFightIds.has(b.ufcstats_fight_id)
     ) || [];
 
     // Process upserts
@@ -257,55 +220,37 @@ serve(async (req) => {
       try {
         if (existingFightIds.has(fight.externalId)) {
           // Update existing bout
-          const updateData: Record<string, any> = {
-            order_index: fight.orderIndex,
-            weight_class: fight.weightClass,
-            red_name: fight.redFighter.name,
-            blue_name: fight.blueFighter.name,
-            last_synced_at: new Date().toISOString(),
-          };
-
-          // Update fighter IDs based on provider type
-          if (provider.idType === 'espn') {
-            updateData.espn_red_fighter_id = fight.redFighter.externalId;
-            updateData.espn_blue_fighter_id = fight.blueFighter.externalId;
-          } else {
-            updateData.red_fighter_ufcstats_id = fight.redFighter.externalId;
-            updateData.blue_fighter_ufcstats_id = fight.blueFighter.externalId;
-          }
-
           const { error } = await supabase
             .from("bouts")
-            .update(updateData)
-            .eq(idField, fight.externalId);
+            .update({
+              order_index: fight.orderIndex,
+              weight_class: fight.weightClass,
+              red_name: fight.redFighter.name,
+              blue_name: fight.blueFighter.name,
+              red_fighter_ufcstats_id: fight.redFighter.externalId,
+              blue_fighter_ufcstats_id: fight.blueFighter.externalId,
+              last_synced_at: new Date().toISOString(),
+            })
+            .eq("ufcstats_fight_id", fight.externalId);
 
           if (error) throw error;
           updated++;
         } else {
           // Insert new bout
-          const insertData: Record<string, any> = {
-            event_id: event.id,
-            order_index: fight.orderIndex,
-            weight_class: fight.weightClass,
-            red_name: fight.redFighter.name,
-            blue_name: fight.blueFighter.name,
-            status: "scheduled",
-            last_synced_at: new Date().toISOString(),
-          };
-
-          // Set IDs based on provider type
-          insertData[idField] = fight.externalId;
-          if (provider.idType === 'espn') {
-            insertData.espn_red_fighter_id = fight.redFighter.externalId;
-            insertData.espn_blue_fighter_id = fight.blueFighter.externalId;
-          } else {
-            insertData.red_fighter_ufcstats_id = fight.redFighter.externalId;
-            insertData.blue_fighter_ufcstats_id = fight.blueFighter.externalId;
-          }
-
           const { error } = await supabase
             .from("bouts")
-            .insert(insertData);
+            .insert({
+              event_id: event.id,
+              ufcstats_fight_id: fight.externalId,
+              order_index: fight.orderIndex,
+              weight_class: fight.weightClass,
+              red_name: fight.redFighter.name,
+              blue_name: fight.blueFighter.name,
+              red_fighter_ufcstats_id: fight.redFighter.externalId,
+              blue_fighter_ufcstats_id: fight.blueFighter.externalId,
+              status: "scheduled",
+              last_synced_at: new Date().toISOString(),
+            });
 
           if (error) throw error;
           inserted++;
@@ -322,7 +267,7 @@ serve(async (req) => {
     // Handle canceled fights
     for (const canceledBout of canceledFights) {
       try {
-        logger.info("Marking fight as canceled", { fightId: canceledBout[idField] });
+        logger.info("Marking fight as canceled", { fightId: canceledBout.ufcstats_fight_id });
 
         // Update bout status
         await supabase

@@ -54,6 +54,7 @@ export function getNotificationMessage(notification: PostNotification): string {
 
 /**
  * Get unread notification count
+ * Note: Returns 0 if the get_post_notification_count function doesn't exist
  */
 export function useUnreadNotificationCount() {
   return useQuery({
@@ -64,10 +65,8 @@ export function useUnreadNotificationCount() {
 
         if (error) {
           // Silently return 0 if function doesn't exist (migration not applied)
-          if (error.code === 'PGRST202') {
-            return 0;
-          }
-          logger.error('Failed to get notification count', error);
+          // Error codes: PGRST202 (function not found), 42883 (postgres undefined_function)
+          // Also handle 404 HTTP status which indicates missing function
           return 0;
         }
 

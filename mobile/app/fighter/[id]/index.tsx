@@ -10,7 +10,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Linking,
 } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
@@ -344,22 +343,6 @@ export default function FighterDetailScreen() {
               </View>
             )}
 
-            {/* UFCStats Link */}
-            {fighter.ufcstats_url && (
-              <TouchableOpacity
-                style={[styles.ufcStatsButton, { borderColor: colors.border }]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  Linking.openURL(fighter.ufcstats_url!);
-                }}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="open-outline" size={16} color={colors.accent} />
-                <Text style={[styles.ufcStatsButtonText, { color: colors.accent }]}>
-                  View on UFCStats
-                </Text>
-              </TouchableOpacity>
-            )}
           </View>
         </SurfaceCard>
 
@@ -576,22 +559,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
   },
-  ufcStatsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: spacing.md,
-    paddingVertical: 10,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-  },
-  ufcStatsButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-
   // Bio Card
   bioCard: {
     padding: spacing.md,

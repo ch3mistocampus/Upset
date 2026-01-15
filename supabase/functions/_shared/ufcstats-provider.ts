@@ -23,7 +23,7 @@ import {
 
 export class UFCStatsProvider implements DataProvider {
   name = "UFCStats.com Scraper";
-  idType: "ufcstats" | "espn" = "ufcstats";
+  idType: "ufcstats" = "ufcstats";
 
   constructor(_config?: ProviderConfig) {
     // UFCStats scraper doesn't need configuration
@@ -147,8 +147,8 @@ export class UFCStatsProvider implements DataProvider {
 
   async getRankings(_division?: string): Promise<FighterData[]> {
     // UFCStats doesn't have rankings data
-    // This needs to come from MMA API or manual entry
-    console.warn("Rankings not supported by UFCStats scraper - use MMA API");
+    // Rankings would need to be manually entered or scraped from another source
+    console.warn("Rankings not supported by UFCStats scraper");
     return [];
   }
 }

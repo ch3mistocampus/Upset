@@ -544,33 +544,43 @@ export function getScorecardErrorMessage(error: ScorecardError): string {
 
 /**
  * Check if a specific bout has an active scorecard (is live or scoring)
+ * Note: Returns default (not live) if round_state table doesn't exist
  */
 export function useBoutLiveStatus(boutId: string | undefined) {
   return useQuery({
     queryKey: [...scorecardKeys.fight(boutId || ''), 'status'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('round_state')
-        .select('phase, current_round, scheduled_rounds')
-        .eq('bout_id', boutId)
-        .maybeSingle();
+      try {
+        const { data, error } = await supabase
+          .from('round_state')
+          .select('phase, current_round, scheduled_rounds')
+          .eq('bout_id', boutId)
+          .maybeSingle();
 
-      if (error) throw error;
+        // Gracefully handle missing table (404) or other errors
+        if (error) {
+          // Return default state - scorecard feature not active
+          return { isLive: false, isActive: false, phase: null, currentRound: null, scheduledRounds: null };
+        }
 
-      if (!data) {
-        return { isLive: false, phase: null, currentRound: null, scheduledRounds: null };
+        if (!data) {
+          return { isLive: false, isActive: false, phase: null, currentRound: null, scheduledRounds: null };
+        }
+
+        const isLive = data.phase === 'ROUND_LIVE' || data.phase === 'ROUND_BREAK';
+        const isActive = data.phase !== 'FIGHT_ENDED' && data.phase !== null;
+
+        return {
+          isLive,
+          isActive,
+          phase: data.phase,
+          currentRound: data.current_round,
+          scheduledRounds: data.scheduled_rounds,
+        };
+      } catch {
+        // Gracefully handle any unexpected errors
+        return { isLive: false, isActive: false, phase: null, currentRound: null, scheduledRounds: null };
       }
-
-      const isLive = data.phase === 'ROUND_LIVE' || data.phase === 'ROUND_BREAK';
-      const isActive = data.phase !== 'FIGHT_ENDED' && data.phase !== null;
-
-      return {
-        isLive,
-        isActive,
-        phase: data.phase,
-        currentRound: data.current_round,
-        scheduledRounds: data.scheduled_rounds,
-      };
     },
     enabled: !!boutId,
     staleTime: 10000, // 10 seconds
@@ -580,6 +590,7 @@ export function useBoutLiveStatus(boutId: string | undefined) {
 
 /**
  * Check live status for multiple bouts (for event view)
+ * Note: Returns empty Map if round_state table doesn't exist
  */
 export function useEventLiveStatus(boutIds: string[]) {
   return useQuery({
@@ -587,32 +598,41 @@ export function useEventLiveStatus(boutIds: string[]) {
     queryFn: async () => {
       if (boutIds.length === 0) return new Map();
 
-      const { data, error } = await supabase
-        .from('round_state')
-        .select('bout_id, phase, current_round, scheduled_rounds')
-        .in('bout_id', boutIds);
+      try {
+        const { data, error } = await supabase
+          .from('round_state')
+          .select('bout_id, phase, current_round, scheduled_rounds')
+          .in('bout_id', boutIds);
 
-      if (error) throw error;
+        // Gracefully handle missing table (404) or other errors
+        if (error) {
+          // Return empty map - scorecard feature not active
+          return new Map();
+        }
 
-      const statusMap = new Map<string, {
-        phase: string;
-        currentRound: number;
-        scheduledRounds: number;
-        isLive: boolean;
-        isScoring: boolean;
-      }>();
+        const statusMap = new Map<string, {
+          phase: string;
+          currentRound: number;
+          scheduledRounds: number;
+          isLive: boolean;
+          isScoring: boolean;
+        }>();
 
-      (data || []).forEach((row) => {
-        statusMap.set(row.bout_id, {
-          phase: row.phase,
-          currentRound: row.current_round,
-          scheduledRounds: row.scheduled_rounds,
-          isLive: row.phase === 'ROUND_LIVE',
-          isScoring: row.phase === 'ROUND_BREAK',
+        (data || []).forEach((row) => {
+          statusMap.set(row.bout_id, {
+            phase: row.phase,
+            currentRound: row.current_round,
+            scheduledRounds: row.scheduled_rounds,
+            isLive: row.phase === 'ROUND_LIVE',
+            isScoring: row.phase === 'ROUND_BREAK',
+          });
         });
-      });
 
-      return statusMap;
+        return statusMap;
+      } catch {
+        // Gracefully handle any unexpected errors
+        return new Map();
+      }
     },
     enabled: boutIds.length > 0,
     staleTime: 10000,

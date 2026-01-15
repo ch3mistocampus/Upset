@@ -271,11 +271,14 @@ export default function Settings() {
           </View>
         )}
 
-        {/* App Version */}
+        {/* App Version & Disclaimer */}
         <View style={styles.versionContainer}>
           <Text style={[styles.versionText, { color: colors.text }]}>Upset</Text>
           <Text style={[styles.versionNumber, { color: colors.textTertiary }]}>Version 1.0.0</Text>
           <Text style={[styles.versionSubtext, { color: colors.textMuted }]}>Built with React Native & Expo</Text>
+          <Text style={[styles.disclaimer, { color: colors.textMuted }]}>
+            Fight schedules, matchups, and statistics are compiled from publicly available sources and maintained in our own database. This app is not affiliated with or endorsed by the UFC or any other promotion.
+          </Text>
         </View>
       </Animated.View>
       </ScrollView>
@@ -326,5 +329,12 @@ const styles = StyleSheet.create({
   },
   versionSubtext: {
     fontSize: 11,
+  },
+  disclaimer: {
+    fontSize: 11,
+    textAlign: 'center',
+    lineHeight: 16,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.lg,
   },
 });

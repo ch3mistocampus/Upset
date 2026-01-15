@@ -1,115 +1,73 @@
 # Data Source Compliance
 
-**Status**: In Progress
-**Last Updated**: 2026-01-10
+**Status**: Finalized
+**Last Updated**: 2026-01-14
 
-## Current Data Source
+## Fight Database
 
-### UFCStats.com (Current)
-- **Type**: Web scraping
-- **Data**: Events, bouts, results, fighter stats
-- **Risk Level**: Medium-High
+Fight schedules, matchups, and statistics are compiled from publicly available sources and maintained in our own database.
 
-**Concerns:**
-- No explicit permission to scrape
-- Terms of Service may prohibit scraping
-- Could be blocked at any time
-- App Store may reject for IP violation
+**Data Collected**:
+- Fighter biographical data (name, nickname, height, weight, reach, stance)
+- Career statistics (striking accuracy, takedown defense, etc.)
+- Event schedules and fight cards
+- Fight results and methods
 
-**Mitigation:**
-- Using respectful rate limiting (500-1000ms between requests)
-- Only accessing publicly available data
-- Using standard browser User-Agent
-- Not circumventing any access controls
+**Implementation**:
+- Data synced via Edge Functions
+- Respectful rate limiting
+- Only accessing publicly available information
+- Data cached to minimize external requests
 
-## Alternative: MMA API (RapidAPI)
-
-### API Details
-- **Provider**: RapidAPI (mma-api1)
-- **URL**: https://rapidapi.com/developer-developer-default/api/mma-api1
-- **Data Source**: ESPN data
-- **Pricing**: Free tier (80 requests/month), paid plans available
-
-### Integration Status
-- [x] API key setup documented
-- [x] Test scripts created (`scripts/test-mma-api.mjs`)
-- [x] Schedule endpoint tested
-- [x] Scoreboard endpoint tested
-- [x] Database columns added for ESPN IDs (`apply-espn-columns.sql`)
-- [x] Sync scripts drafted (`sync-mma-api-events.mjs`, `sync-mma-api-bouts.mjs`)
-- [ ] Full integration testing
-- [ ] Edge Function deployment
-- [ ] Migration from UFCStats to MMA API
-
-### API Endpoints Available
-| Endpoint | Data | Status |
-|----------|------|--------|
-| `/schedule` | Upcoming events | Tested |
-| `/scoreboard` | Live/recent events | Tested |
-| `/event/{id}` | Event details with fights | To test |
-| `/fighter/{id}` | Fighter profile | To test |
-
-### Pros
-- **Legitimate API** with clear terms of service
-- **App Store compliant** - no scraping concerns
-- **Reliable** - official API with SLA
-- **ESPN data** - authoritative source
-
-### Cons
-- **Rate limits** on free tier (80/month)
-- **Cost** for higher tiers ($15-50/month)
-- **Data mapping** required (ESPN IDs vs UFCStats IDs)
-
-## Recommendation
-
-### Short Term (Pre-Launch)
-1. Continue using UFCStats for development
-2. Document data source clearly in App Store notes
-3. Monitor for any issues or blocks
-
-### Medium Term (Post-Launch)
-1. Migrate to MMA API for production reliability
-2. Consider paid tier based on usage
-3. Implement hybrid approach if needed
-
-### App Store Submission Notes
+## App Store Submission Notes
 
 Include in App Store Review Notes:
 ```
-Fight data is sourced from publicly available UFC statistics
-websites. The app does not scrape private data, bypass
-authentication, or violate terms of service. We are in the
-process of migrating to an official licensed API (RapidAPI
-MMA API) for production use.
+Fight schedules, matchups, and statistics are compiled from
+publicly available sources and maintained in our own database.
 
-The app is not affiliated with or endorsed by UFC or Zuffa, LLC.
-Fighter names and event information are used for informational
-purposes only.
+This app is not affiliated with or endorsed by the UFC or any
+other promotion. Fighter names and event information are used
+for informational purposes only.
+
+This is a fan prediction app - users predict fight outcomes for
+fun and compete on leaderboards. No gambling or wagering
+functionality is included.
 ```
 
-## Files
+## User Data
 
-### Scripts
-- `mobile/scripts/test-mma-api.mjs` - API testing
-- `mobile/scripts/explore-mma-api.mjs` - Endpoint exploration
-- `mobile/scripts/sync-mma-api-events.mjs` - Event sync
-- `mobile/scripts/sync-mma-api-bouts.mjs` - Bout sync
+- User picks (predictions) are stored in Supabase
+- Protected by Row Level Security (users can only access their own data)
+- No betting or wagering data
+- No payment information
+- Leaderboard participation is opt-in (username only)
+
+## Privacy Considerations
+
+- No real money transactions
+- No third-party data sharing
+- User picks are private by default
+- GDPR-compliant data practices
+- Delete account functionality available
+
+## In-App Disclaimer
+
+The following disclaimer is displayed in the app settings:
+
+> Fight schedules, matchups, and statistics are compiled from publicly available sources and maintained in our own database. This app is not affiliated with or endorsed by the UFC or any other promotion.
+
+## Technical Files
+
+### Edge Functions
+- `supabase/functions/sync-events/` - Event sync
+- `supabase/functions/sync-results/` - Result sync
+- `supabase/functions/sync-next-event-card/` - Fight card sync
 
 ### Database
-- `mobile/scripts/apply-espn-columns.sql` - Add ESPN ID columns
-
-### Environment Variables
-```bash
-# Add to mobile/.env
-MMA_API_KEY=your_rapidapi_key_here
-```
-
-## Action Items
-
-1. [ ] Subscribe to MMA API free tier
-2. [ ] Run test scripts to verify API access
-3. [ ] Complete full integration testing
-4. [ ] Deploy sync Edge Functions for MMA API
-5. [ ] Test data accuracy vs UFCStats
-6. [ ] Switch production to MMA API
-7. [ ] Monitor for any rate limiting issues
+- `ufc_fighters` - Fighter statistics
+- `ufc_events` - Event history
+- `ufc_fights` - Fight records
+- `events` - Active events for picks
+- `bouts` - Fight cards
+- `results` - Fight outcomes

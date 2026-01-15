@@ -211,7 +211,7 @@ The system is designed to be provider-agnostic. For MVP, admins control round st
 
 ```typescript
 interface RoundStateProvider {
-  source: 'SPORTRADAR' | 'SPORTSDATA_IO' | 'ESPN' | 'CUSTOM';
+  source: 'SPORTRADAR' | 'ESPN' | 'CUSTOM';
 
   // Subscribe to round state updates
   subscribe(
@@ -259,7 +259,6 @@ The `bouts` table has `ufcstats_fight_id` for external mapping. Add similar fiel
 
 ```sql
 ALTER TABLE bouts ADD COLUMN sportradar_id TEXT;
-ALTER TABLE bouts ADD COLUMN sportsdata_id TEXT;
 ```
 
 #### 3. Update Source Tracking
@@ -292,7 +291,6 @@ Admin controls remain active even with provider integration, allowing manual cor
 | Provider | Coverage | Real-time | Notes |
 |----------|----------|-----------|-------|
 | Sportradar | UFC, Bellator | Yes | Official UFC partner |
-| SportsData.io | UFC | Yes | Good API, reasonable cost |
 | ESPN API | UFC | Limited | May require scraping |
 
 ---
@@ -461,7 +459,7 @@ Admin can force transition using Fight Ops panel. Check `round_state_log` for hi
 ## Future Enhancements
 
 - [ ] WebSocket/Realtime for instant updates
-- [ ] Provider integration (Sportradar, SportsData.io)
+- [ ] Provider integration (Sportradar)
 - [ ] Historical scorecard viewing
 - [ ] Scorecard sharing/export
 - [ ] Prediction accuracy tracking

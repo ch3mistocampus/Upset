@@ -1,6 +1,6 @@
 /**
  * Data Provider Types
- * Abstraction layer for switching between data sources (UFCStats scraper, MMA API, etc.)
+ * Abstraction layer for UFC data sources
  */
 
 // ============================================================================
@@ -8,7 +8,7 @@
 // ============================================================================
 
 export interface EventData {
-  externalId: string;          // Source-specific ID (ufcstats_event_id or espn_event_id)
+  externalId: string;          // Source-specific ID (ufcstats_event_id)
   name: string;
   date: Date | null;
   location: string | null;
@@ -76,7 +76,7 @@ export interface DataProvider {
   name: string;
 
   /** ID type used by this provider */
-  idType: 'ufcstats' | 'espn';
+  idType: 'ufcstats';
 
   /** Check provider health/connectivity */
   healthCheck(): Promise<HealthStatus>;
@@ -107,7 +107,7 @@ export interface DataProvider {
 // Provider Configuration
 // ============================================================================
 
-export type DataProviderType = 'ufcstats' | 'mma-api';
+export type DataProviderType = 'ufcstats';
 
 export interface ProviderConfig {
   type: DataProviderType;

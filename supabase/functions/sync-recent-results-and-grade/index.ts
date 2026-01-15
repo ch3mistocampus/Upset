@@ -1,16 +1,13 @@
 /**
  * sync-recent-results-and-grade Edge Function
  * Syncs fight results and grades user picks
- * Supports both UFCStats and MMA API data sources
- * Uses smart caching to minimize API calls
+ * Uses UFCStats data source with smart caching
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { createMMAApiProvider } from "../_shared/mma-api-provider.ts";
 import { createUFCStatsProvider } from "../_shared/ufcstats-provider.ts";
 import { createLogger } from "../_shared/logger.ts";
-import type { DataProvider, DataProviderType } from "../_shared/data-provider-types.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -48,31 +45,10 @@ serve(async (req) => {
       }
     }
 
-    // Get data source settings
-    const { data: settings } = await supabase.rpc('get_data_source_settings');
-    const dataSource: DataProviderType = settings?.primary_data_source || 'ufcstats';
+    logger.info("Using data source: UFCStats");
 
-    logger.info(`Using data source: ${dataSource}`);
-
-    // Create usage tracker for MMA API
-    const trackUsage = async (endpoint: string, count: number) => {
-      await supabase.rpc('track_api_usage', {
-        p_provider: 'mma-api',
-        p_endpoint: endpoint,
-        p_count: count,
-      });
-    };
-
-    // Create provider based on settings
-    let provider: DataProvider;
-    if (dataSource === 'mma-api') {
-      provider = createMMAApiProvider({
-        apiKey: Deno.env.get("MMA_API_KEY"),
-        usageTracker: trackUsage,
-      });
-    } else {
-      provider = createUFCStatsProvider();
-    }
+    // Create UFCStats provider
+    const provider = createUFCStatsProvider();
 
     let eventsToProcess: any[];
 
@@ -132,9 +108,6 @@ serve(async (req) => {
     const errors: any[] = [];
     const affectedUsers = new Set<string>();
 
-    // Determine which ID field to use based on provider
-    const fightIdField = provider.idType === 'espn' ? 'espn_fight_id' : 'ufcstats_fight_id';
-
     for (const event of eventsToProcess) {
       logger.info("Processing event", { name: event.name, id: event.id });
 
@@ -159,11 +132,11 @@ serve(async (req) => {
         // Process each bout
         for (const bout of bouts) {
           try {
-            // Get the external fight ID based on provider
-            const fightExternalId = bout[fightIdField];
+            // Get the UFCStats fight ID
+            const fightExternalId = bout.ufcstats_fight_id;
 
             if (!fightExternalId) {
-              logger.debug("Bout missing external ID, skipping", {
+              logger.debug("Bout missing UFCStats ID, skipping", {
                 boutId: bout.id,
                 redName: bout.red_name,
                 blueName: bout.blue_name,

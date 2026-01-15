@@ -20,24 +20,7 @@
 
 ### Data Source Compliance
 - [x] Document data source status - see `legal/DATA_SOURCE_COMPLIANCE.md`
-- [x] MMA API integration scripts ready (RapidAPI)
-- [x] **SportsData.io API Investigation** - COMPLETED 2026-01-13
-  - Feasibility report: `docs/sportsdata-api-report.md`
-  - API integration code: `mobile/lib/sportsdata/`
-  - Trial key tested - requires paid subscription for full access
-  - **Missing data**: Career stats (SLpM, str_acc, etc.), stance, rankings
-  - **Recommendation**: Use SportsData.io for events + keep UFCStats for fighter stats
-- [x] **SportsData.io Database Integration** - COMPLETED 2026-01-14
-  - Database tables: `supabase/migrations/20260114000001_add_sportsdata_tables.sql`
-  - Edge Functions:
-    - `sync-sportsdata` - Syncs events, fighters, fights from API
-    - `map-fighter-ids` - Auto-maps SportsData IDs to UFCStats IDs
-  - Tables created: `sportsdata_events`, `sportsdata_fighters`, `sportsdata_fights`, etc.
-  - ID mapping tables: `fighter_id_mappings`, `event_id_mappings`
-- [ ] Contact SportsData.io sales for pricing (sales@sportsdata.io)
-- [ ] Set `SPORTSDATA_API_KEY` in Supabase secrets
-- [ ] Run initial data sync: `POST /sync-sportsdata`
-- [ ] Run fighter ID mapping: `POST /map-fighter-ids`
+- [x] UFCStats.com data pipeline working (sync-events, sync-results)
 - [ ] Document data source in App Store review notes
 
 ### Android OAuth
@@ -124,16 +107,15 @@ eas build --platform android --profile production
 
 ## Known Bugs
 
-| Priority | Bug | Details |
-|----------|-----|---------|
-| P0 | Event scraper not fetching real data | Shows test data, scraper needs to pull from UFCStats |
-| P1 | Fighter selection UI | Needs visual highlight/animation when selecting |
-| P2 | Users without profiles | 2 users in auth.users lack profiles - need onboarding fix |
+No known bugs remaining.
 
 ### Fixed Bugs
 - [x] **Picks not saving to database** - Verified working. 835 picks exist. RLS policies correct.
 - [x] **Friends tab database errors** - All social functions already use `correct_winner` correctly.
 - [x] **Migration timestamp conflict** - Renamed duplicate `20260110000001` files.
+- [x] **Event scraper not fetching real data** - Verified working. 765 events, 126 bouts synced from UFCStats.
+- [x] **Fighter selection UI** - Added smooth animations: color transitions, checkmark bounce, pulse effect, haptic feedback.
+- [x] **Users without profiles** - Added database trigger to auto-create placeholder profiles on signup. Prevents orphaned users.
 
 ---
 
@@ -157,9 +139,6 @@ eas build --platform android --profile production
 
 ### Global Scorecard Feature
 - [ ] WebSocket/Realtime for instant updates
-- [x] Provider integration research (SportsData.io) - see `docs/sportsdata-api-report.md`
-  - Live fight data available with 10-second refresh (paid tier)
-  - Fantasy points and round-by-round win tracking included
 - [ ] Historical scorecard viewing
 - [ ] Scorecard sharing/export
 - [ ] Round-by-round predictions before scoring opens
@@ -183,11 +162,6 @@ eas build --platform android --profile production
 - [x] 39 unit tests passing
 - [x] GitHub Actions CI configured
 - [x] Structured logging in Edge Functions
-- [x] **SportsData.io API investigation** (2026-01-13)
-  - Full feasibility report with data comparison
-  - TypeScript API client with typed responses
-  - React Query hooks for data fetching
-  - Schema mappers for database integration
 
 ---
 
@@ -219,16 +193,17 @@ eas build --platform android --profile production
 
 | Category | Count | Status |
 |----------|-------|--------|
-| Critical (Blocking) | 5 remaining | API investigation done |
+| Critical (Blocking) | 3 remaining | Data source decided |
 | High Priority | 6 | Partial (migration fix done) |
 | Medium Priority | 12 | Not started |
 | Low Priority | 6 | Not started |
-| Known Bugs | 2 remaining | 3 fixed |
-| Future Features | 17 | Backlog |
+| Known Bugs | 0 remaining | 6 fixed |
+| Future Features | 15 | Backlog |
 
-**Biggest blockers**: API subscription decision, hosting legal pages, Android OAuth
+**Biggest blockers**: Hosting legal pages, Android OAuth
 
-**Recent Progress (2026-01-13)**:
-- SportsData.io API fully investigated and documented
-- API integration code ready at `mobile/lib/sportsdata/`
-- Next step: Contact sales for pricing, decide on hybrid approach
+**Recent Progress (2026-01-14)**:
+- Simplified to UFCStats.com only data source
+- Removed SportsData.io integration
+- Fixed fighter selection UI animations (P1)
+- Added auto-profile trigger to prevent orphaned users (P2)

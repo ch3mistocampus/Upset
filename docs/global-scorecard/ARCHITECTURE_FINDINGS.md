@@ -264,7 +264,7 @@ Create `/mobile/types/scorecard.ts` for:
 ```typescript
 // Provider interface for future integration
 interface RoundStateProvider {
-  source: 'MANUAL' | 'SPORTRADAR' | 'SPORTSDATA_IO' | 'ESPN';
+  source: 'MANUAL' | 'SPORTRADAR' | 'ESPN';
   startRound(fightId: string, round: number): Promise<void>;
   endRound(fightId: string, round: number): Promise<void>;
   endFight(fightId: string): Promise<void>;

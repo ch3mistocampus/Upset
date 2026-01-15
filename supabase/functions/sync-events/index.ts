@@ -1,17 +1,14 @@
 /**
  * sync-events Edge Function
- * Syncs UFC events from configured data source (UFCStats or MMA API)
- * Respects cache settings to minimize API calls
+ * Syncs UFC events from UFCStats.com
+ * Respects cache settings to minimize requests
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { createProvider } from "../_shared/data-provider-factory.ts";
-import { createMMAApiProvider } from "../_shared/mma-api-provider.ts";
 import { createUFCStatsProvider } from "../_shared/ufcstats-provider.ts";
-import { healthCheck as scraperHealthCheck, parseUFCStatsDate } from "../_shared/ufcstats-scraper.ts";
+import { healthCheck as scraperHealthCheck } from "../_shared/ufcstats-scraper.ts";
 import { createLogger } from "../_shared/logger.ts";
-import type { DataProvider, DataProviderType } from "../_shared/data-provider-types.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -58,31 +55,10 @@ serve(async (req) => {
       }
     }
 
-    // Get data source settings
-    const { data: settings } = await supabase.rpc('get_data_source_settings');
-    const dataSource: DataProviderType = settings?.primary_data_source || 'ufcstats';
+    logger.info("Using data source: UFCStats");
 
-    logger.info(`Using data source: ${dataSource}`);
-
-    // Create usage tracker for MMA API
-    const trackUsage = async (endpoint: string, count: number) => {
-      await supabase.rpc('track_api_usage', {
-        p_provider: 'mma-api',
-        p_endpoint: endpoint,
-        p_count: count,
-      });
-    };
-
-    // Create provider based on settings
-    let provider: DataProvider;
-    if (dataSource === 'mma-api') {
-      provider = createMMAApiProvider({
-        apiKey: Deno.env.get("MMA_API_KEY"),
-        usageTracker: trackUsage,
-      });
-    } else {
-      provider = createUFCStatsProvider();
-    }
+    // Create UFCStats provider
+    const provider = createUFCStatsProvider();
 
     // Run health check first
     logger.info("Running provider health check");
@@ -146,9 +122,6 @@ serve(async (req) => {
     let updated = 0;
     const errors: any[] = [];
 
-    // Determine which ID field to use based on provider
-    const idField = dataSource === 'mma-api' ? 'espn_event_id' : 'ufcstats_event_id';
-
     for (const event of events) {
       try {
         if (!event.date) {
@@ -156,11 +129,11 @@ serve(async (req) => {
           continue;
         }
 
-        // Check if event exists by external ID
+        // Check if event exists by ufcstats_event_id
         const { data: existing } = await supabase
           .from("events")
           .select("id")
-          .eq(idField, event.externalId)
+          .eq('ufcstats_event_id', event.externalId)
           .single();
 
         if (existing) {
@@ -174,24 +147,22 @@ serve(async (req) => {
               status: event.status,
               last_synced_at: new Date().toISOString(),
             })
-            .eq(idField, event.externalId);
+            .eq('ufcstats_event_id', event.externalId);
 
           if (error) throw error;
           updated++;
         } else {
           // Insert new event
-          const insertData: any = {
-            name: event.name,
-            event_date: event.date.toISOString(),
-            location: event.location,
-            status: event.status,
-            last_synced_at: new Date().toISOString(),
-          };
-          insertData[idField] = event.externalId;
-
           const { error } = await supabase
             .from("events")
-            .insert(insertData);
+            .insert({
+              name: event.name,
+              event_date: event.date.toISOString(),
+              location: event.location,
+              status: event.status,
+              last_synced_at: new Date().toISOString(),
+              ufcstats_event_id: event.externalId,
+            });
 
           if (error) throw error;
           inserted++;

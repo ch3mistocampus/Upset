@@ -15,6 +15,7 @@ import {
   Easing,
   Image,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,6 +32,32 @@ import { AuthPromptModal } from '../../components/AuthPromptModal';
 import type { LeaderboardEntry } from '../../types/social';
 
 const MIN_GRADED_PICKS = 10;
+
+// Generate a consistent gradient color pair based on username
+function getAvatarGradient(username: string): [string, string] {
+  // Generate a hash from the username for consistent colors
+  let hash = 0;
+  for (let i = 0; i < username.length; i++) {
+    hash = username.charCodeAt(i) + ((hash << 5) - hash);
+  }
+
+  // Theme-aligned gradient pairs (reds, dark neutrals, muted tones)
+  const gradients: [string, string][] = [
+    ['#DC2626', '#7F1D1D'], // Primary red
+    ['#EF4444', '#991B1B'], // Bright red
+    ['#B91C1C', '#450A0A'], // Deep red
+    ['#F87171', '#B91C1C'], // Light red
+    ['#4B5563', '#1F2937'], // Cool gray
+    ['#6B7280', '#374151'], // Neutral gray
+    ['#78716C', '#44403C'], // Warm gray
+    ['#9CA3AF', '#4B5563'], // Silver gray
+    ['#A3A3A3', '#525252'], // Stone gray
+    ['#737373', '#262626'], // Dark neutral
+  ];
+
+  const index = Math.abs(hash) % gradients.length;
+  return gradients[index];
+}
 
 // Animated wrapper for entrance animations
 function AnimatedItem({ children, index, delay = 60 }: { children: React.ReactNode; index: number; delay?: number }) {
@@ -73,25 +100,28 @@ function AnimatedItem({ children, index, delay = 60 }: { children: React.ReactNo
 // Podium position component for top 3
 interface PodiumPositionProps {
   entry: LeaderboardEntry;
-  position: 1 | 2 | 3;
+  visualPosition: 1 | 2 | 3; // Visual position: 1=center (biggest), 2=left, 3=right
   onPress: (userId: string) => void;
   isMe: boolean;
   colors: ReturnType<typeof useTheme>['colors'];
 }
 
-function PodiumPosition({ entry, position, onPress, isMe, colors }: PodiumPositionProps) {
-  const isFirst = position === 1;
-  const avatarSize = isFirst ? 100 : 72;
-  const badgeSize = isFirst ? 28 : 24;
+function PodiumPosition({ entry, visualPosition, onPress, isMe, colors }: PodiumPositionProps) {
+  // Visual position determines styling (center is biggest)
+  const isCenter = visualPosition === 1;
+  const avatarSize = isCenter ? 100 : 72;
+  const badgeSize = isCenter ? 28 : 24;
+  // Actual rank from data (for badge display)
+  const displayRank = entry.rank;
 
   return (
     <TouchableOpacity
-      style={[styles.podiumPosition, isFirst && styles.podiumFirst]}
+      style={[styles.podiumPosition, isCenter && styles.podiumFirst]}
       onPress={() => onPress(entry.user_id)}
       activeOpacity={0.8}
     >
-      {/* Crown for #1 */}
-      {isFirst && (
+      {/* Crown for center position (rank 1) */}
+      {isCenter && (
         <View style={styles.crownContainer}>
           <Ionicons name="diamond" size={28} color={colors.accent} />
         </View>
@@ -104,9 +134,9 @@ function PodiumPosition({ entry, position, onPress, isMe, colors }: PodiumPositi
           {
             width: avatarSize,
             height: avatarSize,
-            borderRadius: isFirst ? 24 : 18,
+            borderRadius: isCenter ? 24 : 18,
             borderColor: colors.accent,
-            borderWidth: isFirst ? 4 : 3,
+            borderWidth: isCenter ? 4 : 3,
           },
         ]}
       >
@@ -114,35 +144,37 @@ function PodiumPosition({ entry, position, onPress, isMe, colors }: PodiumPositi
           <Image
             source={{ uri: entry.avatar_url }}
             style={{
-              width: avatarSize - (isFirst ? 8 : 6),
-              height: avatarSize - (isFirst ? 8 : 6),
-              borderRadius: isFirst ? 20 : 14,
+              width: avatarSize - (isCenter ? 8 : 6),
+              height: avatarSize - (isCenter ? 8 : 6),
+              borderRadius: isCenter ? 20 : 14,
             }}
           />
         ) : (
-          <View
+          <LinearGradient
+            colors={getAvatarGradient(entry.username)}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
             style={[
               styles.podiumAvatarPlaceholder,
               {
-                width: avatarSize - (isFirst ? 8 : 6),
-                height: avatarSize - (isFirst ? 8 : 6),
-                borderRadius: isFirst ? 20 : 14,
-                backgroundColor: colors.surfaceAlt,
+                width: avatarSize - (isCenter ? 8 : 6),
+                height: avatarSize - (isCenter ? 8 : 6),
+                borderRadius: isCenter ? 20 : 14,
               },
             ]}
           >
             <Text
               style={[
                 styles.podiumAvatarText,
-                { color: colors.text, fontSize: isFirst ? 36 : 28 },
+                { color: '#fff', fontSize: isCenter ? 36 : 28 },
               ]}
             >
               {entry.username.charAt(0).toUpperCase()}
             </Text>
-          </View>
+          </LinearGradient>
         )}
 
-        {/* Rank badge */}
+        {/* Rank badge - shows actual rank from data */}
         <View
           style={[
             styles.podiumRankBadge,
@@ -151,11 +183,12 @@ function PodiumPosition({ entry, position, onPress, isMe, colors }: PodiumPositi
               height: badgeSize,
               borderRadius: badgeSize / 2,
               backgroundColor: colors.accent,
+              bottom: isCenter ? -14 : -12,
             },
           ]}
         >
-          <Text style={[styles.podiumRankText, { fontSize: isFirst ? 14 : 12 }]}>
-            {position}
+          <Text style={[styles.podiumRankText, { fontSize: isCenter ? 14 : 12 }]}>
+            {displayRank}
           </Text>
         </View>
       </View>
@@ -298,12 +331,23 @@ export default function Leaderboards() {
           {/* Avatar */}
           {entry.avatar_url ? (
             <Image source={{ uri: entry.avatar_url }} style={styles.listAvatar} />
-          ) : (
-            <View style={[styles.listAvatarPlaceholder, { backgroundColor: isMe ? 'rgba(255,255,255,0.2)' : colors.surfaceAlt }]}>
-              <Text style={[styles.listAvatarText, { color: isMe ? '#fff' : colors.text }]}>
+          ) : isMe ? (
+            <View style={[styles.listAvatarPlaceholder, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+              <Text style={[styles.listAvatarText, { color: '#fff' }]}>
                 {entry.username.charAt(0).toUpperCase()}
               </Text>
             </View>
+          ) : (
+            <LinearGradient
+              colors={getAvatarGradient(entry.username)}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.listAvatarPlaceholder}
+            >
+              <Text style={[styles.listAvatarText, { color: '#fff' }]}>
+                {entry.username.charAt(0).toUpperCase()}
+              </Text>
+            </LinearGradient>
           )}
 
           {/* Name */}
@@ -368,12 +412,14 @@ export default function Leaderboards() {
                 <View style={styles.podiumContainer}>
                   {podiumOrder.map((entry, idx) => {
                     if (!entry) return null;
-                    const position = entry.rank as 1 | 2 | 3;
+                    // Visual positions in podiumOrder: [0]=left (2nd), [1]=center (1st), [2]=right (3rd)
+                    const visualPositionMap: Record<number, 1 | 2 | 3> = { 0: 2, 1: 1, 2: 3 };
+                    const visualPosition = visualPositionMap[idx];
                     return (
                       <PodiumPosition
                         key={entry.user_id}
                         entry={entry}
-                        position={position}
+                        visualPosition={visualPosition}
                         onPress={handleUserPress}
                         isMe={entry.user_id === user?.id}
                         colors={colors}
