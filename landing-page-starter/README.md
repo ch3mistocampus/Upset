@@ -21,12 +21,14 @@ Then copy the files from this folder into your new project.
 
 ## Environment Variables
 
-Create `.env.local`:
+Create `.env.local` with your Supabase credentials:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://qcvsioaokjjqjhxxxvbm.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjdnNpb2Fva2pqcWpoeHh4dmJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjcwNTA3ODIsImV4cCI6MjA4MjYyNjc4Mn0.yMn5ufxtg0stbfhtoKg7AOI5bHcEXpU7Eh4jrGQHS9M
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
+
+Get these from: https://supabase.com/dashboard/project/_/settings/api
 
 ## File Structure
 

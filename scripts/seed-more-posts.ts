@@ -3,8 +3,14 @@
  * Creates posts from alice's friends and other users
  */
 
-const SUPABASE_URL = 'https://qcvsioaokjjqjhxxxvbm.supabase.co';
-const SUPABASE_SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjdnNpb2Fva2pqcWpoeHh4dmJtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NzA1MDc4MiwiZXhwIjoyMDgyNjI2NzgyfQ.e40pOpVjmg5H9xQbUsLVPWHMtklWcpam6zOwF8MDdxA';
+// Load from environment variables - NEVER commit secrets
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables');
+  process.exit(1);
+}
 
 // User IDs
 const users = {
