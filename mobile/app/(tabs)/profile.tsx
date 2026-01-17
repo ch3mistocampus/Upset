@@ -348,7 +348,8 @@ export default function Profile() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       const ext = uri.split('.').pop()?.toLowerCase() || 'jpg';
-      const fileName = `avatar-${user.id}-${Date.now()}.${ext}`;
+      // Use post-images bucket with user folder for proper RLS
+      const fileName = `${user.id}/avatar-${Date.now()}.${ext}`;
 
       // Read file as base64 and decode for React Native compatibility
       const base64 = await FileSystem.readAsStringAsync(uri, {
@@ -357,7 +358,7 @@ export default function Profile() {
       const arrayBuffer = decode(base64);
 
       const { error: uploadError } = await supabase.storage
-        .from('avatars')
+        .from('post-images')
         .upload(fileName, arrayBuffer, {
           contentType: `image/${ext}`,
           upsert: true,
@@ -366,7 +367,7 @@ export default function Profile() {
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
+        .from('post-images')
         .getPublicUrl(fileName);
 
       await updateProfile({ avatar_url: publicUrl });
@@ -390,7 +391,8 @@ export default function Profile() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       const ext = uri.split('.').pop()?.toLowerCase() || 'jpg';
-      const fileName = `banner-${user.id}-${Date.now()}.${ext}`;
+      // Use post-images bucket with user folder for proper RLS
+      const fileName = `${user.id}/banner-${Date.now()}.${ext}`;
 
       // Read file as base64 and decode for React Native compatibility
       const base64 = await FileSystem.readAsStringAsync(uri, {
@@ -399,7 +401,7 @@ export default function Profile() {
       const arrayBuffer = decode(base64);
 
       const { error: uploadError } = await supabase.storage
-        .from('avatars')
+        .from('post-images')
         .upload(fileName, arrayBuffer, {
           contentType: `image/${ext}`,
           upsert: true,
@@ -408,7 +410,7 @@ export default function Profile() {
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
+        .from('post-images')
         .getPublicUrl(fileName);
 
       await updateProfile({ banner_url: publicUrl });

@@ -308,14 +308,15 @@ export default function UserProfile() {
     try {
       setUploadingAvatar(true);
       const ext = uri.split('.').pop()?.toLowerCase() || 'jpg';
-      const fileName = `avatar-${user.id}-${Date.now()}.${ext}`;
+      // Use post-images bucket with user folder for proper RLS
+      const fileName = `${user.id}/avatar-${Date.now()}.${ext}`;
       const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
       const arrayBuffer = decode(base64);
 
-      const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, arrayBuffer, { contentType: `image/${ext}`, upsert: true });
+      const { error: uploadError } = await supabase.storage.from('post-images').upload(fileName, arrayBuffer, { contentType: `image/${ext}`, upsert: true });
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
+      const { data: { publicUrl } } = supabase.storage.from('post-images').getPublicUrl(fileName);
       await authUpdateProfile({ avatar_url: publicUrl });
       setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : null);
       toast.showNeutral('Photo updated');
@@ -331,14 +332,15 @@ export default function UserProfile() {
     try {
       setUploadingBanner(true);
       const ext = uri.split('.').pop()?.toLowerCase() || 'jpg';
-      const fileName = `banner-${user.id}-${Date.now()}.${ext}`;
+      // Use post-images bucket with user folder for proper RLS
+      const fileName = `${user.id}/banner-${Date.now()}.${ext}`;
       const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
       const arrayBuffer = decode(base64);
 
-      const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, arrayBuffer, { contentType: `image/${ext}`, upsert: true });
+      const { error: uploadError } = await supabase.storage.from('post-images').upload(fileName, arrayBuffer, { contentType: `image/${ext}`, upsert: true });
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
+      const { data: { publicUrl } } = supabase.storage.from('post-images').getPublicUrl(fileName);
       await authUpdateProfile({ banner_url: publicUrl });
       setProfile(prev => prev ? { ...prev, banner_url: publicUrl } : null);
       toast.showNeutral('Banner updated');
