@@ -4,7 +4,8 @@
  * Get user suggestions based on:
  * - Mutual follows (friends of friends)
  * - Top predictors by accuracy
- * - Popular users
+ * - Recently joined users (new members in last 30 days)
+ * - Popular users (fallback for new users with no network)
  */
 
 import { useQuery } from '@tanstack/react-query';
@@ -23,7 +24,7 @@ export interface UserSuggestion {
   accuracy_pct: number;
   total_picks: number;
   mutual_follows: number;
-  reason: 'mutual_follows' | 'top_predictor' | 'popular';
+  reason: 'mutual_follows' | 'top_predictor' | 'recently_joined' | 'popular';
 }
 
 /**
@@ -58,6 +59,8 @@ export function getSuggestionReasonText(suggestion: UserSuggestion): string {
         : `${suggestion.mutual_follows} mutual follows`;
     case 'top_predictor':
       return `${suggestion.accuracy_pct.toFixed(0)}% accuracy`;
+    case 'recently_joined':
+      return 'New member';
     case 'popular':
       return 'Popular predictor';
     default:

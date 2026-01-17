@@ -36,7 +36,6 @@ import {
 } from '../../hooks/useFeed';
 import { useFriends } from '../../hooks/useFriends';
 import { useLike } from '../../hooks/useLikes';
-import { useUserSuggestions, getSuggestionReasonText, UserSuggestion } from '../../hooks/useSuggestions';
 import { usePostsFeed, useFollowingPostsFeed } from '../../hooks/usePosts';
 import { useAuth } from '../../hooks/useAuth';
 import { FeedPostRow } from '../../components/posts';
@@ -64,7 +63,6 @@ export default function DiscoverScreen() {
   const discoverPosts = usePostsFeed(feedSort);
   const followingPosts = useFollowingPostsFeed(user?.id ?? null);
   const { data: trendingUsers, refetch: refetchTrending } = useTrendingUsers();
-  const { data: suggestions } = useUserSuggestions(5);
   const { follow, followLoading } = useFriends();
   const { toggleLike, isToggling } = useLike();
 
@@ -235,37 +233,6 @@ export default function DiscoverScreen() {
     </TouchableOpacity>
   );
 
-  const renderSuggestion = ({ item }: { item: UserSuggestion }) => (
-    <TouchableOpacity
-      style={[styles.suggestionCard, { backgroundColor: colors.surface }]}
-      onPress={() => handleUserPress(item.user_id)}
-      activeOpacity={0.7}
-    >
-      {item.avatar_url ? (
-        <Image source={{ uri: item.avatar_url }} style={styles.suggestionAvatar} />
-      ) : (
-        <View style={[styles.suggestionAvatarPlaceholder, { backgroundColor: colors.border }]}>
-          <Ionicons name="person" size={20} color={colors.textSecondary} />
-        </View>
-      )}
-      <View style={styles.suggestionInfo}>
-        <Text style={[styles.suggestionUsername, { color: colors.text }]} numberOfLines={1}>
-          @{item.username}
-        </Text>
-        <Text style={[styles.suggestionReason, { color: colors.textSecondary }]} numberOfLines={1}>
-          {getSuggestionReasonText(item)}
-        </Text>
-      </View>
-      <TouchableOpacity
-        style={[styles.suggestionFollowButton, { backgroundColor: colors.accent }]}
-        onPress={() => handleFollow(item.user_id)}
-        disabled={followLoading}
-      >
-        <Ionicons name="add" size={18} color="#fff" />
-      </TouchableOpacity>
-    </TouchableOpacity>
-  );
-
   const renderTrendingUser = ({ item }: { item: TrendingUser }) => (
     <TouchableOpacity
       style={[styles.trendingCard, { backgroundColor: colors.surface }]}
@@ -376,22 +343,6 @@ export default function DiscoverScreen() {
         </View>
       )}
 
-      {/* User Suggestions Section */}
-      {activeTab === 'following' && suggestions && suggestions.length > 0 && (
-        <View style={styles.suggestionsSection}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            👋 People You May Know
-          </Text>
-          <FlatList
-            data={suggestions}
-            renderItem={renderSuggestion}
-            keyExtractor={(item) => item.user_id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.suggestionsList}
-          />
-        </View>
-      )}
 
     </View>
   );
@@ -724,53 +675,6 @@ const styles = StyleSheet.create({
     paddingRight: spacing.md,
   },
 
-  // Suggestions Section
-  suggestionsSection: {
-    marginBottom: spacing.md,
-  },
-  suggestionsList: {
-    paddingRight: spacing.md,
-  },
-  suggestionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.sm,
-    borderRadius: radius.card,
-    marginRight: spacing.sm,
-    minWidth: 200,
-  },
-  suggestionAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  suggestionAvatarPlaceholder: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  suggestionInfo: {
-    flex: 1,
-    marginLeft: spacing.sm,
-    marginRight: spacing.sm,
-  },
-  suggestionUsername: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.semibold as '600',
-  },
-  suggestionReason: {
-    fontSize: typography.sizes.xs,
-    marginTop: 2,
-  },
-  suggestionFollowButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   trendingCard: {
     width: 120,
     padding: spacing.md,

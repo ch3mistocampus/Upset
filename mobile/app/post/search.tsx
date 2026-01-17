@@ -26,6 +26,7 @@ import { FeedPostRow, PostErrorBoundary } from '../../components/posts';
 import { EmptyState } from '../../components/EmptyState';
 import { Post } from '../../types/posts';
 import { useFriends } from '../../hooks/useFriends';
+import { useUserSuggestions, getSuggestionReasonText, UserSuggestion } from '../../hooks/useSuggestions';
 import { UserSearchResult } from '../../types/social';
 
 const SORT_OPTIONS: { value: SearchSortBy; label: string }[] = [
@@ -40,6 +41,7 @@ export default function SearchScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const { searchUsers, follow, followLoading } = useFriends();
+  const { data: suggestions } = useUserSuggestions(10);
 
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -164,10 +166,44 @@ export default function SearchScreen() {
     [colors, followLoading]
   );
 
+  const renderSuggestion = useCallback(
+    ({ item }: { item: UserSuggestion }) => (
+      <TouchableOpacity
+        style={[styles.userCard, { backgroundColor: colors.surface }]}
+        onPress={() => handleUserPress(item.user_id)}
+        activeOpacity={0.7}
+      >
+        {item.avatar_url ? (
+          <Image source={{ uri: item.avatar_url }} style={styles.userAvatar} />
+        ) : (
+          <View style={[styles.userAvatarPlaceholder, { backgroundColor: colors.border }]}>
+            <Ionicons name="person" size={24} color={colors.textSecondary} />
+          </View>
+        )}
+        <View style={styles.userInfo}>
+          <Text style={[styles.userName, { color: colors.text }]} numberOfLines={1}>
+            @{item.username}
+          </Text>
+          <Text style={[styles.userStats, { color: colors.textSecondary }]}>
+            {getSuggestionReasonText(item)}
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={[styles.followButton, { backgroundColor: colors.accent }]}
+          onPress={() => handleFollow(item.user_id)}
+          disabled={followLoading}
+        >
+          <Text style={styles.followButtonText}>Follow</Text>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    ),
+    [colors, followLoading]
+  );
+
   const renderTrendingPost = useCallback(
     ({ item }: { item: Post }) => (
       <TouchableOpacity
-        style={[styles.trendingCard, { backgroundColor: colors.card }]}
+        style={[styles.trendingCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           router.push(`/post/${item.id}`);
@@ -178,11 +214,8 @@ export default function SearchScreen() {
           {item.title}
         </Text>
         <View style={styles.trendingMeta}>
-          <Text style={[styles.trendingStats, { color: colors.textSecondary }]}>
-            {item.like_count} likes
-          </Text>
           <Text style={[styles.trendingStats, { color: colors.textTertiary }]}>
-            {item.comment_count} comments
+            {item.like_count} likes · {item.comment_count} replies
           </Text>
         </View>
       </TouchableOpacity>
@@ -191,7 +224,8 @@ export default function SearchScreen() {
   );
 
   const renderHeader = useCallback(() => {
-    if (isSearching) return null;
+    // Only show trending/suggestions on Posts tab when not searching
+    if (isSearching || searchTab !== 'posts') return null;
 
     return (
       <View style={styles.headerContent}>
@@ -211,34 +245,13 @@ export default function SearchScreen() {
             />
           </View>
         )}
-
-        {/* Search suggestions */}
-        <View style={styles.suggestionsSection}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Search suggestions
-          </Text>
-          <View style={styles.suggestions}>
-            {['UFC', 'predictions', 'analysis', 'picks', 'event'].map((suggestion) => (
-              <TouchableOpacity
-                key={suggestion}
-                style={[styles.suggestionChip, { backgroundColor: colors.surfaceAlt }]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setQuery(suggestion);
-                }}
-              >
-                <Text style={[styles.suggestionText, { color: colors.textSecondary }]}>
-                  {suggestion}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
       </View>
     );
-  }, [isSearching, trending, colors, renderTrendingPost]);
+  }, [isSearching, searchTab, trending, colors, renderTrendingPost]);
 
   const renderEmpty = useCallback(() => {
+    // Don't show empty state when not searching (suggestions will show instead on People tab)
+    if (!isSearching && searchTab === 'people') return null;
     if (!isSearching) return null;
 
     const isLoading = searchTab === 'posts' ? searchResults.isLoading : usersLoading;
@@ -318,9 +331,8 @@ export default function SearchScreen() {
         </View>
       </View>
 
-      {/* Tab Selector */}
-      {isSearching && (
-        <View style={[styles.tabContainer, { borderBottomColor: colors.border }]}>
+      {/* Tab Selector - Always visible so users can browse People suggestions */}
+      <View style={[styles.tabContainer, { borderBottomColor: colors.border }]}>
           <TouchableOpacity
             style={[
               styles.tab,
@@ -359,8 +371,7 @@ export default function SearchScreen() {
               People
             </Text>
           </TouchableOpacity>
-        </View>
-      )}
+      </View>
 
       {/* Sort Options (only when searching posts) */}
       {isSearching && searchTab === 'posts' && posts.length > 0 && (
@@ -410,11 +421,26 @@ export default function SearchScreen() {
           windowSize={7}
           initialNumToRender={8}
         />
-      ) : (
+      ) : isSearching ? (
         <FlatList
-          data={isSearching ? userResults : []}
+          data={userResults}
           renderItem={renderUser}
           keyExtractor={(item) => item.user_id}
+          ListEmptyComponent={renderEmpty}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        />
+      ) : (
+        <FlatList
+          data={suggestions || []}
+          renderItem={renderSuggestion}
+          keyExtractor={(item) => item.user_id}
+          ListHeaderComponent={suggestions && suggestions.length > 0 ? (
+            <Text style={[styles.suggestionsHeader, { color: colors.text }]}>
+              Suggested for you
+            </Text>
+          ) : null}
           ListEmptyComponent={renderEmpty}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
@@ -483,51 +509,38 @@ const styles = StyleSheet.create({
     marginLeft: spacing.md + 40 + spacing.sm, // Align with post content
   },
   headerContent: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
     marginBottom: spacing.md,
   },
   trendingSection: {
-    marginBottom: spacing.lg,
+    marginBottom: spacing.sm,
   },
   sectionTitle: {
     ...typography.h3,
     marginBottom: spacing.md,
   },
   trendingList: {
-    paddingRight: spacing.md,
+    gap: spacing.sm,
   },
   trendingCard: {
-    width: 200,
+    width: 160,
     padding: spacing.md,
     borderRadius: radius.card,
-    marginRight: spacing.sm,
+    borderWidth: 1,
   },
   trendingTitle: {
-    ...typography.body,
+    fontSize: typography.sizes.sm,
     fontWeight: '600',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
+    lineHeight: 18,
   },
   trendingMeta: {
     flexDirection: 'row',
-    gap: spacing.md,
-  },
-  trendingStats: {
-    ...typography.meta,
-  },
-  suggestionsSection: {
-    marginTop: spacing.md,
-  },
-  suggestions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
   },
-  suggestionChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.full,
-  },
-  suggestionText: {
-    ...typography.meta,
+  trendingStats: {
+    fontSize: typography.sizes.xs,
   },
   loadingContainer: {
     paddingVertical: spacing.xxl,
@@ -566,12 +579,21 @@ const styles = StyleSheet.create({
     borderRadius: radius.card,
     marginBottom: spacing.sm,
   },
+  userAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+  },
   userAvatarPlaceholder: {
     width: 48,
     height: 48,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  suggestionsHeader: {
+    ...typography.h3,
+    marginBottom: spacing.md,
   },
   userInfo: {
     flex: 1,

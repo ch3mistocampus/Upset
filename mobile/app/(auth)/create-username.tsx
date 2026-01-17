@@ -22,10 +22,13 @@ import { SurfaceCard, PrimaryCTA } from '../../components/ui';
 
 export default function CreateUsername() {
   const { colors } = useTheme();
-  const { createProfile } = useAuth();
+  const { profile, createProfile, updateProfile } = useAuth();
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Check if user has an existing profile with placeholder username
+  const hasPlaceholderProfile = profile?.username?.startsWith('user_');
 
   // Entrance animation
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -64,9 +67,21 @@ export default function CreateUsername() {
       return;
     }
 
+    // Don't allow usernames starting with "user_" (reserved for placeholders)
+    if (username.startsWith('user_')) {
+      Alert.alert('Error', 'Username cannot start with "user_"');
+      return;
+    }
+
     setLoading(true);
     try {
-      await createProfile(username);
+      if (hasPlaceholderProfile) {
+        // Update existing profile with new username
+        await updateProfile({ username });
+      } else {
+        // Create new profile
+        await createProfile(username);
+      }
       // Auth state change will trigger redirect in index.tsx
       router.replace('/(tabs)/home');
     } catch (error: any) {

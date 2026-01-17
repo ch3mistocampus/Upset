@@ -57,14 +57,7 @@ export function useSearchPosts(query: string, sortBy: SearchSortBy = 'relevance'
           // Build base query with ilike search on title and body
           let fallbackQuery = supabase
             .from('posts')
-            .select(`
-              *,
-              profiles:user_id (
-                username,
-                display_name,
-                avatar_url
-              )
-            `)
+            .select('*')
             .or(`title.ilike.%${searchTerm}%,body.ilike.%${searchTerm}%`)
             .eq('is_public', true)
             .range(pageParam, pageParam + 19);
@@ -91,9 +84,9 @@ export function useSearchPosts(query: string, sortBy: SearchSortBy = 'relevance'
           // Transform to match expected Post shape
           return (fallbackData || []).map((p: any) => ({
             ...p,
-            author_username: p.profiles?.username || null,
-            author_display_name: p.profiles?.display_name || null,
-            author_avatar_url: p.profiles?.avatar_url || null,
+            author_username: null,
+            author_display_name: null,
+            author_avatar_url: null,
             images: [],
             user_has_liked: false,
             user_has_bookmarked: false,

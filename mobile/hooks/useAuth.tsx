@@ -54,7 +54,7 @@ interface AuthContextValue {
   googleLoading: boolean;
   // Profile
   createProfile: (username: string) => Promise<Profile>;
-  updateProfile: (updates: { bio?: string | null; avatar_url?: string | null; banner_url?: string | null }) => Promise<Profile>;
+  updateProfile: (updates: { username?: string; bio?: string | null; avatar_url?: string | null; banner_url?: string | null }) => Promise<Profile>;
   signOut: () => Promise<void>;
   // Testing
   resetForTesting: () => Promise<void>;
@@ -299,7 +299,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return data;
   }, [user]);
 
-  const updateProfile = useCallback(async (updates: { bio?: string | null; avatar_url?: string | null; banner_url?: string | null }) => {
+  const updateProfile = useCallback(async (updates: { username?: string; bio?: string | null; avatar_url?: string | null; banner_url?: string | null }) => {
     if (!user) throw new Error('No user logged in');
 
     logger.breadcrumb('Updating profile', 'profile', { updates });
