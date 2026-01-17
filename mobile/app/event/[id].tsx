@@ -26,6 +26,7 @@ import { SkeletonFightCard } from '../../components/SkeletonFightCard';
 import { LockExplainerModal } from '../../components/LockExplainerModal';
 import { AuthPromptModal } from '../../components/AuthPromptModal';
 import { MethodPickerModal } from '../../components/MethodPickerModal';
+import { FighterComparisonModal } from '../../components/FighterComparisonModal';
 import { useEventLiveStatus } from '../../hooks/useScorecard';
 import { BoutWithPick, PickInsert } from '../../types/database';
 import type { CommunityPickPercentages } from '../../types/social';
@@ -287,6 +288,8 @@ export default function EventDetail() {
     bout: BoutWithPick;
     corner: 'red' | 'blue';
   } | null>(null);
+  const [showComparison, setShowComparison] = useState(false);
+  const [comparisonBout, setComparisonBout] = useState<BoutWithPick | null>(null);
   const submitModalScale = useRef(new Animated.Value(0.9)).current;
   const submitModalOpacity = useRef(new Animated.Value(0)).current;
 
@@ -548,6 +551,13 @@ export default function EventDetail() {
   // Navigate to fighter info page
   const handleFighterInfo = (fighterId: string) => {
     router.push(`/fighter/${fighterId}`);
+  };
+
+  // Open comparison modal for a bout
+  const handleOpenComparison = (bout: BoutWithPick) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setComparisonBout(bout);
+    setShowComparison(true);
   };
 
   // Custom header with back button and sticky progress
@@ -820,7 +830,7 @@ export default function EventDetail() {
             paddingSize="sm"
             style={styles.fightCard}
           >
-            {/* Order Index / Weight Class / Live Badge */}
+            {/* Order Index / Weight Class / Live Badge / Compare Button */}
             <View style={styles.fightHeader}>
               <View style={styles.fightHeaderLeft}>
                 <Text style={[styles.fightOrder, { color: colors.accent }]}>
@@ -835,11 +845,22 @@ export default function EventDetail() {
                   />
                 )}
               </View>
-              {bout.weight_class && (
-                <Text style={[styles.weightClass, { color: colors.textTertiary }]}>
-                  {bout.weight_class}
-                </Text>
-              )}
+              <View style={styles.fightHeaderRight}>
+                {bout.weight_class && (
+                  <Text style={[styles.weightClass, { color: colors.textTertiary }]}>
+                    {bout.weight_class}
+                  </Text>
+                )}
+                {bout.red_fighter_ufcstats_id && bout.blue_fighter_ufcstats_id && (
+                  <TouchableOpacity
+                    style={[styles.compareButton, { backgroundColor: colors.surfaceAlt }]}
+                    onPress={() => handleOpenComparison(bout)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="stats-chart-outline" size={14} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
 
             {/* Voided/Canceled Banner */}
@@ -1080,6 +1101,20 @@ export default function EventDetail() {
         currentRound={pendingPick?.bout.pick?.picked_round}
         scheduledRounds={pendingPick?.bout.scheduled_rounds}
         orderIndex={bouts?.findIndex(b => b.id === pendingPick?.bout.id)}
+      />
+
+      {/* Fighter Comparison Modal */}
+      <FighterComparisonModal
+        visible={showComparison}
+        onClose={() => {
+          setShowComparison(false);
+          setComparisonBout(null);
+        }}
+        redFighterId={comparisonBout?.red_fighter_ufcstats_id || ''}
+        blueFighterId={comparisonBout?.blue_fighter_ufcstats_id || ''}
+        redFighterName={comparisonBout?.red_name || ''}
+        blueFighterName={comparisonBout?.blue_name || ''}
+        weightClass={comparisonBout?.weight_class}
       />
 
       {/* Submit Button - Fixed above tab bar (only when not submitted) */}
@@ -1385,12 +1420,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
+  fightHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   fightOrder: {
     fontSize: 11,
     fontWeight: '600',
   },
   weightClass: {
     fontSize: 11,
+  },
+  compareButton: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scoreFightButton: {
     flexDirection: 'row',
