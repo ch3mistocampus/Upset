@@ -10,7 +10,7 @@ import { useTheme } from '../lib/theme';
 
 export default function Index() {
   const { colors } = useTheme();
-  const { user, profile, loading, isGuest, isFirstLaunch } = useAuth();
+  const { user, profile, loading, isGuest, isFirstLaunch, isPasswordRecovery } = useAuth();
 
   if (loading) {
     return (
@@ -18,6 +18,11 @@ export default function Index() {
         <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
+  }
+
+  // Password recovery - redirect to set new password
+  if (isPasswordRecovery) {
+    return <Redirect href="/(auth)/set-new-password" />;
   }
 
   // Guest mode - go straight to main app

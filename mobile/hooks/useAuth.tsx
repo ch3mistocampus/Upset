@@ -27,6 +27,9 @@ interface AuthContextValue {
   // Guest mode
   isGuest: boolean;
   isFirstLaunch: boolean;
+  // Password recovery
+  isPasswordRecovery: boolean;
+  clearPasswordRecovery: () => void;
   enterGuestMode: () => Promise<void>;
   exitGuestMode: () => Promise<void>;
   markFirstLaunchComplete: () => Promise<void>;
@@ -74,6 +77,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     success: boolean;
     migratedCount: number;
   } | null>(null);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const migrationAttemptedRef = useRef(false);
 
   // OAuth hooks
@@ -212,6 +216,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       if (event === 'TOKEN_REFRESHED') {
         logger.info('Session token refreshed successfully');
+      }
+
+      if (event === 'PASSWORD_RECOVERY') {
+        logger.info('Password recovery session detected');
+        setIsPasswordRecovery(true);
+        setLoading(false);
+        return;
       }
 
       if (event === 'SIGNED_OUT') {
@@ -442,6 +453,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setMigrationResult(null);
   }, []);
 
+  // Clear password recovery flag after password is updated
+  const clearPasswordRecovery = useCallback(() => {
+    setIsPasswordRecovery(false);
+  }, []);
+
   const value = useMemo<AuthContextValue>(() => ({
     session,
     user,
@@ -450,6 +466,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Guest mode
     isGuest,
     isFirstLaunch,
+    // Password recovery
+    isPasswordRecovery,
+    clearPasswordRecovery,
     enterGuestMode,
     exitGuestMode,
     markFirstLaunchComplete,
@@ -485,6 +504,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     loading,
     isGuest,
     isFirstLaunch,
+    isPasswordRecovery,
+    clearPasswordRecovery,
     enterGuestMode,
     exitGuestMode,
     markFirstLaunchComplete,
