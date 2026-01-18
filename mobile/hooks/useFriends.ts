@@ -162,10 +162,10 @@ export function useFriends() {
 
     // Get existing follow relationships
     const { data: followRecords, error: followError } = await supabase
-      .from('follows')
-      .select('user_id, following_id, status')
+      .from('friendships')
+      .select('user_id, friend_id, status')
       .eq('user_id', user.id)
-      .in('following_id', profiles.map((p) => p.user_id));
+      .in('friend_id', profiles.map((p) => p.user_id));
 
     if (followError) {
       logger.warn('Failed to fetch follow status for search', followError);
@@ -174,7 +174,7 @@ export function useFriends() {
     // Combine data
     const results: UserSearchResult[] = profiles.map((profile) => {
       const userStats = stats?.find((s) => s.user_id === profile.user_id);
-      const followRecord = followRecords?.find((f) => f.following_id === profile.user_id);
+      const followRecord = followRecords?.find((f) => f.friend_id === profile.user_id);
 
       const totalPicks = userStats?.total_picks || 0;
       const correctPicks = userStats?.correct_winner || 0;
@@ -203,10 +203,10 @@ export function useFriends() {
     if (!user) return false;
 
     const { data } = await supabase
-      .from('follows')
+      .from('friendships')
       .select('id')
       .eq('user_id', user.id)
-      .eq('following_id', targetUserId)
+      .eq('friend_id', targetUserId)
       .eq('status', 'accepted')
       .maybeSingle();
 
@@ -221,11 +221,11 @@ export function useFriends() {
       data: { user: currentUser },
     } = await supabase.auth.getUser();
 
-    // Get all follows where this user is the following_id (being followed)
+    // Get all follows where this user is the friend_id (being followed)
     const { data: followRecords, error: followError } = await supabase
-      .from('follows')
+      .from('friendships')
       .select('user_id')
-      .eq('following_id', userId)
+      .eq('friend_id', userId)
       .eq('status', 'accepted');
 
     if (followError) {
@@ -260,12 +260,12 @@ export function useFriends() {
     let currentUserFollowing: string[] = [];
     if (currentUser) {
       const { data: following } = await supabase
-        .from('follows')
-        .select('following_id')
+        .from('friendships')
+        .select('friend_id')
         .eq('user_id', currentUser.id)
         .eq('status', 'accepted')
-        .in('following_id', followerIds);
-      currentUserFollowing = following?.map((f) => f.following_id) || [];
+        .in('friend_id', followerIds);
+      currentUserFollowing = following?.map((f) => f.friend_id) || [];
     }
 
     return (profiles || []).map((profile) => {
@@ -295,8 +295,8 @@ export function useFriends() {
 
     // Get all follows where this user is the user_id (follower)
     const { data: followRecords, error: followError } = await supabase
-      .from('follows')
-      .select('following_id')
+      .from('friendships')
+      .select('friend_id')
       .eq('user_id', userId)
       .eq('status', 'accepted');
 
@@ -309,7 +309,7 @@ export function useFriends() {
       return [];
     }
 
-    const followingIds = followRecords.map((f) => f.following_id);
+    const followingIds = followRecords.map((f) => f.friend_id);
 
     // Get profiles for these users
     const { data: profiles, error: profileError } = await supabase
@@ -332,12 +332,12 @@ export function useFriends() {
     let currentUserFollowing: string[] = [];
     if (currentUser) {
       const { data: following } = await supabase
-        .from('follows')
-        .select('following_id')
+        .from('friendships')
+        .select('friend_id')
         .eq('user_id', currentUser.id)
         .eq('status', 'accepted')
-        .in('following_id', followingIds);
-      currentUserFollowing = following?.map((f) => f.following_id) || [];
+        .in('friend_id', followingIds);
+      currentUserFollowing = following?.map((f) => f.friend_id) || [];
     }
 
     return (profiles || []).map((profile) => {

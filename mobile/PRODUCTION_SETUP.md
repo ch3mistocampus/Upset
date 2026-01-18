@@ -1,304 +1,269 @@
 # Production Setup Guide
 
-This guide covers everything needed to deploy the UFC Picks Tracker to production.
+Complete guide for deploying Upset to production on iOS App Store and Google Play Store.
 
 ## Prerequisites
 
-- Expo account (free tier)
-- Apple Developer account ($99/year) for iOS
-- Google Play Console account ($25 one-time) for Android
-- Sentry account (free tier) for error tracking
+- **Expo Account** - Free at [expo.dev](https://expo.dev)
+- **Apple Developer Account** - $99/year for App Store distribution
+- **Google Play Console Account** - $25 one-time fee
+- **Sentry Account** - Free tier for error tracking
 
 ## 1. EAS Project Setup
 
-### Initialize EAS
+### Install and Configure EAS CLI
 
 ```bash
 cd mobile
 
-# Install EAS CLI
+# Install EAS CLI globally
 npm install -g eas-cli
 
-# Login to Expo
+# Login to your Expo account
 eas login
 
-# Initialize EAS (creates project on expo.dev)
+# Initialize EAS project (if not already done)
 eas init
-
-# This will:
-# - Create a project on expo.dev
-# - Update app.json with projectId
-# - Update app.json with owner
 ```
-
-After running `eas init`, update `app.json`:
-- `extra.eas.projectId` will be filled automatically
-- `owner` will be set to your Expo username
-- `updates.url` will be set to your EAS Update URL
 
 ### Configure EAS Secrets
 
-Set environment variables for production builds:
+Set production environment variables:
 
 ```bash
-# Supabase configuration
-eas secret:create EXPO_PUBLIC_SUPABASE_URL --value "https://your-project.supabase.co" --scope project
-eas secret:create EXPO_PUBLIC_SUPABASE_ANON_KEY --value "your-anon-key" --scope project
+# Required: Supabase configuration
+eas env:create --scope project --environment production \
+  --name EXPO_PUBLIC_SUPABASE_URL \
+  --value "https://your-project.supabase.co"
 
-# Sentry error tracking
-eas secret:create EXPO_PUBLIC_SENTRY_DSN --value "https://your-sentry-dsn" --scope project
+eas env:create --scope project --environment production \
+  --name EXPO_PUBLIC_SUPABASE_ANON_KEY \
+  --value "your-anon-key"
+
+# Optional: OAuth (Google Sign-In)
+eas env:create --scope project --environment production \
+  --name EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS \
+  --value "your-google-client-id.apps.googleusercontent.com"
+
+# Optional: Error tracking
+eas env:create --scope project --environment production \
+  --name EXPO_PUBLIC_SENTRY_DSN \
+  --value "https://your-dsn@sentry.io/project-id"
 ```
 
 ## 2. Build Profiles
 
-The app has three build profiles configured in `eas.json`:
+The app uses three build profiles defined in `eas.json`:
 
 ### Development Build
+For local testing with development features:
 ```bash
-# iOS Simulator
 eas build --profile development --platform ios
-
-# Android APK
 eas build --profile development --platform android
 ```
 
-### Preview Build (Internal Testing)
+### Preview Build
+For TestFlight/internal testing:
 ```bash
-# iOS (requires Apple Developer account)
 eas build --profile preview --platform ios
-
-# Android APK
 eas build --profile preview --platform android
 ```
 
 ### Production Build
+For App Store/Play Store submission:
 ```bash
-# iOS (App Store)
 eas build --profile production --platform ios
-
-# Android (Play Store)
 eas build --profile production --platform android
 ```
 
-## 3. App Store Setup
+## 3. iOS App Store Setup
 
-### iOS (App Store Connect)
+### Create App in App Store Connect
 
-1. **Create App Store Connect App**
-   - Go to [App Store Connect](https://appstoreconnect.apple.com)
-   - Create new iOS app
-   - Note the App ID (ASC App ID)
+1. Go to [App Store Connect](https://appstoreconnect.apple.com)
+2. Click "+" → "New App"
+3. Fill in app information:
+   - Platform: iOS
+   - Name: Upset
+   - Primary Language: English
+   - Bundle ID: `com.getupset.app`
+   - SKU: `upset-ios`
 
-2. **Update eas.json**
-   ```json
-   "submit": {
-     "production": {
-       "ios": {
-         "appleId": "your-apple-id@email.com",
-         "ascAppId": "1234567890",
-         "appleTeamId": "TEAM123456"
-       }
-     }
-   }
-   ```
+### Configure Signing
 
-3. **Required Assets**
-   - App Icon: 1024x1024 PNG (no alpha)
-   - Screenshots for each device size
-   - App description, keywords, privacy policy URL
+EAS handles signing automatically. On first build, you'll be prompted to:
+1. Log in with your Apple ID
+2. Select your Apple Developer team
+3. EAS will create and manage certificates/provisioning profiles
 
-### Android (Google Play Console)
+### Required App Store Assets
 
-1. **Create Google Play Console App**
-   - Go to [Google Play Console](https://play.google.com/console)
-   - Create new app
-   - Complete store listing
+| Asset | Size | Notes |
+|-------|------|-------|
+| App Icon | 1024x1024 | PNG, no transparency |
+| iPhone Screenshots | 1290x2796 | 6.7" display |
+| iPhone Screenshots | 1284x2778 | 6.5" display |
+| iPad Screenshots | 2048x2732 | 12.9" Pro |
 
-2. **Create Service Account**
-   - Go to Google Cloud Console
-   - Create service account with Play Console access
-   - Download JSON key file
+### App Store Information
 
-3. **Update eas.json**
-   ```json
-   "submit": {
-     "production": {
-       "android": {
-         "serviceAccountKeyPath": "./path/to/google-play-key.json",
-         "track": "internal"
-       }
-     }
-   }
-   ```
+Prepare the following:
+- **App Name**: Upset - UFC Picks Tracker
+- **Subtitle**: Predict. Track. Compete.
+- **Description**: Full app description (4000 chars max)
+- **Keywords**: UFC, MMA, predictions, picks, tracker
+- **Privacy Policy URL**: Required
+- **Support URL**: Required
+- **Category**: Sports
 
-4. **Required Assets**
-   - Hi-res icon: 512x512 PNG
-   - Feature graphic: 1024x500 PNG
-   - Screenshots for phone and tablet
-   - Short and full descriptions
+## 4. Android Play Store Setup
 
-## 4. OTA Updates
+### Create App in Play Console
+
+1. Go to [Google Play Console](https://play.google.com/console)
+2. Click "Create app"
+3. Fill in app details:
+   - App name: Upset
+   - Default language: English
+   - App or game: App
+   - Free or paid: Free
+
+### Configure Service Account (for automated submission)
+
+1. Go to Google Cloud Console
+2. Create a service account with Play Console API access
+3. Download the JSON key file
+4. Add to project: `android/google-play-key.json` (gitignored)
+
+### Required Play Store Assets
+
+| Asset | Size | Notes |
+|-------|------|-------|
+| App Icon | 512x512 | PNG |
+| Feature Graphic | 1024x500 | PNG |
+| Phone Screenshots | Min 1080x1920 | 2-8 required |
+| Tablet Screenshots | Min 1920x1200 | Optional |
+
+## 5. Building and Submitting
+
+### iOS Build + Submit
+
+```bash
+# Build and auto-submit to TestFlight
+eas build --profile production --platform ios --auto-submit
+
+# Or build first, then submit
+eas build --profile production --platform ios
+eas submit --platform ios --latest
+```
+
+### Android Build + Submit
+
+```bash
+# Build and auto-submit to internal track
+eas build --profile production --platform android --auto-submit
+
+# Or build first, then submit
+eas build --profile production --platform android
+eas submit --platform android --latest
+```
+
+## 6. Over-the-Air Updates
 
 EAS Update allows pushing JavaScript updates without app store review.
-
-### Enable Updates
-
-Already configured in `app.json`:
-```json
-{
-  "updates": {
-    "enabled": true,
-    "fallbackToCacheTimeout": 0,
-    "url": "https://u.expo.dev/your-project-id"
-  },
-  "runtimeVersion": {
-    "policy": "appVersion"
-  }
-}
-```
 
 ### Push an Update
 
 ```bash
-# Push update to production channel
-eas update --branch production --message "Bug fix for..."
+# Update production users
+eas update --branch production --message "Bug fix: follow functionality"
 
-# Push update to preview channel
-eas update --branch preview --message "New feature..."
+# Update TestFlight/internal testers
+eas update --branch preview --message "New feature: fighter comparison"
 ```
 
-### Channels
+### Update Channels
 
-- `production` - Live users on App Store / Play Store
-- `preview` - Internal testers
+- `production` - Live App Store / Play Store users
+- `preview` - TestFlight / Internal testing track
 - `development` - Development builds
 
-## 5. Sentry Error Tracking
+## 7. Monitoring
 
-### Create Sentry Project
+### Sentry Error Tracking
 
-1. Go to [sentry.io](https://sentry.io)
-2. Create new React Native project
-3. Copy DSN
+Sentry is pre-configured in `lib/sentry.ts`. Errors are automatically captured in production builds.
 
-### Configure Sentry
+Dashboard: [sentry.io](https://sentry.io) → Your Project
 
-Already integrated in app via `@sentry/react-native/expo` plugin.
+### EAS Build Dashboard
 
-DSN is set via EAS Secret:
-```bash
-eas secret:create EXPO_PUBLIC_SENTRY_DSN --value "your-dsn"
-```
+Monitor builds at: [expo.dev](https://expo.dev) → Your Project → Builds
 
-### Source Maps (Optional)
+## 8. Pre-Launch Checklist
 
-For better stack traces, configure source map upload:
+### Code Quality
+- [ ] TypeScript compiles without errors (`npx tsc --noEmit`)
+- [ ] Tests pass (`npm test`)
+- [ ] No hardcoded secrets in code
+- [ ] Console logs removed from production paths
 
-```bash
-# Set Sentry auth token
-eas secret:create SENTRY_AUTH_TOKEN --value "your-token"
-```
+### App Configuration
+- [ ] `app.json` has correct `bundleIdentifier` and `package`
+- [ ] `app.json` has `projectId` from EAS
+- [ ] Version number is correct
+- [ ] EAS secrets are configured
 
-Add to `app.json`:
-```json
-"plugins": [
-  [
-    "@sentry/react-native/expo",
-    {
-      "organization": "your-org",
-      "project": "ufc-picks-tracker"
-    }
-  ]
-]
-```
-
-## 6. App Store Assets
-
-### iOS Screenshots Sizes
-- iPhone 6.7" (1290 x 2796)
-- iPhone 6.5" (1284 x 2778)
-- iPhone 5.5" (1242 x 2208)
-- iPad Pro 12.9" (2048 x 2732)
-
-### Android Screenshot Sizes
-- Phone: 1080 x 1920 minimum
-- 7" Tablet: 1200 x 1920
-- 10" Tablet: 1920 x 1200
-
-### App Icon
-- Place in `assets/icon.png` (1024x1024)
-- No transparency for iOS
-- Adaptive icon for Android in `assets/adaptive-icon.png`
-
-## 7. Pre-Launch Checklist
-
-### Code
-- [ ] All tests passing (`npm test`)
-- [ ] No TypeScript errors (`npx tsc --noEmit`)
-- [ ] No console.log statements in production code
-
-### Configuration
-- [ ] EAS project initialized (`eas init`)
-- [ ] EAS secrets configured
-- [ ] app.json projectId filled
-- [ ] app.json owner filled
-- [ ] app.json updates.url filled
-
-### App Store
-- [ ] iOS bundle identifier registered
-- [ ] Android package name registered
-- [ ] Privacy policy URL ready
-- [ ] Terms of service URL ready (optional)
+### App Store Preparation
+- [ ] App icon (1024x1024) ready
+- [ ] Screenshots for all required sizes
+- [ ] App description written
+- [ ] Privacy policy URL live
 - [ ] Support email configured
-
-### Assets
-- [ ] App icon (1024x1024)
-- [ ] Splash screen
-- [ ] App Store screenshots (all sizes)
-- [ ] Feature graphic (Android)
-- [ ] App descriptions written
+- [ ] Age rating questionnaire completed
 
 ### Testing
-- [ ] Development build tested on device
-- [ ] Preview build tested internally
-- [ ] Deep links working
+- [ ] Tested on real iOS device
+- [ ] Tested on real Android device
+- [ ] All auth methods work (Email, Apple, Google)
+- [ ] Deep links work
 - [ ] Push notifications configured (if applicable)
-- [ ] Error tracking verified (trigger test error)
-
-## 8. Submit to Stores
-
-### iOS
-```bash
-# Build and submit
-eas build --profile production --platform ios --auto-submit
-
-# Or submit existing build
-eas submit --platform ios
-```
-
-### Android
-```bash
-# Build and submit
-eas build --profile production --platform android --auto-submit
-
-# Or submit existing build
-eas submit --platform android
-```
+- [ ] Error tracking verified
 
 ## 9. Post-Launch
 
 ### Monitor
-- Check Sentry for errors
-- Monitor app store reviews
-- Track analytics (if configured)
+- Check Sentry dashboard daily for new errors
+- Monitor app store reviews and ratings
+- Track crash-free user rate
 
 ### Updates
-- Use `eas update` for quick JavaScript fixes
-- New native features require new build + store review
+- **Minor fixes**: Use `eas update` for instant deployment
+- **Native changes**: Requires new build + store review
 
-### Version Bumping
+### Version Management
 ```bash
-# Bump version before new build
-# Update app.json version, then:
-eas build --profile production --auto-increment
+# Bump version in app.json, then:
+eas build --profile production --platform ios
+
+# Build number auto-increments per platform
 ```
+
+## Troubleshooting
+
+### Build Fails with Signing Error
+```bash
+# Clear EAS credentials cache
+eas credentials --platform ios
+# Select "Remove" to clear, then rebuild
+```
+
+### App Crashes on Launch
+- Check Sentry for crash reports
+- Verify environment variables are set correctly
+- Test with `eas build --profile preview` first
+
+### Update Not Appearing
+- Ensure correct branch: `eas update --branch production`
+- Updates apply on next app cold start
+- Check EAS dashboard for update status
