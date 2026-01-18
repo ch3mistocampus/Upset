@@ -84,14 +84,37 @@ EXPO_PUBLIC_SENTRY_DSN=
 - Historical fight records
 - Synced via Edge Functions (`sync-events`, `sync-results`)
 
+## Landing Page (upset-landing)
+Separate repo: `ch3mistocampus/upset-landing`
+- **URL**: https://upsetmma.app
+- **Stack**: Next.js 16, Tailwind CSS v4, Framer Motion
+- **Hosting**: Vercel
+- **Theme**: High-Contrast Light Mode (white bg, red accents #D20A0A)
+
+### Email Setup
+- **Inbox**: Zoho Mail → hello@upsetmma.app
+- **Transactional**: Resend (welcome emails, notifications)
+- **DNS**: Vercel (MX → Zoho, DKIM/SPF → Resend)
+
+### Waitlist
+- **Table**: `waitlist` (email, source, created_at)
+- **Edge Function**: `waitlist-signup`
+  - Saves email to database
+  - Sends welcome email to user via Resend
+  - Sends notification to hello@upsetmma.app
+- **Env vars** (Vercel): `NEXT_PUBLIC_SUPABASE_URL`
+- **Secrets** (Supabase): `RESEND_API_KEY`
+
 ## Production Checklist
+- [x] Landing page live at upsetmma.app
+- [x] Waitlist form working with email notifications
+- [x] Privacy policy URL (/privacy)
+- [x] Terms of service URL (/terms)
 - [ ] Enable leaked password protection (Supabase Auth dashboard)
 - [ ] Test OAuth on real iOS device
 - [ ] Verify deep links for auth callbacks
 - [ ] Add Android OAuth client ID
 - [ ] App Store assets (screenshots, description)
-- [ ] Privacy policy URL
-- [ ] Terms of service URL
 
 ## Permissions
 YOLO mode enabled via `.claude/settings.json` - Claude executes all tools without confirmation prompts.
