@@ -15,7 +15,6 @@ import {
   Easing,
   Image,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,35 +28,10 @@ import { ErrorState } from '../../components/ErrorState';
 import { EmptyState } from '../../components/ui';
 import { SkeletonCard } from '../../components/SkeletonCard';
 import { AuthPromptModal } from '../../components/AuthPromptModal';
+import { generateAvatarUrl } from '../../components/Avatar';
 import type { LeaderboardEntry } from '../../types/social';
 
 const MIN_GRADED_PICKS = 10;
-
-// Generate a consistent gradient color pair based on username
-function getAvatarGradient(username: string): [string, string] {
-  // Generate a hash from the username for consistent colors
-  let hash = 0;
-  for (let i = 0; i < username.length; i++) {
-    hash = username.charCodeAt(i) + ((hash << 5) - hash);
-  }
-
-  // Theme-aligned gradient pairs (reds, dark neutrals, muted tones)
-  const gradients: [string, string][] = [
-    ['#DC2626', '#7F1D1D'], // Primary red
-    ['#EF4444', '#991B1B'], // Bright red
-    ['#B91C1C', '#450A0A'], // Deep red
-    ['#F87171', '#B91C1C'], // Light red
-    ['#4B5563', '#1F2937'], // Cool gray
-    ['#6B7280', '#374151'], // Neutral gray
-    ['#78716C', '#44403C'], // Warm gray
-    ['#9CA3AF', '#4B5563'], // Silver gray
-    ['#A3A3A3', '#525252'], // Stone gray
-    ['#737373', '#262626'], // Dark neutral
-  ];
-
-  const index = Math.abs(hash) % gradients.length;
-  return gradients[index];
-}
 
 // Animated wrapper for entrance animations
 function AnimatedItem({ children, index, delay = 60 }: { children: React.ReactNode; index: number; delay?: number }) {
@@ -140,39 +114,14 @@ function PodiumPosition({ entry, visualPosition, onPress, isMe, colors }: Podium
           },
         ]}
       >
-        {entry.avatar_url ? (
-          <Image
-            source={{ uri: entry.avatar_url }}
-            style={{
-              width: avatarSize - (isCenter ? 8 : 6),
-              height: avatarSize - (isCenter ? 8 : 6),
-              borderRadius: isCenter ? 20 : 14,
-            }}
-          />
-        ) : (
-          <LinearGradient
-            colors={getAvatarGradient(entry.username)}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[
-              styles.podiumAvatarPlaceholder,
-              {
-                width: avatarSize - (isCenter ? 8 : 6),
-                height: avatarSize - (isCenter ? 8 : 6),
-                borderRadius: isCenter ? 20 : 14,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.podiumAvatarText,
-                { color: '#fff', fontSize: isCenter ? 36 : 28 },
-              ]}
-            >
-              {entry.username.charAt(0).toUpperCase()}
-            </Text>
-          </LinearGradient>
-        )}
+        <Image
+          source={{ uri: entry.avatar_url || generateAvatarUrl(entry.username, (avatarSize - (isCenter ? 8 : 6)) * 2) }}
+          style={{
+            width: avatarSize - (isCenter ? 8 : 6),
+            height: avatarSize - (isCenter ? 8 : 6),
+            borderRadius: isCenter ? 20 : 14,
+          }}
+        />
 
         {/* Rank badge - shows actual rank from data */}
         <View
@@ -329,26 +278,10 @@ export default function Leaderboards() {
           </Text>
 
           {/* Avatar */}
-          {entry.avatar_url ? (
-            <Image source={{ uri: entry.avatar_url }} style={styles.listAvatar} />
-          ) : isMe ? (
-            <View style={[styles.listAvatarPlaceholder, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-              <Text style={[styles.listAvatarText, { color: '#fff' }]}>
-                {entry.username.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-          ) : (
-            <LinearGradient
-              colors={getAvatarGradient(entry.username)}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.listAvatarPlaceholder}
-            >
-              <Text style={[styles.listAvatarText, { color: '#fff' }]}>
-                {entry.username.charAt(0).toUpperCase()}
-              </Text>
-            </LinearGradient>
-          )}
+          <Image
+            source={{ uri: entry.avatar_url || generateAvatarUrl(entry.username, 72) }}
+            style={styles.listAvatar}
+          />
 
           {/* Name */}
           <Text
@@ -516,13 +449,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
   },
-  podiumAvatarPlaceholder: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  podiumAvatarText: {
-    fontWeight: '700',
-  },
   podiumRankBadge: {
     position: 'absolute',
     bottom: -4,
@@ -576,18 +502,6 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 11,
     marginLeft: spacing.sm,
-  },
-  listAvatarPlaceholder: {
-    width: 44,
-    height: 44,
-    borderRadius: 11,
-    marginLeft: spacing.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  listAvatarText: {
-    fontSize: 18,
-    fontWeight: '700',
   },
   listName: {
     flex: 1,

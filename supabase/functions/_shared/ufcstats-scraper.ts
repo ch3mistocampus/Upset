@@ -533,6 +533,29 @@ const FIGHTER_STATS_SELECTORS = [
   ".b-list__box-list-item",
 ];
 
+// Selectors for fighter profile page
+const FIGHTER_NAME_SELECTORS = [
+  "span.b-content__title-highlight",
+  "h2.b-content__title span",
+  ".b-content__title-highlight",
+];
+
+const FIGHTER_NICKNAME_SELECTORS = [
+  "p.b-content__Nickname",
+  ".b-content__Nickname",
+];
+
+const FIGHTER_INFO_SELECTORS = [
+  "ul.b-list__box-list li.b-list__box-list-item",
+  "ul.b-list__box-list li",
+  ".b-list__box-list li",
+];
+
+const FIGHTER_RECORD_SELECTORS = [
+  "span.b-content__title-record",
+  ".b-content__title-record",
+];
+
 /**
  * Fighter stats interface
  */
@@ -545,6 +568,36 @@ export interface FighterStats {
   td_acc: number | null;    // Takedown Accuracy (0-100)
   td_def: number | null;    // Takedown Defense (0-100)
   sub_avg: number | null;   // Submission Average
+}
+
+/**
+ * Full fighter profile interface
+ */
+export interface FighterProfile {
+  fighter_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  full_name: string;
+  nickname: string | null;
+  dob: string | null;       // ISO date string
+  height_inches: number | null;
+  weight_lbs: number | null;
+  reach_inches: number | null;
+  stance: string | null;
+  record_wins: number;
+  record_losses: number;
+  record_draws: number;
+  record_nc: number;
+  // Career stats
+  slpm: number | null;
+  sapm: number | null;
+  str_acc: number | null;
+  str_def: number | null;
+  td_avg: number | null;
+  td_acc: number | null;
+  td_def: number | null;
+  sub_avg: number | null;
+  ufcstats_url: string;
 }
 
 /**
@@ -567,6 +620,81 @@ function parseDecimal(text: string): number | null {
     return parseFloat(match[1]);
   }
   return null;
+}
+
+/**
+ * Parse height from text like "5' 11"" or "5'11"" to inches
+ */
+function parseHeight(text: string): number | null {
+  const match = text.match(/(\d+)'\s*(\d+)"/);
+  if (match) {
+    const feet = parseInt(match[1]);
+    const inches = parseInt(match[2]);
+    return feet * 12 + inches;
+  }
+  return null;
+}
+
+/**
+ * Parse weight from text like "155 lbs." to number
+ */
+function parseWeight(text: string): number | null {
+  const match = text.match(/(\d+)\s*lbs/i);
+  if (match) {
+    return parseInt(match[1]);
+  }
+  return null;
+}
+
+/**
+ * Parse reach from text like "74"" or "74 inches" to inches
+ */
+function parseReach(text: string): number | null {
+  const match = text.match(/(\d+)(?:"|''|\s*inches)/i);
+  if (match) {
+    return parseInt(match[1]);
+  }
+  // Try just a number if nothing else matched
+  const numMatch = text.match(/^(\d+)$/);
+  if (numMatch) {
+    return parseInt(numMatch[1]);
+  }
+  return null;
+}
+
+/**
+ * Parse DOB from text like "Mar 21, 1992" to ISO date string
+ */
+function parseDOB(text: string): string | null {
+  if (!text || text === '--') return null;
+
+  try {
+    const parsed = new Date(text.trim());
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toISOString().split('T')[0];
+    }
+  } catch {
+    // Fall through to return null
+  }
+  return null;
+}
+
+/**
+ * Parse record from text like "Record: 23-7-0" to wins/losses/draws
+ */
+function parseRecord(text: string): { wins: number; losses: number; draws: number; nc: number } {
+  const result = { wins: 0, losses: 0, draws: 0, nc: 0 };
+
+  // Match pattern like "23-7-0" or "23-7-0 (1 NC)"
+  const match = text.match(/(\d+)-(\d+)-(\d+)(?:\s*\((\d+)\s*NC\))?/i);
+  if (match) {
+    result.wins = parseInt(match[1]) || 0;
+    result.losses = parseInt(match[2]) || 0;
+    result.draws = parseInt(match[3]) || 0;
+    result.nc = match[4] ? parseInt(match[4]) : 0;
+  }
+
+  return result;
 }
 
 /**
@@ -629,6 +757,162 @@ export async function scrapeFighterStats(fighterUrl: string): Promise<FighterSta
   } catch (error) {
     console.error("Error scraping fighter stats:", error);
     throw error;
+  }
+}
+
+/**
+ * Scrape full fighter profile from UFCStats fighter page
+ * Returns complete profile with bio data and career stats
+ */
+export async function scrapeFighterProfile(fighterId: string): Promise<FighterProfile | null> {
+  const fighterUrl = `http://ufcstats.com/fighter-details/${fighterId}`;
+  console.log(`Scraping fighter profile: ${fighterUrl}`);
+
+  try {
+    const html = await fetchWithRetry(fighterUrl);
+    const $ = load(html);
+
+    // Get fighter name
+    let fullName = '';
+    for (const selector of FIGHTER_NAME_SELECTORS) {
+      const nameEl = $(selector);
+      if (nameEl.length > 0) {
+        fullName = nameEl.text().trim();
+        break;
+      }
+    }
+
+    if (!fullName) {
+      console.warn(`Could not find fighter name for ID: ${fighterId}`);
+      return null;
+    }
+
+    // Parse first/last name
+    const nameParts = fullName.split(' ');
+    const firstName = nameParts[0] || null;
+    const lastName = nameParts.slice(1).join(' ') || null;
+
+    // Get nickname
+    let nickname: string | null = null;
+    for (const selector of FIGHTER_NICKNAME_SELECTORS) {
+      const nicknameEl = $(selector);
+      if (nicknameEl.length > 0) {
+        nickname = nicknameEl.text().trim().replace(/^"/, '').replace(/"$/, '') || null;
+        break;
+      }
+    }
+
+    // Get record
+    let record = { wins: 0, losses: 0, draws: 0, nc: 0 };
+    for (const selector of FIGHTER_RECORD_SELECTORS) {
+      const recordEl = $(selector);
+      if (recordEl.length > 0) {
+        record = parseRecord(recordEl.text());
+        break;
+      }
+    }
+
+    // Get bio info (height, weight, reach, stance, DOB)
+    let heightInches: number | null = null;
+    let weightLbs: number | null = null;
+    let reachInches: number | null = null;
+    let stance: string | null = null;
+    let dob: string | null = null;
+
+    const infoItems = trySelectors($, FIGHTER_INFO_SELECTORS);
+    infoItems.each((_: number, el: any) => {
+      const $el = $(el);
+      const titleEl = $el.find("i.b-list__box-item-title");
+      const title = titleEl.text().trim().toLowerCase();
+
+      // Get the value - it's the text after the title element
+      const fullText = $el.text().trim();
+      const titleText = titleEl.text().trim();
+      const valueText = fullText.replace(titleText, "").trim();
+
+      if (title.includes("height")) {
+        heightInches = parseHeight(valueText);
+      } else if (title.includes("weight")) {
+        weightLbs = parseWeight(valueText);
+      } else if (title.includes("reach")) {
+        reachInches = parseReach(valueText);
+      } else if (title.includes("stance")) {
+        stance = valueText || null;
+      } else if (title.includes("dob")) {
+        dob = parseDOB(valueText);
+      }
+    });
+
+    // Get career stats (reuse the stats scraper logic)
+    const statItems = trySelectors($, FIGHTER_STATS_SELECTORS);
+    let slpm: number | null = null;
+    let sapm: number | null = null;
+    let strAcc: number | null = null;
+    let strDef: number | null = null;
+    let tdAvg: number | null = null;
+    let tdAcc: number | null = null;
+    let tdDef: number | null = null;
+    let subAvg: number | null = null;
+
+    statItems.each((_: number, el: any) => {
+      const $el = $(el);
+      const titleEl = $el.find("i.b-list__box-item-title");
+      const title = titleEl.text().trim().toLowerCase();
+
+      const fullText = $el.text().trim();
+      const titleText = titleEl.text().trim();
+      const valueText = fullText.replace(titleText, "").trim();
+
+      if (title.includes("slpm")) {
+        slpm = parseDecimal(valueText);
+      } else if (title.includes("sapm")) {
+        sapm = parseDecimal(valueText);
+      } else if (title.includes("str. acc")) {
+        strAcc = parsePercentage(valueText);
+      } else if (title.includes("str. def")) {
+        strDef = parsePercentage(valueText);
+      } else if (title.includes("td avg")) {
+        tdAvg = parseDecimal(valueText);
+      } else if (title.includes("td acc")) {
+        tdAcc = parsePercentage(valueText);
+      } else if (title.includes("td def")) {
+        tdDef = parsePercentage(valueText);
+      } else if (title.includes("sub. avg")) {
+        subAvg = parseDecimal(valueText);
+      }
+    });
+
+    const profile: FighterProfile = {
+      fighter_id: fighterId,
+      first_name: firstName,
+      last_name: lastName,
+      full_name: fullName,
+      nickname,
+      dob,
+      height_inches: heightInches,
+      weight_lbs: weightLbs,
+      reach_inches: reachInches,
+      stance,
+      record_wins: record.wins,
+      record_losses: record.losses,
+      record_draws: record.draws,
+      record_nc: record.nc,
+      slpm,
+      sapm,
+      str_acc: strAcc,
+      str_def: strDef,
+      td_avg: tdAvg,
+      td_acc: tdAcc,
+      td_def: tdDef,
+      sub_avg: subAvg,
+      ufcstats_url: fighterUrl,
+    };
+
+    console.log(`Fighter profile scraped: ${fullName} (${record.wins}-${record.losses}-${record.draws})`);
+    return profile;
+  } catch (error) {
+    console.error(`Error scraping fighter profile for ${fighterId}:`, error);
+    return null;
   }
 }
 

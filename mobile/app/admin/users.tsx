@@ -125,7 +125,7 @@ export default function UsersScreen() {
                 {
                   text: 'Confirm Ban',
                   style: 'destructive',
-                  onPress: async (reason) => {
+                  onPress: async (reason: string | undefined) => {
                     if (!reason) {
                       Alert.alert('Error', 'A reason is required to ban a user.');
                       return;

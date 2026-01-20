@@ -31,7 +31,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../../lib/supabase';
 import { logger } from '../../../lib/logger';
 import { useAuth } from '../../../hooks/useAuth';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 import { AuthPromptModal } from '../../../components/AuthPromptModal';
 import { useFriends } from '../../../hooks/useFriends';
@@ -51,6 +51,7 @@ import { useUserPosts } from '../../../hooks/usePosts';
 import type { FriendshipStatus } from '../../../types/social';
 import type { Post } from '../../../types/posts';
 import { GlobalTabBar } from '../../../components/navigation/GlobalTabBar';
+import { generateAvatarUrl } from '../../../components/Avatar';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -872,15 +873,10 @@ export default function UserProfile() {
             }}
             activeOpacity={0.8}
           >
-            {profile.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={[styles.avatarSquare, { backgroundColor: colors.accent }]} />
-            ) : (
-              <View style={[styles.avatarSquare, { backgroundColor: colors.accent }]}>
-                <Text style={styles.avatarText}>
-                  {profile.username.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            )}
+            <Image
+              source={{ uri: profile.avatar_url || generateAvatarUrl(profile.username, 176) }}
+              style={[styles.avatarSquare, { backgroundColor: colors.surfaceAlt }]}
+            />
           </TouchableOpacity>
 
           {/* Username */}
@@ -1265,15 +1261,10 @@ export default function UserProfile() {
           >
             {/* Large avatar preview */}
             <View style={[styles.avatarPreview, { backgroundColor: colors.surface }]}>
-              {profile?.avatar_url ? (
-                <Image source={{ uri: profile.avatar_url }} style={styles.avatarPreviewImage} />
-              ) : (
-                <View style={[styles.avatarPreviewPlaceholder, { backgroundColor: colors.accent }]}>
-                  <Text style={styles.avatarPreviewText}>
-                    {profile?.username?.charAt(0).toUpperCase() || '?'}
-                  </Text>
-                </View>
-              )}
+              <Image
+                source={{ uri: profile?.avatar_url || generateAvatarUrl(profile?.username || 'user', 480) }}
+                style={styles.avatarPreviewImage}
+              />
             </View>
 
             {/* Username */}

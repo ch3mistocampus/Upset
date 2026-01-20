@@ -24,6 +24,7 @@ import { useToast } from '../../../hooks/useToast';
 import { useTheme } from '../../../lib/theme';
 import { spacing } from '../../../lib/tokens';
 import { SurfaceCard, EmptyState } from '../../../components/ui';
+import { Avatar } from '../../../components/Avatar';
 import type { UserSearchResult } from '../../../types/social';
 
 type TabType = 'followers' | 'following';
@@ -329,10 +330,12 @@ export default function FollowsScreen() {
           onPress={() => handleUserPress(userItem.user_id)}
           activeOpacity={0.7}
         >
-          <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
-            <Text style={styles.avatarText}>
-              {userItem.username.charAt(0).toUpperCase()}
-            </Text>
+          <View style={styles.avatarContainer}>
+            <Avatar
+              imageUrl={userItem.avatar_url}
+              username={userItem.username}
+              size="small"
+            />
           </View>
 
           <View style={styles.userInfo}>
@@ -511,18 +514,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
+  avatarContainer: {
     marginRight: spacing.sm,
-  },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
   },
   userInfo: {
     flex: 1,

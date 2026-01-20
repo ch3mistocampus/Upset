@@ -13,14 +13,14 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const TEST_USERNAMES = [
-  'alice_ufc',
-  'bob_fighter',
-  'charlie_picks',
-  'david_mma',
-  'emma_octagon',
-  'frank_knockout',
-  'grace_grappling',
-  'henry_heavyweight',
+  'alicechen',
+  'bsantos',
+  'charliej',
+  'dkim23',
+  'emmarod',
+  'bigfrank',
+  'gracet',
+  'henryjack',
 ];
 
 interface Profile {
@@ -154,27 +154,27 @@ async function main() {
   // Mock conversation
   const comments = [
     {
-      username: 'alice_ufc',
+      username: 'alicechen',
       body: `I'm going with ${fighterA} here. The reach advantage is going to be huge in this matchup. I think we see a dominant performance on the feet.`,
     },
     {
-      username: 'bob_fighter',
+      username: 'bsantos',
       body: `Disagree! ${fighterB} has been on a tear lately. That wrestling is going to be the X-factor. Expecting a decision win.`,
     },
     {
-      username: 'charlie_picks',
+      username: 'charliej',
       body: `This is the fight I've been waiting for all year. Going to be a war! I think ${fighterA} by TKO in the 3rd.`,
     },
     {
-      username: 'david_mma',
+      username: 'dkim23',
       body: `Both fighters are coming off great performances. Hard to pick, but I'm leaning ${fighterB} by submission.`,
     },
     {
-      username: 'emma_octagon',
+      username: 'emmarod',
       body: `The cardio advantage goes to ${fighterA} if this goes to the championship rounds. That's where the fight is won or lost.`,
     },
     {
-      username: 'frank_knockout',
+      username: 'bigfrank',
       body: `I got ${fighterB} all day. The power difference is real. This one doesn't go the distance.`,
     },
   ];
@@ -208,33 +208,33 @@ async function main() {
   // Create replies to some comments
   const replies = [
     {
-      parentUsername: 'alice_ufc',
-      username: 'bob_fighter',
+      parentUsername: 'alicechen',
+      username: 'bsantos',
       body: `The reach advantage doesn't mean much when ${fighterB} can close the distance with wrestling. We've seen this before.`,
     },
     {
-      parentUsername: 'bob_fighter',
-      username: 'alice_ufc',
+      parentUsername: 'bsantos',
+      username: 'alicechen',
       body: `Fair point, but ${fighterA}'s takedown defense has been insane lately. 90%+ in the last 3 fights!`,
     },
     {
-      parentUsername: 'charlie_picks',
-      username: 'david_mma',
+      parentUsername: 'charliej',
+      username: 'dkim23',
       body: `TKO in the 3rd is a bold call! I like the confidence. What makes you think it won't go to decision?`,
     },
     {
-      parentUsername: 'charlie_picks',
-      username: 'emma_octagon',
+      parentUsername: 'charliej',
+      username: 'emmarod',
       body: `I could see that happening. ${fighterA} tends to break opponents down over time.`,
     },
     {
-      parentUsername: 'frank_knockout',
-      username: 'grace_grappling',
+      parentUsername: 'bigfrank',
+      username: 'gracet',
       body: `The power difference is real, but so is the chin on ${fighterA}. I don't think we've seen them hurt badly.`,
     },
     {
-      parentUsername: 'alice_ufc',
-      username: 'henry_heavyweight',
+      parentUsername: 'alicechen',
+      username: 'henryjack',
       body: `Great analysis! I'm leaning the same way. ${fighterA}'s jab is going to be the key to victory.`,
     },
   ];
@@ -266,7 +266,7 @@ async function main() {
   // Step 5: Create likes on the post
   console.log('\nCreating likes on post...');
 
-  const likingUsers = ['alice_ufc', 'bob_fighter', 'charlie_picks', 'david_mma', 'emma_octagon'];
+  const likingUsers = ['alicechen', 'bsantos', 'charliej', 'dkim23', 'emmarod'];
   for (const username of likingUsers) {
     const profile = usersByUsername.get(username);
     if (!profile) continue;
@@ -282,12 +282,12 @@ async function main() {
   console.log('\nCreating likes on comments...');
 
   const commentLikes = [
-    { username: 'bob_fighter', likeComment: 'alice_ufc' },
-    { username: 'charlie_picks', likeComment: 'alice_ufc' },
-    { username: 'alice_ufc', likeComment: 'bob_fighter' },
-    { username: 'emma_octagon', likeComment: 'charlie_picks' },
-    { username: 'frank_knockout', likeComment: 'david_mma' },
-    { username: 'david_mma', likeComment: 'frank_knockout' },
+    { username: 'bsantos', likeComment: 'alicechen' },
+    { username: 'charliej', likeComment: 'alicechen' },
+    { username: 'alicechen', likeComment: 'bsantos' },
+    { username: 'emmarod', likeComment: 'charliej' },
+    { username: 'bigfrank', likeComment: 'dkim23' },
+    { username: 'dkim23', likeComment: 'bigfrank' },
   ];
 
   let commentLikesCreated = 0;
@@ -309,7 +309,7 @@ async function main() {
   // Step 7: Create a user-generated post
   console.log('\nCreating user-generated post...');
 
-  const userPostProfile = usersByUsername.get('alice_ufc');
+  const userPostProfile = usersByUsername.get('alicechen');
   if (userPostProfile) {
     // Check if this user already has a post
     const { data: existingUserPost } = await supabase
@@ -333,12 +333,12 @@ async function main() {
         .single();
 
       if (!userPostError && userPost) {
-        console.log(`   Created user post from @alice_ufc`);
+        console.log(`   Created user post from @alicechen`);
 
         // Add some comments to the user post
         const userPostComments = [
-          { username: 'bob_fighter', body: "Bold take! I've got the opposite read but I respect the conviction." },
-          { username: 'charlie_picks', body: 'The tape never lies! What specifically stood out to you?' },
+          { username: 'bsantos', body: "Bold take! I've got the opposite read but I respect the conviction." },
+          { username: 'charliej', body: 'The tape never lies! What specifically stood out to you?' },
         ];
 
         for (const c of userPostComments) {
@@ -354,7 +354,7 @@ async function main() {
         }
 
         // Add likes
-        for (const username of ['bob_fighter', 'charlie_picks', 'david_mma']) {
+        for (const username of ['bsantos', 'charliej', 'dkim23']) {
           const profile = usersByUsername.get(username);
           if (!profile) continue;
 
@@ -394,7 +394,7 @@ async function main() {
   console.log('='.repeat(60));
   console.log('\nThe forum now has:');
   console.log(`  - System post for ${fighterA} vs ${fighterB}`);
-  console.log('  - User post from @alice_ufc');
+  console.log('  - User post from @alicechen');
   console.log('  - Threaded comments with replies');
   console.log('  - Likes on posts and comments');
   console.log('\nUsers can now view and interact with posts in the Posts tab!');

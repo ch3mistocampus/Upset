@@ -15,8 +15,25 @@ import {
 } from '../../hooks/useQueries';
 import { supabase } from '../../lib/supabase';
 
+import type { Event } from '../../types/database';
+
 // Type the supabase mock
 const mockSupabase = supabase as jest.Mocked<typeof supabase>;
+
+// Helper to create a valid Event object for tests
+function createTestEvent(overrides: Partial<Event> = {}): Event {
+  return {
+    id: 'event-1',
+    name: 'UFC 300',
+    event_date: '2024-01-01T00:00:00Z',
+    status: 'upcoming',
+    location: 'Las Vegas',
+    ufcstats_event_id: 'ufc-stats-123',
+    last_synced_at: null,
+    created_at: '2024-01-01T00:00:00Z',
+    ...overrides,
+  };
+}
 
 // Create a wrapper with QueryClient for each test
 function createWrapper() {
@@ -267,17 +284,11 @@ describe('useQueries', () => {
     });
 
     it('should return true when event date is in the past', () => {
-      const pastEvent = {
-        id: 'event-1',
+      const pastEvent = createTestEvent({
         name: 'UFC 299',
         event_date: '2024-01-01T22:00:00Z', // Past date
-        status: 'completed' as const,
-        location: 'Las Vegas',
-        ufcstats_id: null,
-        card_snapshot: 0,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z',
-      };
+        status: 'completed',
+      });
 
       expect(isEventLocked(pastEvent)).toBe(true);
     });
@@ -286,17 +297,10 @@ describe('useQueries', () => {
       const futureDate = new Date();
       futureDate.setDate(futureDate.getDate() + 7); // 7 days from now
 
-      const futureEvent = {
-        id: 'event-1',
-        name: 'UFC 300',
+      const futureEvent = createTestEvent({
         event_date: futureDate.toISOString(),
-        status: 'upcoming' as const,
-        location: 'Las Vegas',
-        ufcstats_id: null,
-        card_snapshot: 0,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z',
-      };
+        status: 'upcoming',
+      });
 
       expect(isEventLocked(futureEvent)).toBe(false);
     });
@@ -311,17 +315,10 @@ describe('useQueries', () => {
       const futureDate = new Date();
       futureDate.setHours(futureDate.getHours() + 1); // 1 hour from now
 
-      const futureEvent = {
-        id: 'event-1',
-        name: 'UFC 300',
+      const futureEvent = createTestEvent({
         event_date: futureDate.toISOString(),
-        status: 'upcoming' as const,
-        location: 'Las Vegas',
-        ufcstats_id: null,
-        card_snapshot: 0,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z',
-      };
+        status: 'upcoming',
+      });
 
       const timeUntil = getTimeUntilEvent(futureEvent);
       expect(timeUntil).toBeGreaterThan(0);
@@ -331,17 +328,11 @@ describe('useQueries', () => {
     });
 
     it('should return negative number for past events', () => {
-      const pastEvent = {
-        id: 'event-1',
+      const pastEvent = createTestEvent({
         name: 'UFC 299',
         event_date: '2024-01-01T22:00:00Z', // Past date
-        status: 'completed' as const,
-        location: 'Las Vegas',
-        ufcstats_id: null,
-        card_snapshot: 0,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z',
-      };
+        status: 'completed',
+      });
 
       expect(getTimeUntilEvent(pastEvent)).toBeLessThan(0);
     });

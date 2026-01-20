@@ -58,6 +58,11 @@ export const colors = {
     gold: '#D4A017',
     silver: '#71757E',
     bronze: '#9D6739',
+
+    // Aliases for backward compatibility
+    primary: '#B0443F',
+    primarySoft: '#F4D7DA',
+    card: '#FFFFFF',
   },
 
   dark: {
@@ -116,6 +121,11 @@ export const colors = {
     gold: '#FFD700',
     silver: '#A8B0BC',
     bronze: '#CD853F',
+
+    // Aliases for backward compatibility
+    primary: '#E05A55',
+    primarySoft: '#3A1A1D',
+    card: '#12151B',
   },
 } as const;
 
@@ -253,6 +263,10 @@ export const radius = {
   pill: 999,
   input: 12,
   sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  full: 9999,
 } as const;
 
 export const shadows = {
@@ -364,6 +378,6 @@ export const animations = {
   },
 } as const;
 
-export type ThemeColors = typeof colors.light;
+export type ThemeColors = typeof colors.light | typeof colors.dark;
 export type ThemeMode = 'system' | 'light' | 'dark';
 export type ResolvedTheme = 'light' | 'dark';

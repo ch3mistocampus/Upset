@@ -57,7 +57,7 @@ export function useIsMuted(targetUserId: string | null) {
 
       const { data, error } = await supabase.rpc('is_muted', {
         check_user_id: targetUserId,
-        by_user_id: user?.id,
+        by_user_id: user!.id,
       });
 
       if (error) {
@@ -80,9 +80,11 @@ export function useMuteUser() {
 
   return useMutation({
     mutationFn: async (targetUserId: string) => {
+      if (!user) throw new Error('Not authenticated');
+
       const { error } = await supabase
         .from('mutes')
-        .insert({ user_id: user?.id, muted_user_id: targetUserId });
+        .insert({ user_id: user.id, muted_user_id: targetUserId });
 
       if (error) throw error;
       return true;
@@ -104,10 +106,12 @@ export function useUnmuteUser() {
 
   return useMutation({
     mutationFn: async (targetUserId: string) => {
+      if (!user) throw new Error('Not authenticated');
+
       const { error } = await supabase
         .from('mutes')
         .delete()
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .eq('muted_user_id', targetUserId);
 
       if (error) throw error;

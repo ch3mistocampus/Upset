@@ -1,36 +1,76 @@
 /**
- * SurfaceCard - Premium card with layered gradients and soft shadow
+ * SurfaceCard - Premium card with subtle texture and soft shadow
  *
  * Structure:
  * - Outer container: handles shadow (no clip)
  * - Inner container: handles radius + overflow hidden
- * - Layer 1: base white background
- * - Layer 2: muted red wash gradient (fades from top-left corner)
+ * - Layer 1: base background
+ * - Layer 2: subtle diagonal stripe texture (instead of gradient wash)
  * - Content layer with padding
  */
 
 import React, { useRef, useEffect } from 'react';
 import { View, StyleSheet, ViewStyle, Animated } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../lib/theme';
 import { spacing, radius, shadows } from '../../lib/tokens';
 
 interface SurfaceCardProps {
   children: React.ReactNode;
   style?: ViewStyle;
-  /** Enable the muted red wash overlay (default: true for hero cards) */
+  /** Enable the subtle texture overlay (default: true) */
   showWash?: boolean;
-  /** Reduce wash intensity for secondary cards */
+  /** Reduce texture intensity for secondary cards */
   weakWash?: boolean;
   /** Disable padding */
   noPadding?: boolean;
   /** Custom padding size: 'lg' (default 18px), 'md' (14px), 'sm' (10px) */
   paddingSize?: 'lg' | 'md' | 'sm';
-  /** Enhanced glow for primary hero cards */
+  /** Enhanced styling for primary hero cards */
   heroGlow?: boolean;
   /** Animated pulsing border effect */
   animatedBorder?: boolean;
 }
+
+// Texture stripe component - creates diagonal lines pattern
+const TextureStripes: React.FC<{ color: string; opacity: number; spacing?: number }> = ({
+  color,
+  opacity,
+  spacing: lineSpacing = 6,
+}) => {
+  const stripeCount = Math.ceil(400 / lineSpacing); // Enough to cover card width
+  return (
+    <View style={textureStyles.container} pointerEvents="none">
+      {[...Array(stripeCount)].map((_, i) => (
+        <View
+          key={i}
+          style={[
+            textureStyles.stripe,
+            {
+              left: i * lineSpacing,
+              backgroundColor: color,
+              opacity,
+            },
+          ]}
+        />
+      ))}
+    </View>
+  );
+};
+
+const textureStyles = StyleSheet.create({
+  container: {
+    ...StyleSheet.absoluteFillObject,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  stripe: {
+    position: 'absolute',
+    top: -20,
+    width: 1,
+    height: '150%',
+    transform: [{ rotate: '45deg' }],
+  },
+});
 
 export function SurfaceCard({
   children,
@@ -45,6 +85,15 @@ export function SurfaceCard({
   const { colors, isDark } = useTheme();
   const cardShadow = isDark ? shadows.dark.card : shadows.light.card;
 
+  // Enhanced shadow for hero cards (Main Event)
+  const heroShadow = heroGlow ? {
+    shadowColor: isDark ? '#E05A55' : '#B0443F',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 16,
+  } : {};
+
   // Animated border pulse
   const borderAnim = useRef(new Animated.Value(0)).current;
 
@@ -55,7 +104,7 @@ export function SurfaceCard({
           Animated.timing(borderAnim, {
             toValue: 1,
             duration: 2000,
-            useNativeDriver: false, // borderColor doesn't support native driver
+            useNativeDriver: false,
           }),
           Animated.timing(borderAnim, {
             toValue: 0,
@@ -69,7 +118,7 @@ export function SurfaceCard({
     }
   }, [animatedBorder, borderAnim]);
 
-  // Interpolate border color
+  // Interpolate border color for animated border
   const animatedBorderColor = borderAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [
@@ -78,27 +127,19 @@ export function SurfaceCard({
     ],
   });
 
-  // Refined wash alpha - constrained to top portion only
-  // Hero cards: 22% at origin, fades quickly
-  // Standard cards: 16%
-  // Weak wash: 6% for secondary/quieter cards
-  const washAlpha = heroGlow ? 0.22 : weakWash ? 0.06 : 0.16;
-  const washStart = isDark
-    ? `rgba(200, 80, 75, ${washAlpha})`
-    : `rgba(140, 60, 55, ${washAlpha})`; // Muted warm tone
-
-  // Outer glow for hero cards - very subtle ambient
-  const glowAlpha = isDark ? 0.06 : 0.08;
-  const outerGlow = isDark
-    ? `rgba(200, 80, 75, ${glowAlpha})`
-    : `rgba(140, 60, 55, ${glowAlpha})`;
+  // Texture opacity based on card type
+  // Hero cards: more visible texture
+  // Standard cards: subtle texture
+  // Weak wash: very faint texture
+  const textureOpacity = heroGlow ? 0.06 : weakWash ? 0.02 : 0.04;
+  const textureColor = isDark ? colors.accent : colors.accent;
 
   // Common inner container styles
   const innerContainerStyle = [
     styles.innerContainer,
     {
       borderRadius: radius.card,
-      backgroundColor: colors.cardBaseTop,
+      backgroundColor: colors.surface,
     },
   ];
 
@@ -106,35 +147,22 @@ export function SurfaceCard({
   const InnerContainer = animatedBorder ? Animated.View : View;
   const borderStyle = animatedBorder
     ? { borderWidth: 1.5, borderColor: animatedBorderColor }
-    : {};
+    : { borderWidth: 1, borderColor: colors.border };
 
   return (
-    // Outer container for shadow (no clipping)
-    <View style={[styles.shadowContainer, cardShadow, style]}>
-      {/* Inner container with radius and overflow hidden */}
+    <View style={[styles.shadowContainer, cardShadow, heroShadow, style]}>
       <InnerContainer
         style={[
           ...innerContainerStyle,
-          borderStyle,
+          borderStyle as any,
         ]}
       >
-        {/* Layer 1: Outer glow for hero cards - constrained to top-left */}
-        {heroGlow && (
-          <LinearGradient
-            colors={[outerGlow, 'transparent'] as const}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0.5, y: 0.35 }}
-            style={styles.glowLayer}
-          />
-        )}
-
-        {/* Layer 2: Warm wash - constrained to top 30-40%, fades to neutral */}
-        {(showWash || heroGlow) && (
-          <LinearGradient
-            colors={[washStart, 'transparent'] as const}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0.7, y: 0.4 }}
-            style={styles.washLayer}
+        {/* Subtle diagonal stripe texture */}
+        {showWash && (
+          <TextureStripes
+            color={textureColor}
+            opacity={textureOpacity}
+            spacing={8}
           />
         )}
 
@@ -159,17 +187,8 @@ const styles = StyleSheet.create({
   innerContainer: {
     overflow: 'hidden',
   },
-  glowLayer: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  washLayer: {
-    ...StyleSheet.absoluteFillObject,
-  },
   content: {
     position: 'relative',
     zIndex: 1,
-  },
-  padding: {
-    padding: spacing.lg,
   },
 });

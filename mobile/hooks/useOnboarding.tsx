@@ -13,12 +13,14 @@ export interface OnboardingState {
   hasDismissedFirstLaunch: boolean;
   hasSeenLockExplainer: boolean;
   hasSeenFirstEventCelebration: boolean;
+  hasSeenCompareTooltip: boolean;
 }
 
 const DEFAULT_STATE: OnboardingState = {
   hasDismissedFirstLaunch: false,
   hasSeenLockExplainer: false,
   hasSeenFirstEventCelebration: false,
+  hasSeenCompareTooltip: false,
 };
 
 type OnboardingFlag = keyof OnboardingState;
@@ -32,6 +34,7 @@ interface OnboardingContextValue {
   shouldShowFirstLaunchHero: boolean;
   shouldShowLockExplainer: boolean;
   shouldShowFirstEventCelebration: boolean;
+  shouldShowCompareTooltip: boolean;
 }
 
 const OnboardingContext = createContext<OnboardingContextValue | null>(null);
@@ -96,6 +99,7 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
     shouldShowFirstLaunchHero: !state.hasDismissedFirstLaunch,
     shouldShowLockExplainer: !state.hasSeenLockExplainer,
     shouldShowFirstEventCelebration: !state.hasSeenFirstEventCelebration,
+    shouldShowCompareTooltip: !state.hasSeenCompareTooltip,
   }), [state, isLoaded, markSeen, resetOnboarding]);
 
   return (

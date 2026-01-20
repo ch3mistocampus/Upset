@@ -126,9 +126,9 @@ export function PostCard({ post, onPress, showActions = true }: PostCardProps) {
 
   const isSystemPost = post.post_type === 'system';
   const displayName = isSystemPost
-    ? 'UFC Picks'
+    ? 'Upset'
     : post.author_display_name || post.author_username || 'User';
-  const username = isSystemPost ? 'ufcpicks' : post.author_username || 'user';
+  const username = isSystemPost ? 'upset' : post.author_username || 'user';
   const avatarUrl = isSystemPost ? null : post.author_avatar_url;
 
   // Build content text (unified title + body)

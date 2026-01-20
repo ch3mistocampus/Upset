@@ -124,5 +124,5 @@ export const getAuthErrorMessage = (error: unknown): string => {
   }
 
   // Fall back to error message or generic message
-  return error?.message || 'An error occurred. Please try again.';
+  return errorObj?.message || 'An error occurred. Please try again.';
 };

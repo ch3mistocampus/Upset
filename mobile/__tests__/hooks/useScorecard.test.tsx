@@ -68,12 +68,12 @@ describe('useScorecard hooks', () => {
   // getScorecardPollingInterval
   // =========================================================================
   describe('getScorecardPollingInterval', () => {
-    it('returns 5000ms for ROUND_BREAK phase', () => {
-      expect(getScorecardPollingInterval('ROUND_BREAK')).toBe(5000);
+    it('returns 3000ms for ROUND_BREAK phase', () => {
+      expect(getScorecardPollingInterval('ROUND_BREAK')).toBe(3000);
     });
 
-    it('returns 10000ms for ROUND_LIVE phase', () => {
-      expect(getScorecardPollingInterval('ROUND_LIVE')).toBe(10000);
+    it('returns 8000ms for ROUND_LIVE phase', () => {
+      expect(getScorecardPollingInterval('ROUND_LIVE')).toBe(8000);
     });
 
     it('returns 30000ms for PRE_FIGHT phase', () => {
@@ -478,6 +478,7 @@ describe('useScorecard hooks', () => {
 
       expect(result.current.data).toEqual({
         isLive: false,
+        isActive: false,
         phase: null,
         currentRound: null,
         scheduledRounds: null,

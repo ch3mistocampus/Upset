@@ -45,7 +45,7 @@ const MOCK_NOTIFICATIONS: PostNotification[] = [
     post_title: 'My 2025 record: 78% accuracy!',
     actor: {
       user_id: '10421a84-a15e-4d53-b566-08519782f548',
-      username: 'bob_fighter',
+      username: 'bsantos',
       avatar_url: null,
     },
   },
@@ -59,7 +59,7 @@ const MOCK_NOTIFICATIONS: PostNotification[] = [
     post_title: 'My bold prediction for this weekend',
     actor: {
       user_id: 'd1ca48f8-3152-4d28-a781-9465b191e264',
-      username: 'charlie_picks',
+      username: 'charliej',
       avatar_url: null,
     },
   },
@@ -73,7 +73,7 @@ const MOCK_NOTIFICATIONS: PostNotification[] = [
     post_title: 'Training camp insider info',
     actor: {
       user_id: '8089b91b-91f8-417d-99fd-27d0e6cfb802',
-      username: 'iris_insider',
+      username: 'irismtz',
       avatar_url: null,
     },
   },
@@ -88,7 +88,7 @@ const MOCK_NOTIFICATIONS: PostNotification[] = [
     post_title: 'My UFC 310 Predictions Thread',
     actor: {
       user_id: 'c06aeff7-84af-42e0-a885-0f33bd11751a',
-      username: 'henry_heavyweight',
+      username: 'henryjack',
       avatar_url: null,
     },
   },
@@ -102,7 +102,7 @@ const MOCK_NOTIFICATIONS: PostNotification[] = [
     post_title: 'Why knockouts are down in modern MMA',
     actor: {
       user_id: 'a241a3c4-6653-400e-a0e9-56c0446cb295',
-      username: 'frank_knockout',
+      username: 'bigfrank',
       avatar_url: null,
     },
   },
@@ -116,7 +116,7 @@ const MOCK_NOTIFICATIONS: PostNotification[] = [
     post_title: 'Heavyweight division is STACKED',
     actor: {
       user_id: '434f2965-e63d-40ae-825d-77d8b8fb0cbd',
-      username: 'grace_grappling',
+      username: 'gracet',
       avatar_url: null,
     },
   },
@@ -130,7 +130,7 @@ const MOCK_NOTIFICATIONS: PostNotification[] = [
     post_title: 'Underrated fighters to watch in 2026',
     actor: {
       user_id: '4489c91d-6170-4d0c-973b-e11da25ba93d',
-      username: 'david_mma',
+      username: 'dkim23',
       avatar_url: null,
     },
   },
@@ -144,7 +144,7 @@ const MOCK_NOTIFICATIONS: PostNotification[] = [
     post_title: 'Post-fight analysis: What went wrong?',
     actor: {
       user_id: 'e5e9a61d-d21f-4706-a9db-586428381db3',
-      username: 'emma_octagon',
+      username: 'emmarod',
       avatar_url: null,
     },
   },
@@ -158,7 +158,7 @@ const MOCK_NOTIFICATIONS: PostNotification[] = [
     post_title: 'Grappling breakdown: BJJ vs Wrestling',
     actor: {
       user_id: 'c85dbeb6-ddf3-4d76-8475-39ff11b80e3b',
-      username: 'jack_judge',
+      username: 'jmorrison',
       avatar_url: null,
     },
   },
@@ -172,7 +172,7 @@ const MOCK_NOTIFICATIONS: PostNotification[] = [
     post_title: 'Fight night watch party!',
     actor: {
       user_id: 'f64da1ed-138e-410b-8c2f-df0564ee2414',
-      username: 'alice_ufc',
+      username: 'alicechen',
       avatar_url: null,
     },
   },

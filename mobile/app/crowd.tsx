@@ -26,6 +26,7 @@ import { ErrorState } from '../components/ErrorState';
 import { EmptyState, SurfaceCard } from '../components/ui';
 import { SkeletonCard } from '../components/SkeletonCard';
 import { AuthPromptModal } from '../components/AuthPromptModal';
+import { Avatar } from '../components/Avatar';
 import type { Friend } from '../types/social';
 
 // Animated friend card wrapper
@@ -185,10 +186,12 @@ export default function Crowd() {
       >
         <SurfaceCard weakWash>
           <View style={styles.friendCardRow}>
-            <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
-              <Text style={styles.avatarText}>
-                {friend.username.charAt(0).toUpperCase()}
-              </Text>
+            <View style={styles.avatarContainer}>
+              <Avatar
+                imageUrl={friend.avatar_url}
+                username={friend.username}
+                size="small"
+              />
             </View>
 
             <View style={styles.friendInfo}>
@@ -326,18 +329,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+  avatarContainer: {
     marginRight: spacing.sm,
-  },
-  avatarText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#fff',
   },
   friendInfo: {
     flex: 1,

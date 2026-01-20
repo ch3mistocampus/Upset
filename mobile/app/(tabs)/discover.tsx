@@ -40,6 +40,7 @@ import { usePostsFeed, useFollowingPostsFeed } from '../../hooks/usePosts';
 import { useAuth } from '../../hooks/useAuth';
 import { FeedPostRow } from '../../components/posts';
 import { Post, FeedSortOption } from '../../types/posts';
+import { generateAvatarUrl } from '../../components/Avatar';
 
 type FeedTab = 'discover' | 'following';
 
@@ -179,13 +180,10 @@ export default function DiscoverScreen() {
       activeOpacity={0.7}
     >
       <View style={styles.activityHeader}>
-        {item.avatar_url ? (
-          <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
-        ) : (
-          <View style={[styles.avatarPlaceholder, { backgroundColor: colors.border }]}>
-            <Ionicons name="person" size={20} color={colors.textSecondary} />
-          </View>
-        )}
+        <Image
+          source={{ uri: item.avatar_url || generateAvatarUrl(item.username, 80) }}
+          style={styles.avatar}
+        />
         <View style={styles.activityContent}>
           <Text style={[styles.username, { color: colors.text }]}>
             @{item.username}
@@ -239,13 +237,10 @@ export default function DiscoverScreen() {
       onPress={() => handleUserPress(item.user_id)}
       activeOpacity={0.7}
     >
-      {item.avatar_url ? (
-        <Image source={{ uri: item.avatar_url }} style={styles.trendingAvatar} />
-      ) : (
-        <View style={[styles.trendingAvatarPlaceholder, { backgroundColor: colors.border }]}>
-          <Ionicons name="person" size={24} color={colors.textSecondary} />
-        </View>
-      )}
+      <Image
+        source={{ uri: item.avatar_url || generateAvatarUrl(item.username, 96) }}
+        style={styles.trendingAvatar}
+      />
       <Text style={[styles.trendingUsername, { color: colors.text }]} numberOfLines={1}>
         @{item.username}
       </Text>
@@ -688,14 +683,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: spacing.sm,
   },
-  trendingAvatarPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    marginBottom: spacing.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   trendingUsername: {
     fontSize: typography.sizes.sm,
     fontWeight: typography.weights.semibold as '600',
@@ -732,14 +719,6 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 11,
     marginRight: spacing.md,
-  },
-  avatarPlaceholder: {
-    width: 44,
-    height: 44,
-    borderRadius: 11,
-    marginRight: spacing.md,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   activityContent: {
     flex: 1,

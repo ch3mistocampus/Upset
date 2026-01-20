@@ -134,7 +134,7 @@ export function useEventCommunityPercentages(boutIds: string[]) {
 
       // Fetch all percentages in a single batch query
       const { data, error } = await supabase.rpc('get_batch_community_pick_percentages', {
-        fight_ids: boutIds,
+        bout_ids: boutIds,
       });
 
       if (error) {

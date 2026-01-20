@@ -10,19 +10,19 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const TEST_USERNAMES = [
-  'alice_ufc',
-  'bob_fighter',
-  'charlie_picks',
-  'david_mma',
-  'emma_octagon',
-  'frank_knockout',
-  'grace_grappling',
-  'henry_heavyweight',
-  'iris_insider',
-  'jack_judge',
-  'kate_kicks',
-  'leo_legacy',
-  'mia_momentum',
+  'alicechen',
+  'bsantos',
+  'charliej',
+  'dkim23',
+  'emmarod',
+  'bigfrank',
+  'gracet',
+  'henryjack',
+  'irismtz',
+  'jmorrison',
+  'kateo',
+  'leonak',
+  'miadavis',
 ];
 
 async function main() {

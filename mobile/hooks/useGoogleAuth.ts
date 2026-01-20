@@ -1,160 +1,166 @@
 /**
- * Google Sign-In hook for Supabase authentication
- * Uses Supabase OAuth flow (more reliable than expo-auth-session proxy)
+ * Google Sign-In hook using native SDK
+ * Provides a native sign-in UI instead of web-based OAuth redirect
+ *
+ * NOTE: This requires a native build (not Expo Go) to work.
+ * In Expo Go, isAvailable will be false and signInWithGoogle will throw.
  */
 
 import { useState, useEffect } from 'react';
-import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
 import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
-import Constants from 'expo-constants';
 
-// Complete auth session for web browser redirects
-WebBrowser.maybeCompleteAuthSession();
+// Get client IDs from environment
+const IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS;
+const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB;
+
+// Try to import Google Sign-In - will fail in Expo Go
+let GoogleSignin: any = null;
+let isSuccessResponse: any = null;
+let isErrorWithCode: any = null;
+let statusCodes: any = null;
+let nativeModuleAvailable = false;
+
+try {
+  // Dynamic require to prevent crash when native module isn't available
+  const googleSignIn = require('@react-native-google-signin/google-signin');
+  GoogleSignin = googleSignIn.GoogleSignin;
+  isSuccessResponse = googleSignIn.isSuccessResponse;
+  isErrorWithCode = googleSignIn.isErrorWithCode;
+  statusCodes = googleSignIn.statusCodes;
+  nativeModuleAvailable = true;
+} catch (error) {
+  // Native module not available (running in Expo Go)
+  logger.debug('Google Sign-In native module not available (likely Expo Go)');
+  nativeModuleAvailable = false;
+}
 
 export function useGoogleAuth() {
   const [loading, setLoading] = useState(false);
+  const [isAvailable, setIsAvailable] = useState(false);
 
-  // Listen for deep links to handle OAuth callback
+  // Configure Google Sign-In on mount
   useEffect(() => {
-    const handleDeepLink = async (event: { url: string }) => {
-      logger.debug('Deep link received', { url: event.url });
+    if (!nativeModuleAvailable) {
+      logger.debug('Google Sign-In not available - native module missing');
+      setIsAvailable(false);
+      return;
+    }
 
-      if (event.url.includes('access_token') || event.url.includes('code')) {
-        // Extract tokens from URL fragment and set session
-        const url = new URL(event.url.replace('#', '?')); // Convert fragment to query params
-        const accessToken = url.searchParams.get('access_token');
-        const refreshToken = url.searchParams.get('refresh_token');
+    const configure = async () => {
+      try {
+        // Configure with iOS client ID for native sign-in
+        // Web client ID is needed for Supabase to verify the token
+        GoogleSignin.configure({
+          iosClientId: IOS_CLIENT_ID,
+          webClientId: WEB_CLIENT_ID,
+          offlineAccess: false,
+        });
 
-        if (accessToken && refreshToken) {
-          const { error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-
-          if (error) {
-            logger.error('Failed to set session from OAuth', error);
-          } else {
-            logger.info('Google Sign-In successful via deep link');
-          }
-        }
+        setIsAvailable(true);
+        logger.debug('Google Sign-In configured', {
+          hasIosClientId: !!IOS_CLIENT_ID,
+          hasWebClientId: !!WEB_CLIENT_ID
+        });
+      } catch (error) {
+        logger.error('Failed to configure Google Sign-In', error);
+        setIsAvailable(false);
       }
     };
 
-    const subscription = Linking.addEventListener('url', handleDeepLink);
-    return () => subscription.remove();
+    configure();
   }, []);
 
   const signInWithGoogle = async () => {
+    if (!nativeModuleAvailable) {
+      throw new Error('Google Sign-In requires a native build. Please use a development or production build instead of Expo Go.');
+    }
+
+    // Prevent race condition from double-tap
+    if (loading) {
+      logger.warn('Google Sign-In already in progress');
+      throw new Error('Sign-in already in progress');
+    }
+
     setLoading(true);
-    logger.breadcrumb('Starting Google Sign-In via Supabase', 'auth');
+    logger.breadcrumb('Starting native Google Sign-In', 'auth');
 
     try {
-      // Get the redirect URL - use custom scheme for better compatibility
-      // Using upset:// scheme which is configured in app.json
-      const redirectUrl = 'upset://auth/callback';
-      logger.debug('OAuth redirect URL', { redirectUrl });
+      // Check if Play Services are available (Android) or just proceed (iOS)
+      await GoogleSignin.hasPlayServices();
 
-      // Start OAuth flow via Supabase
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: redirectUrl,
-          skipBrowserRedirect: true,
-          queryParams: {
-            // Force account selection even if already logged in to Google
-            prompt: 'select_account',
-          },
-        },
-      });
+      // Trigger native Google Sign-In UI
+      const response = await GoogleSignin.signIn();
 
-      if (error) {
-        logger.error('Failed to start Google OAuth', error);
-        throw error;
-      }
+      if (isSuccessResponse(response)) {
+        const { idToken } = response.data;
 
-      if (!data.url) {
-        throw new Error('No OAuth URL returned from Supabase');
-      }
-
-      logger.debug('Opening OAuth URL', { url: data.url });
-
-      // Open the OAuth URL in the browser
-      const result = await WebBrowser.openAuthSessionAsync(
-        data.url,
-        redirectUrl,
-        {
-          showInRecents: true,
-          preferEphemeralSession: true, // Don't persist cookies between sessions
+        if (!idToken) {
+          throw new Error('No ID token returned from Google Sign-In');
         }
-      );
 
-      logger.debug('Browser result', { type: result.type });
+        logger.debug('Got Google ID token, authenticating with Supabase');
 
-      if (result.type === 'success' && result.url) {
-        logger.debug('OAuth callback received', { url: result.url });
+        // Sign in to Supabase with the Google ID token
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: 'google',
+          token: idToken,
+        });
 
-        // Parse the URL to get the tokens from the fragment
-        // Supabase returns tokens in the URL fragment like: #access_token=...&refresh_token=...
-        const urlObj = new URL(result.url);
-        const fragment = urlObj.hash.substring(1); // Remove the #
-        const params = new URLSearchParams(fragment);
-
-        const accessToken = params.get('access_token');
-        const refreshToken = params.get('refresh_token');
-
-        if (accessToken && refreshToken) {
-          const { error: sessionError } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-
-          if (sessionError) {
-            logger.error('Failed to set session from OAuth', sessionError);
-            throw sessionError;
-          }
-
-          logger.info('Google Sign-In successful');
-        } else {
-          // Maybe tokens are in query params instead
-          const queryAccessToken = urlObj.searchParams.get('access_token');
-          const queryRefreshToken = urlObj.searchParams.get('refresh_token');
-
-          if (queryAccessToken && queryRefreshToken) {
-            const { error: sessionError } = await supabase.auth.setSession({
-              access_token: queryAccessToken,
-              refresh_token: queryRefreshToken,
-            });
-
-            if (sessionError) {
-              logger.error('Failed to set session from OAuth', sessionError);
-              throw sessionError;
-            }
-
-            logger.info('Google Sign-In successful');
-          } else {
-            logger.warn('No tokens found in callback URL', { url: result.url });
-          }
+        if (error) {
+          logger.error('Supabase signInWithIdToken failed', error);
+          throw error;
         }
-      } else if (result.type === 'cancel' || result.type === 'dismiss') {
+
+        logger.info('Google Sign-In successful', { userId: data.user?.id });
+      } else {
+        // User cancelled the sign-in
         logger.debug('Google Sign-In cancelled by user');
         throw new Error('Sign-in cancelled');
       }
     } catch (error: any) {
-      logger.error('Google Sign-In failed', error);
-      throw error;
+      if (isErrorWithCode && isErrorWithCode(error)) {
+        switch (error.code) {
+          case statusCodes.SIGN_IN_CANCELLED:
+            logger.debug('Google Sign-In cancelled by user');
+            throw new Error('Sign-in cancelled');
+          case statusCodes.IN_PROGRESS:
+            logger.warn('Google Sign-In already in progress');
+            throw new Error('Sign-in already in progress');
+          case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
+            logger.error('Play Services not available');
+            throw new Error('Google Play Services not available');
+          default:
+            logger.error('Google Sign-In error', error);
+            throw error;
+        }
+      } else {
+        logger.error('Google Sign-In failed', error);
+        throw error;
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // Google Sign-In is always available when using Supabase OAuth
-  const isAvailable = true;
+  // Sign out from Google (call this when signing out of the app)
+  const signOutFromGoogle = async () => {
+    if (!nativeModuleAvailable || !GoogleSignin) {
+      return; // No-op in Expo Go
+    }
+
+    try {
+      await GoogleSignin.signOut();
+      logger.debug('Signed out from Google');
+    } catch (error) {
+      logger.error('Failed to sign out from Google', error);
+    }
+  };
 
   return {
     isAvailable,
     loading,
     signInWithGoogle,
+    signOutFromGoogle,
   };
 }

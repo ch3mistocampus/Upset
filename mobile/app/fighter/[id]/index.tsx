@@ -76,6 +76,8 @@ export default function FighterDetailScreen() {
   }
 
   if (error || !data) {
+    // Distinguish between network error and fighter not found
+    const isNotFound = !error && !data;
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <Stack.Screen options={{ headerShown: false }} />
@@ -83,12 +85,19 @@ export default function FighterDetailScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Error</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
+            {isNotFound ? 'Fighter Not Found' : 'Error'}
+          </Text>
           <View style={styles.placeholder} />
         </View>
-        <ErrorState
-          message={error?.message || 'Failed to load fighter profile'}
-          onRetry={() => refetch()}
+        <EmptyState
+          icon={isNotFound ? 'person-outline' : 'alert-circle-outline'}
+          title={isNotFound ? 'Stats Coming Soon' : 'Something went wrong'}
+          message={
+            isNotFound
+              ? "This fighter's detailed stats haven't been synced yet. Check back closer to fight day!"
+              : error?.message || 'Failed to load fighter profile'
+          }
         />
         <GlobalTabBar />
       </View>
@@ -96,6 +105,29 @@ export default function FighterDetailScreen() {
   }
 
   const { fighter, history } = data;
+
+  // Fighter can be null if not found - show empty state
+  if (!fighter) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <View style={[styles.header, { paddingTop: insets.top }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Fighter Not Found</Text>
+          <View style={styles.placeholder} />
+        </View>
+        <EmptyState
+          icon="person-outline"
+          title="Stats Coming Soon"
+          message="This fighter's detailed stats haven't been synced yet. Check back closer to fight day!"
+        />
+        <GlobalTabBar />
+      </View>
+    );
+  }
+
   const age = calculateAge(fighter.dob);
   // Use database weight_class if available, otherwise calculate from weight
   const weightClass = fighter.weight_class || getWeightClassName(fighter.weight_lbs);
@@ -124,6 +156,28 @@ export default function FighterDetailScreen() {
     fighter.career_stats.td_avg !== null ||
     fighter.career_stats.sub_avg !== null
   );
+
+  // Calculate win methods from fight history
+  const winMethods = history.reduce(
+    (acc, fight) => {
+      if (fight.result === 'Win' && fight.result_method) {
+        const method = fight.result_method.toUpperCase();
+        if (method.includes('KO') || method.includes('TKO')) {
+          acc.ko++;
+        } else if (method.includes('SUB')) {
+          acc.sub++;
+        } else if (method.includes('DEC') || method.includes('DECISION')) {
+          acc.dec++;
+        } else {
+          acc.other++;
+        }
+      }
+      return acc;
+    },
+    { ko: 0, sub: 0, dec: 0, other: 0 }
+  );
+  const totalWinMethods = winMethods.ko + winMethods.sub + winMethods.dec + winMethods.other;
+  const hasWinMethods = totalWinMethods > 0;
 
   const renderStatBar = (
     label: string,
@@ -213,7 +267,7 @@ export default function FighterDetailScreen() {
             <View style={[styles.fightStats, { borderTopColor: colors.divider }]}>
               <View style={styles.fightStatItem}>
                 <Text style={[styles.fightStatValue, { color: colors.text }]}>
-                  {fight.totals.sig_str_landed}
+                  {String(fight.totals.sig_str_landed ?? '--')}
                 </Text>
                 <Text style={[styles.fightStatLabel, { color: colors.textTertiary }]}>
                   Sig. Str
@@ -221,7 +275,7 @@ export default function FighterDetailScreen() {
               </View>
               <View style={styles.fightStatItem}>
                 <Text style={[styles.fightStatValue, { color: colors.text }]}>
-                  {fight.totals.td_landed}
+                  {String(fight.totals.td_landed ?? '--')}
                 </Text>
                 <Text style={[styles.fightStatLabel, { color: colors.textTertiary }]}>
                   TD
@@ -229,7 +283,7 @@ export default function FighterDetailScreen() {
               </View>
               <View style={styles.fightStatItem}>
                 <Text style={[styles.fightStatValue, { color: colors.text }]}>
-                  {fight.totals.knockdowns}
+                  {String(fight.totals.knockdowns ?? '--')}
                 </Text>
                 <Text style={[styles.fightStatLabel, { color: colors.textTertiary }]}>
                   KD
@@ -237,7 +291,7 @@ export default function FighterDetailScreen() {
               </View>
               <View style={styles.fightStatItem}>
                 <Text style={[styles.fightStatValue, { color: colors.text }]}>
-                  {formatControlTime(fight.totals.ctrl_time_seconds)}
+                  {formatControlTime(Number(fight.totals.ctrl_time_seconds) || 0)}
                 </Text>
                 <Text style={[styles.fightStatLabel, { color: colors.textTertiary }]}>
                   Ctrl
@@ -385,13 +439,102 @@ export default function FighterDetailScreen() {
           </View>
         </Card>
 
+        {/* Win Methods */}
+        {hasWinMethods && (
+          <Card style={styles.bioCard}>
+            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+              UFC WIN METHODS
+            </Text>
+
+            <View style={styles.winMethodsList}>
+              {/* KO/TKO */}
+              <View style={styles.winMethodRow}>
+                <View style={styles.winMethodInfo}>
+                  <Text style={[styles.winMethodValue, { color: colors.text }]}>
+                    {winMethods.ko}
+                  </Text>
+                  <Text style={[styles.winMethodLabel, { color: colors.textSecondary }]}>
+                    KO/TKO
+                  </Text>
+                </View>
+                <View style={[styles.winMethodBarTrack, { backgroundColor: colors.surfaceAlt }]}>
+                  <View
+                    style={[
+                      styles.winMethodBarFill,
+                      {
+                        backgroundColor: colors.danger,
+                        width: `${totalWinMethods > 0 ? (winMethods.ko / totalWinMethods) * 100 : 0}%`,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={[styles.winMethodPct, { color: colors.textTertiary }]}>
+                  {totalWinMethods > 0 ? Math.round((winMethods.ko / totalWinMethods) * 100) : 0}%
+                </Text>
+              </View>
+
+              {/* Submission */}
+              <View style={styles.winMethodRow}>
+                <View style={styles.winMethodInfo}>
+                  <Text style={[styles.winMethodValue, { color: colors.text }]}>
+                    {winMethods.sub}
+                  </Text>
+                  <Text style={[styles.winMethodLabel, { color: colors.textSecondary }]}>
+                    Submission
+                  </Text>
+                </View>
+                <View style={[styles.winMethodBarTrack, { backgroundColor: colors.surfaceAlt }]}>
+                  <View
+                    style={[
+                      styles.winMethodBarFill,
+                      {
+                        backgroundColor: colors.accent,
+                        width: `${totalWinMethods > 0 ? (winMethods.sub / totalWinMethods) * 100 : 0}%`,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={[styles.winMethodPct, { color: colors.textTertiary }]}>
+                  {totalWinMethods > 0 ? Math.round((winMethods.sub / totalWinMethods) * 100) : 0}%
+                </Text>
+              </View>
+
+              {/* Decision */}
+              <View style={styles.winMethodRow}>
+                <View style={styles.winMethodInfo}>
+                  <Text style={[styles.winMethodValue, { color: colors.text }]}>
+                    {winMethods.dec}
+                  </Text>
+                  <Text style={[styles.winMethodLabel, { color: colors.textSecondary }]}>
+                    Decision
+                  </Text>
+                </View>
+                <View style={[styles.winMethodBarTrack, { backgroundColor: colors.surfaceAlt }]}>
+                  <View
+                    style={[
+                      styles.winMethodBarFill,
+                      {
+                        backgroundColor: colors.success,
+                        width: `${totalWinMethods > 0 ? (winMethods.dec / totalWinMethods) * 100 : 0}%`,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={[styles.winMethodPct, { color: colors.textTertiary }]}>
+                  {totalWinMethods > 0 ? Math.round((winMethods.dec / totalWinMethods) * 100) : 0}%
+                </Text>
+              </View>
+            </View>
+          </Card>
+        )}
+
         {/* Career Stats */}
         <Card style={styles.statsCard}>
           <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
             CAREER STATISTICS
           </Text>
 
-          {hasCareerStats ? (
+          {hasCareerStats && fighter.career_stats ? (
             <>
               <View style={styles.statsSection}>
                 <Text style={[styles.statsSectionTitle, { color: colors.text }]}>Striking</Text>
@@ -714,5 +857,42 @@ const styles = StyleSheet.create({
   fightStatLabel: {
     fontSize: 10,
     marginTop: 2,
+  },
+
+  // Win Methods
+  winMethodsList: {
+    gap: spacing.sm,
+  },
+  winMethodRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  winMethodInfo: {
+    width: 70,
+  },
+  winMethodValue: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  winMethodLabel: {
+    fontSize: 11,
+    marginTop: -2,
+  },
+  winMethodBarTrack: {
+    flex: 1,
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  winMethodBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  winMethodPct: {
+    width: 40,
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'right',
   },
 });

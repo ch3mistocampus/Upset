@@ -30,7 +30,7 @@ export function useToggleLike() {
       });
 
       if (error) throw error;
-      return data as ToggleLikeResult;
+      return data as unknown as ToggleLikeResult;
     },
     onMutate: async (activityId) => {
       // Optimistic update - we'll toggle the like state immediately

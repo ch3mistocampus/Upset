@@ -25,6 +25,12 @@ export function useAppleAuth() {
       throw new Error('Apple Sign-In is not available on this device');
     }
 
+    // Prevent race condition from double-tap
+    if (loading) {
+      logger.warn('Apple Sign-In already in progress');
+      throw new Error('Sign-in already in progress');
+    }
+
     setLoading(true);
     logger.breadcrumb('Starting Apple Sign-In', 'auth');
 

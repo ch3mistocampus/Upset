@@ -12,8 +12,10 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/netinfo": "11.4.1",
+    "@react-native-google-signin/google-signin": "^16.1.1",
     "@sentry/react-native": "~7.2.0",
     "@supabase/supabase-js": "^2.89.0",
     "@tanstack/react-query": "^5.90.15",
@@ -25,14 +27,17 @@
     "expo-blur": "~15.0.8",
     "expo-constants": "^18.0.12",
     "expo-crypto": "~15.0.5",
+    "expo-file-system": "^19.0.21",
     "expo-font": "~14.0.10",
     "expo-haptics": "~15.0.8",
     "expo-image-picker": "~17.0.10",
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "^8.0.11",
+    "expo-notifications": "^0.32.16",
     "expo-router": "^6.0.21",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
+    "expo-updates": "~29.0.16",
     "expo-web-browser": "~15.0.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",
@@ -76,7 +81,7 @@
       "node"
     ],
     "transformIgnorePatterns": [
-      "node_modules/(?!(react-native|@react-native|expo|@expo|@react-navigation|@testing-library)/)"
+      "node_modules/(?!(react-native|@react-native|expo|@expo|expo-.*|@react-navigation|@testing-library|@sentry|@tanstack|@supabase)/)"
     ]
   },
   "private": true

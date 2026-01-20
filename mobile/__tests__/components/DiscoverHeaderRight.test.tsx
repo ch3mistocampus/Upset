@@ -1,8 +1,9 @@
 /**
  * Tests for DiscoverHeaderRight component
  *
- * Tests that the header icons in the Discover screen navigate to correct routes
- * and have proper accessibility labels.
+ * Tests that the header icons in the Discover screen (Search, Notifications)
+ * navigate to correct routes and have proper accessibility labels.
+ * Note: Fighters and People buttons have been removed from the header.
  */
 
 import React from 'react';
@@ -47,29 +48,27 @@ describe('DiscoverHeaderRight', () => {
     jest.clearAllMocks();
   });
 
-  describe('renders all header icons', () => {
+  describe('renders header icons', () => {
     it('renders Search button with correct accessibility', () => {
       const { getByTestId, getByLabelText } = render(<DiscoverHeaderRight />);
       expect(getByTestId('header-search-button')).toBeTruthy();
       expect(getByLabelText('Search posts')).toBeTruthy();
     });
 
-    it('renders Fighters button with correct accessibility', () => {
-      const { getByTestId, getByLabelText } = render(<DiscoverHeaderRight />);
-      expect(getByTestId('header-fighters-button')).toBeTruthy();
-      expect(getByLabelText('Browse fighters')).toBeTruthy();
-    });
-
-    it('renders People button with correct accessibility', () => {
-      const { getByTestId, getByLabelText } = render(<DiscoverHeaderRight />);
-      expect(getByTestId('header-people-button')).toBeTruthy();
-      expect(getByLabelText('Find people')).toBeTruthy();
-    });
-
     it('renders Notifications button with correct accessibility', () => {
       const { getByTestId, getByLabelText } = render(<DiscoverHeaderRight />);
       expect(getByTestId('header-notifications-button')).toBeTruthy();
       expect(getByLabelText(/Notifications/)).toBeTruthy();
+    });
+
+    it('does not render Fighters button (removed from header)', () => {
+      const { queryByTestId } = render(<DiscoverHeaderRight />);
+      expect(queryByTestId('header-fighters-button')).toBeNull();
+    });
+
+    it('does not render People button (removed from header)', () => {
+      const { queryByTestId } = render(<DiscoverHeaderRight />);
+      expect(queryByTestId('header-people-button')).toBeNull();
     });
   });
 
@@ -79,20 +78,6 @@ describe('DiscoverHeaderRight', () => {
       const searchButton = getByTestId('header-search-button');
       fireEvent.press(searchButton);
       expect(mockPush).toHaveBeenCalledWith('/post/search');
-    });
-
-    it('Fighters button navigates to /(tabs)/fighters', () => {
-      const { getByTestId } = render(<DiscoverHeaderRight />);
-      const fightersButton = getByTestId('header-fighters-button');
-      fireEvent.press(fightersButton);
-      expect(mockPush).toHaveBeenCalledWith('/(tabs)/fighters');
-    });
-
-    it('People button navigates to /(tabs)/friends', () => {
-      const { getByTestId } = render(<DiscoverHeaderRight />);
-      const peopleButton = getByTestId('header-people-button');
-      fireEvent.press(peopleButton);
-      expect(mockPush).toHaveBeenCalledWith('/(tabs)/friends');
     });
 
     it('Notifications button navigates to /post/notifications', () => {

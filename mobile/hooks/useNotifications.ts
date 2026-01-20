@@ -11,6 +11,7 @@ import { useEffect, useCallback, useRef } from 'react';
 import { Platform } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter, type Href } from 'expo-router';
+import Constants from 'expo-constants';
 import { supabase } from '../lib/supabase';
 import { logger } from '../lib/logger';
 
@@ -112,8 +113,7 @@ export function useNotifications() {
           .eq('id', notificationId)
           .then(() => {
             queryClient.invalidateQueries({ queryKey: ['notificationHistory'] });
-          })
-          .catch((error) => {
+          }, (error: Error) => {
             logger.error('Failed to mark notification as clicked', error);
           });
       }
@@ -121,10 +121,10 @@ export function useNotifications() {
 
     return () => {
       if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
+        notificationListener.current.remove();
       }
       if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
+        responseListener.current.remove();
       }
     };
   }, [router, queryClient]);
@@ -151,9 +151,10 @@ export function useNotifications() {
         return null;
       }
 
-      // Get token
+      // Get token - use project ID from app.json via Constants
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId;
       const tokenData = await Notifications.getExpoPushTokenAsync({
-        projectId: process.env.EXPO_PUBLIC_EAS_PROJECT_ID,
+        projectId,
       });
 
       const token = tokenData.data;

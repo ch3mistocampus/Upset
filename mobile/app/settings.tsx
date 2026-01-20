@@ -9,6 +9,7 @@ import { useState, useRef, useEffect } from 'react';
 import * as Linking from 'expo-linking';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
+import { useIsAdmin } from '../hooks/useAdmin';
 import { useTheme } from '../lib/theme';
 import { spacing, radius, typography, displayTypography } from '../lib/tokens';
 import * as Sentry from '@sentry/react-native';
@@ -22,6 +23,7 @@ export default function Settings() {
   const router = useRouter();
   const { signOut, user, isGuest, resetForTesting } = useAuth();
   const toast = useToast();
+  const { data: isAdmin } = useIsAdmin();
 
   // Settings state (these would be persisted in a real app)
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
@@ -197,6 +199,22 @@ export default function Settings() {
                 type="link"
                 subtitle="Control who can see your picks and stats"
                 onPress={() => router.push('/settings/privacy')}
+              />
+            </SurfaceCard>
+          </View>
+        )}
+
+        {/* Admin Section - Admin users only */}
+        {isAdmin && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>ADMIN</Text>
+            <SurfaceCard noPadding>
+              <SettingsRow
+                icon="shield-outline"
+                label="Admin Portal"
+                type="link"
+                subtitle="Manage reports, users, and content"
+                onPress={() => router.push('/admin')}
               />
             </SurfaceCard>
           </View>

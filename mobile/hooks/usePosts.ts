@@ -54,7 +54,7 @@ export function usePostsFeed(sortBy: FeedSortOption = 'top') {
         }
 
         logger.debug('Posts feed fetched', { count: data?.length || 0, sortBy });
-        return (data as Post[]) || [];
+        return (data as unknown as Post[]) || [];
       } catch (err) {
         logger.error('Exception fetching posts feed', err);
         return [];
@@ -99,7 +99,7 @@ export function useFollowingPostsFeed(userId: string | null) {
         }
 
         logger.debug('Following posts feed fetched', { count: data?.length || 0, userId });
-        return (data as Post[]) || [];
+        return (data as unknown as Post[]) || [];
       } catch (err) {
         logger.error('Exception fetching following posts feed', err);
         return [];
@@ -140,10 +140,10 @@ export function usePostWithComments(postId: string | null) {
 
       logger.debug('Post with comments fetched', {
         postId,
-        commentCount: (data as PostWithComments)?.comments?.length || 0
+        commentCount: (data as unknown as PostWithComments)?.comments?.length || 0
       });
 
-      return data as PostWithComments;
+      return data as unknown as PostWithComments;
     },
     enabled: !!postId,
     staleTime: 15000, // 15 seconds
@@ -172,7 +172,7 @@ export function useUserPosts(userId: string | null) {
         throw error;
       }
 
-      return (data as Post[]) || [];
+      return (data as unknown as Post[]) || [];
     },
     getNextPageParam: (lastPage, allPages) => {
       if (lastPage.length < PAGE_SIZE) {
@@ -198,7 +198,7 @@ export function useCreatePost() {
 
       const { data, error } = await supabase.rpc('create_post', {
         p_title: input.title,
-        p_body: input.body || null,
+        p_body: input.body ?? undefined,
         p_image_urls: input.imageUrls || [],
       });
 
@@ -233,7 +233,7 @@ export function useCreateComment() {
       const { data, error } = await supabase.rpc('create_comment', {
         p_post_id: input.postId,
         p_body: input.body,
-        p_parent_id: input.parentId || null,
+        p_parent_id: input.parentId ?? undefined,
       });
 
       if (error) {

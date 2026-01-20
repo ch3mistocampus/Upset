@@ -26,6 +26,7 @@ import {
   UpsetTicker,
   type NextEvent,
 } from '../../components/home';
+import { generateAvatarUrl } from '../../components/Avatar';
 import { useState } from 'react';
 
 export default function Home() {
@@ -125,15 +126,10 @@ export default function Home() {
 
           {/* Avatar */}
           <View style={[styles.avatarContainer, { borderColor: colors.accent }]}>
-            {profile?.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
-            ) : (
-              <View style={[styles.avatarPlaceholder, { backgroundColor: colors.surfaceAlt }]}>
-                <Text style={[styles.avatarInitials, { color: colors.textSecondary }]}>
-                  {displayName.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            )}
+            <Image
+              source={{ uri: profile?.avatar_url || generateAvatarUrl(displayName, 88) }}
+              style={styles.avatarImage}
+            />
           </View>
 
           {/* Greeting */}
@@ -254,17 +250,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 8,
-  },
-  avatarPlaceholder: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarInitials: {
-    fontSize: 16,
-    fontWeight: '700',
   },
   greetingContainer: {
     marginLeft: spacing.xs,

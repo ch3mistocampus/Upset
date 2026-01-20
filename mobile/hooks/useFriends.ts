@@ -186,7 +186,7 @@ export function useFriends() {
         total_picks: totalPicks,
         correct_picks: correctPicks,
         accuracy,
-        friendship_status: followRecord?.status || null,
+        friendship_status: (followRecord?.status as UserSearchResult['friendship_status']) || null,
       };
     });
 

@@ -299,9 +299,9 @@ eas secret:create --name EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID --value "your-andr
 ### Test Users
 
 For development, use these test credentials:
-- `alice@test.com` / `Password123` (username: alice_ufc)
-- `bob@test.com` / `Password123` (username: bob_fighter)
-- `charlie@test.com` / `Password123` (username: charlie_picks)
+- `alice@test.com` / `Password123` (username: alicechen)
+- `bob@test.com` / `Password123` (username: bsantos)
+- `charlie@test.com` / `Password123` (username: charliej)
 
 ### Checklist
 

@@ -101,7 +101,7 @@ export function usePendingReports() {
         .rpc('get_pending_reports', { limit_count: 50 });
 
       if (error) throw error;
-      return data as Report[];
+      return data as unknown as Report[];
     },
     enabled: isAdmin === true,
     refetchInterval: 30000, // Refresh every 30 seconds
@@ -124,12 +124,11 @@ export function useReviewReport() {
       action: 'resolved' | 'dismissed';
       notes?: string;
     }) => {
-      const { data, error } = await supabase
-        .rpc('review_report', {
-          p_report_id: reportId,
-          p_status: action,
-          p_admin_notes: notes || null,
-        });
+      const { data, error } = await (supabase.rpc as any)('review_report', {
+        p_report_id: reportId,
+        p_status: action,
+        p_admin_notes: notes || null,
+      });
 
       if (error) throw error;
       return data;
@@ -235,7 +234,7 @@ export function useAdminUserSearch(searchTerm: string) {
     queryKey: adminKeys.users(searchTerm),
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_admin_users_with_stats', {
-        search_term: searchTerm || null,
+        search_term: searchTerm || undefined,
         limit_count: 50,
       });
 

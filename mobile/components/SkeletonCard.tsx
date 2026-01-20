@@ -55,7 +55,7 @@ export const SkeletonCard: React.FC<SkeletonCardProps> = ({
       style={[
         styles.skeleton,
         {
-          width,
+          width: width as number | `${number}%`,
           height,
           borderRadius,
           marginBottom,
@@ -112,7 +112,7 @@ export const SkeletonLine: React.FC<SkeletonLineProps> = ({
       style={[
         styles.skeleton,
         {
-          width,
+          width: width as number | `${number}%`,
           height,
           marginBottom,
           borderRadius: 4,

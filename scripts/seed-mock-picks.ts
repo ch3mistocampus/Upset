@@ -12,7 +12,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const TEST_USERNAMES = ['alice_ufc', 'bob_fighter', 'charlie_picks'];
+const TEST_USERNAMES = ['alicechen', 'bsantos', 'charliej'];
 
 async function main() {
   // Get environment variables

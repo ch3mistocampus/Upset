@@ -173,8 +173,8 @@ export function FighterComparisonModal({
         showsVerticalScrollIndicator={false}
       >
         <TaleOfTheTape
-          redFighter={redFighter}
-          blueFighter={blueFighter}
+          redFighter={redFighter ?? null}
+          blueFighter={blueFighter ?? null}
           enabledCategories={enabledCategories}
         />
         {/* Bottom padding */}

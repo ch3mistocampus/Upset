@@ -58,7 +58,64 @@ jest.mock('expo-status-bar', () => ({
   StatusBar: jest.fn(() => null),
 }));
 
+jest.mock('expo-apple-authentication', () => ({
+  isAvailableAsync: jest.fn(() => Promise.resolve(true)),
+  signInAsync: jest.fn(() => Promise.resolve({
+    identityToken: 'mock-identity-token',
+    email: 'test@example.com',
+    fullName: { givenName: 'Test', familyName: 'User' },
+  })),
+  AppleAuthenticationScope: {
+    FULL_NAME: 0,
+    EMAIL: 1,
+  },
+}));
+
+jest.mock('expo-updates', () => ({
+  reloadAsync: jest.fn(),
+}));
+
+jest.mock('expo-linking', () => ({
+  getInitialURL: jest.fn(() => Promise.resolve(null)),
+  addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+  openURL: jest.fn(() => Promise.resolve(true)),
+  canOpenURL: jest.fn(() => Promise.resolve(true)),
+  createURL: jest.fn((path) => `upset://${path}`),
+}));
+
+jest.mock('@react-native-google-signin/google-signin', () => ({
+  GoogleSignin: {
+    configure: jest.fn(),
+    hasPlayServices: jest.fn(() => Promise.resolve(true)),
+    signIn: jest.fn(() => Promise.resolve({
+      type: 'success',
+      data: { idToken: 'mock-google-id-token' },
+    })),
+    signOut: jest.fn(() => Promise.resolve()),
+  },
+  isSuccessResponse: jest.fn((response) => response.type === 'success'),
+  isErrorWithCode: jest.fn(() => false),
+  statusCodes: {
+    SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED',
+    IN_PROGRESS: 'IN_PROGRESS',
+    PLAY_SERVICES_NOT_AVAILABLE: 'PLAY_SERVICES_NOT_AVAILABLE',
+  },
+}));
+
 // @expo/vector-icons is mocked via __mocks__/@expo/vector-icons.js
+
+// ============================================================================
+// Network Info Mock
+// ============================================================================
+jest.mock('@react-native-community/netinfo', () => ({
+  addEventListener: jest.fn(() => jest.fn()),
+  fetch: jest.fn(() => Promise.resolve({
+    isConnected: true,
+    isInternetReachable: true,
+    type: 'wifi',
+    details: {},
+  })),
+}));
 
 // ============================================================================
 // React Query - Use real implementation for proper testing

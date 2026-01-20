@@ -1,8 +1,9 @@
 /**
  * Tests for FloatingTabBar component
  *
- * Verifies that the bottom tab bar shows exactly 5 tabs
- * and does not include People or Fighters tabs.
+ * Verifies that the bottom tab bar shows exactly 4 tabs
+ * (Home, Events, Discover, Ranks) and does not include
+ * People, Fighters, or Profile tabs (Profile is in sidebar).
  */
 
 import React from 'react';
@@ -80,7 +81,7 @@ describe('FloatingTabBar', () => {
   });
 
   describe('tab rendering', () => {
-    it('renders exactly 5 tab buttons', () => {
+    it('renders exactly 4 tab buttons', () => {
       const { getAllByRole } = render(
         <FloatingTabBar
           state={createMockState()}
@@ -90,7 +91,7 @@ describe('FloatingTabBar', () => {
         />
       );
       const buttons = getAllByRole('button');
-      expect(buttons).toHaveLength(5);
+      expect(buttons).toHaveLength(4);
     });
 
     it('renders correct tab labels', () => {
@@ -107,7 +108,6 @@ describe('FloatingTabBar', () => {
       expect(getByText('Events')).toBeTruthy();
       expect(getByText('Discover')).toBeTruthy();
       expect(getByText('Ranks')).toBeTruthy();
-      expect(getByText('Profile')).toBeTruthy();
     });
 
     it('does NOT render People tab', () => {
@@ -132,6 +132,18 @@ describe('FloatingTabBar', () => {
         />
       );
       expect(queryByText('Fighters')).toBeNull();
+    });
+
+    it('does NOT render Profile tab (moved to sidebar)', () => {
+      const { queryByText } = render(
+        <FloatingTabBar
+          state={createMockState()}
+          descriptors={createMockDescriptors()}
+          navigation={mockNavigation}
+          insets={mockInsets as any}
+        />
+      );
+      expect(queryByText('Profile')).toBeNull();
     });
   });
 
@@ -168,7 +180,7 @@ describe('FloatingTabBar', () => {
     it('maintains correct focus when hidden tabs are before the active tab', () => {
       const { getAllByRole } = render(
         <FloatingTabBar
-          state={createMockState(6)} // Profile tab (index 6 in routes array)
+          state={createMockState(3)} // Leaderboards tab (index 3 in routes array)
           descriptors={createMockDescriptors()}
           navigation={mockNavigation}
           insets={mockInsets as any}
@@ -176,27 +188,8 @@ describe('FloatingTabBar', () => {
       );
 
       const buttons = getAllByRole('button');
-      // Profile is at rendered index 4 (5th visible tab after filtering)
-      expect(buttons[4].props.accessibilityState).toEqual({ selected: true });
-    });
-  });
-
-  describe('guest mode', () => {
-    it('shows Guest label for profile tab when user is guest', () => {
-      jest.spyOn(require('../../hooks/useAuth'), 'useAuth').mockReturnValue({
-        isGuest: true,
-      });
-
-      const { getByText } = render(
-        <FloatingTabBar
-          state={createMockState()}
-          descriptors={createMockDescriptors()}
-          navigation={mockNavigation}
-          insets={mockInsets as any}
-        />
-      );
-
-      expect(getByText('Guest')).toBeTruthy();
+      // Leaderboards is at rendered index 3 (4th visible tab after filtering)
+      expect(buttons[3].props.accessibilityState).toEqual({ selected: true });
     });
   });
 });

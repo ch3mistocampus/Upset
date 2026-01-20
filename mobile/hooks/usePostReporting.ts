@@ -53,7 +53,7 @@ export function useReportPost() {
     mutationFn: async ({ postId, reason, details }: ReportPostInput): Promise<ReportResult> => {
       logger.breadcrumb('Reporting post', 'moderation', { postId, reason });
 
-      const { data, error } = await supabase.rpc('report_post', {
+      const { data, error } = await (supabase.rpc as any)('report_post', {
         p_post_id: postId,
         p_reason: reason,
         p_details: details || null,
@@ -64,8 +64,8 @@ export function useReportPost() {
         throw error;
       }
 
-      logger.info('Post reported', data);
-      return data as ReportResult;
+      logger.info('Post reported', { reportId: data });
+      return data as unknown as ReportResult;
     },
   });
 }
@@ -78,7 +78,7 @@ export function useReportComment() {
     mutationFn: async ({ commentId, reason, details }: ReportCommentInput): Promise<ReportResult> => {
       logger.breadcrumb('Reporting comment', 'moderation', { commentId, reason });
 
-      const { data, error } = await supabase.rpc('report_comment', {
+      const { data, error } = await (supabase.rpc as any)('report_comment', {
         p_comment_id: commentId,
         p_reason: reason,
         p_details: details || null,
@@ -89,8 +89,8 @@ export function useReportComment() {
         throw error;
       }
 
-      logger.info('Comment reported', data);
-      return data as ReportResult;
+      logger.info('Comment reported', { reportId: data });
+      return data as unknown as ReportResult;
     },
   });
 }

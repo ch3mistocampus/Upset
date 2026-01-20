@@ -38,8 +38,8 @@ export function useTogglePostLike() {
         throw error;
       }
 
-      logger.debug('Post like toggled', data);
-      return data as LikeToggleResult;
+      logger.debug('Post like toggled', data as Record<string, unknown>);
+      return data as unknown as LikeToggleResult;
     },
     // Optimistic update for instant feedback
     onMutate: async (postId) => {
@@ -149,8 +149,8 @@ export function useToggleCommentLike() {
         throw error;
       }
 
-      logger.debug('Comment like toggled', data);
-      return data as LikeToggleResult;
+      logger.debug('Comment like toggled', data as Record<string, unknown>);
+      return data as unknown as LikeToggleResult;
     },
     // Optimistic update
     onMutate: async ({ commentId, postId }) => {

@@ -97,7 +97,7 @@ export function GracePeriodTimer({
   }
 
   // Determine color based on time remaining
-  let timerColor = colors.success;
+  let timerColor: string = colors.success;
   let urgencyLevel: 'normal' | 'warning' | 'critical' = 'normal';
 
   if (timeLeft <= 10) {

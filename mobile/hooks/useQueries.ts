@@ -207,6 +207,27 @@ export function useBoutsForEvent(eventId: string | null, userId: string | null, 
 
       if (resultsError) throw resultsError;
 
+      // Get fighter records for all fighters in these bouts
+      const fighterIds = [
+        ...bouts.map((b) => b.red_fighter_ufcstats_id),
+        ...bouts.map((b) => b.blue_fighter_ufcstats_id),
+      ].filter((id) => id);
+
+      const { data: fighters, error: fightersError } = await supabase
+        .from('ufc_fighters')
+        .select('fighter_id, record_wins, record_losses')
+        .in('fighter_id', fighterIds);
+
+      // Don't throw on fighters error - records are optional
+      const fighterRecordsMap = new Map<string, string>();
+      if (!fightersError && fighters) {
+        fighters.forEach((f) => {
+          if (f.record_wins !== null && f.record_losses !== null) {
+            fighterRecordsMap.set(f.fighter_id, `${f.record_wins}-${f.record_losses}`);
+          }
+        });
+      }
+
       // Get picks based on mode
       let picks: Pick[] = [];
 
@@ -234,6 +255,8 @@ export function useBoutsForEvent(eventId: string | null, userId: string | null, 
         ...bout,
         result: resultsMap.get(bout.id) || null,
         pick: picksMap.get(bout.id) || null,
+        red_record: fighterRecordsMap.get(bout.red_fighter_ufcstats_id) || null,
+        blue_record: fighterRecordsMap.get(bout.blue_fighter_ufcstats_id) || null,
       }));
     },
     enabled: !!eventId && (isGuest ? isLoaded : true),
@@ -250,12 +273,14 @@ function guestPickToPick(guestPick: GuestPick): Pick {
     user_id: 'guest',
     event_id: guestPick.event_id,
     bout_id: guestPick.bout_id,
-    picked_corner: guestPick.picked_corner,
+    picked_corner: guestPick.picked_corner as string,
     picked_method: guestPick.picked_method ?? null,
     picked_round: guestPick.picked_round ?? null,
     status: 'active',
     locked_at: null,
     score: null,
+    is_correct_method: null,
+    is_correct_round: null,
     created_at: guestPick.created_at,
     updated_at: guestPick.updated_at,
   };
@@ -314,7 +339,7 @@ export function useUpsertPick() {
           id: generatePickId(),
           event_id: pick.event_id,
           bout_id: pick.bout_id,
-          picked_corner: pick.picked_corner,
+          picked_corner: pick.picked_corner as 'red' | 'blue',
           picked_method: pick.picked_method ?? null,
           picked_round: pick.picked_round ?? null,
           created_at: new Date().toISOString(),
@@ -360,12 +385,14 @@ export function useUpsertPick() {
                     user_id: isGuest ? 'guest' : newPick.user_id,
                     event_id: newPick.event_id,
                     bout_id: newPick.bout_id,
-                    picked_corner: newPick.picked_corner,
+                    picked_corner: newPick.picked_corner as string,
                     picked_method: newPick.picked_method ?? null,
                     picked_round: newPick.picked_round ?? null,
-                    status: 'active' as const,
+                    status: 'active',
                     locked_at: null,
                     score: null,
+                    is_correct_method: null,
+                    is_correct_round: null,
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString(),
                   },

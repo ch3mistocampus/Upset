@@ -59,6 +59,19 @@ eas build --platform ios        # Production build
 - **Toast**: `useToast()` → `showSuccess()`, `showError()`, `showInfo()`
 - **Navigation**: `GlobalTabBar` on all detail screens
 
+## UI Components
+- **SurfaceCard**: Premium card with shadow, optional `heroGlow`, `animatedBorder`
+- **FighterPickRow**: Fighter selection row with corner color indicator (red/blue), checkmark animation
+- **SubmitFooter**: Sticky bottom submit button (BebasNeue font)
+- **TopProgressBar**: 4px progress line under header
+
+## Design Tokens (`lib/tokens.ts`)
+- **Accent**: `#B0443F` (muted maroon red)
+- **Display Font**: BebasNeue (UFC-style, uppercase)
+- **Body Font**: System (SF Pro)
+- **Shadows**: Deep card shadows for floating effect
+- **Corner Colors**: Red `#943538`, Blue `#1E3A5F`
+
 ## Environment Variables
 ```bash
 # Required
@@ -110,11 +123,30 @@ Separate repo: `ch3mistocampus/upset-landing`
 - [x] Waitlist form working with email notifications
 - [x] Privacy policy URL (/privacy)
 - [x] Terms of service URL (/terms)
+- [x] Domain configured (upsetmma.app)
+- [x] TestFlight builds (internal + external testers on build 5)
 - [ ] Enable leaked password protection (Supabase Auth dashboard)
-- [ ] Test OAuth on real iOS device
-- [ ] Verify deep links for auth callbacks
+- [x] Test OAuth on real iOS device (native Google Sign-In implemented, pending build)
+- [x] Verify deep links for auth callbacks (deep link handler added to useAuth)
 - [ ] Add Android OAuth client ID
 - [ ] App Store assets (screenshots, description)
+
+## Admin Portal
+Access via Settings (admin users only):
+- **Dashboard**: Overview stats (users, picks, events, pending reports)
+- **Reports**: Review and action user reports
+- **Users**: Search users, view stats, ban accounts
+- **Posts**: Moderate reported posts/comments
+
+Admin users are stored in `admin_users` table with roles: `moderator`, `admin`, `super_admin`
+
+## Post-Launch TODO
+- [ ] **Superwall Integration** - Paywall and subscription management
+  - See `mobile/docs/MONETIZATION_PLAN.md` for options
+  - Decide on free vs premium features
+  - Configure pricing (monthly/yearly/lifetime)
+- [ ] **Payment Processing** - App Store in-app purchases
+- [ ] **Subscription Database** - Track user entitlements
 
 ## Permissions
 YOLO mode enabled via `.claude/settings.json` - Claude executes all tools without confirmation prompts.

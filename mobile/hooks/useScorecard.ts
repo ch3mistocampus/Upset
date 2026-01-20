@@ -96,6 +96,8 @@ async function retrySubmitScore(
   attempt: number = 0
 ): Promise<SubmitScoreResponse> {
   try {
+    // Note: submit_round_score is a future feature not yet deployed
+    // @ts-expect-error - RPC function not in database types yet
     const { data, error } = await supabase.rpc('submit_round_score', {
       p_submission_id: score.submissionId,
       p_bout_id: score.boutId,
@@ -108,7 +110,7 @@ async function retrySubmitScore(
 
     // Success - remove from pending
     await removePendingScore(score.submissionId);
-    return data as SubmitScoreResponse;
+    return data as unknown as SubmitScoreResponse;
   } catch (error) {
     if (attempt < MAX_RETRIES - 1) {
       // Wait and retry
@@ -138,12 +140,14 @@ export const scorecardKeys = {
  * Fetch scorecard data for a specific fight
  * Includes round state, aggregates, and user's submissions
  */
-export function useFightScorecard(boutId: string | undefined, options?: { refetchInterval?: number }) {
+export function useFightScorecard(boutId: string | undefined, options?: { refetchInterval?: number | false }) {
   const { user } = useAuth();
 
   return useQuery({
     queryKey: scorecardKeys.fight(boutId || ''),
     queryFn: async (): Promise<FightScorecard> => {
+      // Note: get_fight_scorecard is a future feature not yet deployed
+      // @ts-expect-error - RPC function not in database types yet
       const { data, error } = await supabase.rpc('get_fight_scorecard', {
         p_bout_id: boutId,
       });
@@ -151,11 +155,12 @@ export function useFightScorecard(boutId: string | undefined, options?: { refetc
       if (error) throw error;
 
       // Handle error response from function
-      if (data?.error) {
-        throw new Error(data.error);
+      const typedData = data as unknown as FightScorecard & { error?: string };
+      if (typedData?.error) {
+        throw new Error(typedData.error);
       }
 
-      return data as FightScorecard;
+      return typedData as FightScorecard;
     },
     enabled: !!boutId,
     staleTime: 10000, // 10 seconds - refresh frequently during live fights
@@ -170,10 +175,12 @@ export function useFightScorecard(boutId: string | undefined, options?: { refetc
 /**
  * Fetch scorecard summaries for all fights in an event
  */
-export function useEventScorecards(eventId: string | undefined, options?: { refetchInterval?: number }) {
+export function useEventScorecards(eventId: string | undefined, options?: { refetchInterval?: number | false }) {
   return useQuery({
     queryKey: scorecardKeys.event(eventId || ''),
     queryFn: async (): Promise<EventScorecards> => {
+      // Note: get_event_scorecards is a future feature not yet deployed
+      // @ts-expect-error - RPC function not in database types yet
       const { data, error } = await supabase.rpc('get_event_scorecards', {
         p_event_id: eventId,
       });
@@ -181,9 +188,9 @@ export function useEventScorecards(eventId: string | undefined, options?: { refe
       if (error) {
         // Return empty scorecards instead of throwing for graceful degradation
         console.warn('Failed to fetch event scorecards:', error.message);
-        return { scorecards: [] } as EventScorecards;
+        return { event_id: eventId || '', scorecards: [] } as EventScorecards;
       }
-      return data as EventScorecards;
+      return data as unknown as EventScorecards;
     },
     enabled: !!eventId,
     staleTime: 15000, // 15 seconds
@@ -261,6 +268,8 @@ export function useSubmitScore() {
       await storePendingScore(pendingScore);
 
       try {
+        // Note: submit_round_score is a future feature not yet deployed
+        // @ts-expect-error - RPC function not in database types yet
         const { data, error } = await supabase.rpc('submit_round_score', {
           p_submission_id: submissionId,
           p_bout_id: params.boutId,
@@ -274,7 +283,7 @@ export function useSubmitScore() {
         // Success - remove from pending storage
         await removePendingScore(submissionId);
 
-        const response = data as SubmitScoreResponse;
+        const response = data as unknown as SubmitScoreResponse;
         logger.info('Score submitted successfully', {
           boutId: params.boutId,
           round: params.roundNumber,
@@ -359,6 +368,8 @@ export function useAdminUpdateRoundState() {
 
   return useMutation({
     mutationFn: async (params: UpdateRoundStateParams): Promise<UpdateRoundStateResponse> => {
+      // Note: admin_update_round_state is a future feature not yet deployed
+      // @ts-expect-error - RPC function not in database types yet
       const { data, error } = await supabase.rpc('admin_update_round_state', {
         p_bout_id: params.boutId,
         p_action: params.action,
@@ -366,7 +377,7 @@ export function useAdminUpdateRoundState() {
       });
 
       if (error) throw error;
-      return data as UpdateRoundStateResponse;
+      return data as unknown as UpdateRoundStateResponse;
     },
     onSuccess: (data, variables) => {
       if (data.success) {
@@ -393,16 +404,19 @@ export function useAdminLiveFights() {
   return useQuery({
     queryKey: scorecardKeys.live(),
     queryFn: async (): Promise<LiveFight[]> => {
+      // Note: admin_get_live_fights is a future feature not yet deployed
+      // @ts-expect-error - RPC function not in database types yet
       const { data, error } = await supabase.rpc('admin_get_live_fights');
 
       if (error) throw error;
 
       // Handle error response
-      if (data?.error) {
-        throw new Error(data.error);
+      const typedData = data as unknown as (LiveFight[] & { error?: string }) | null;
+      if (typedData && 'error' in typedData && typedData.error) {
+        throw new Error(String(typedData.error));
       }
 
-      return (data as LiveFight[]) || [];
+      return (typedData as LiveFight[]) || [];
     },
     staleTime: 5000, // 5 seconds - refresh frequently for admin
     refetchInterval: 10000, // Auto-refresh every 10 seconds
@@ -421,6 +435,8 @@ export function useAdminRecomputeAggregates() {
 
   return useMutation({
     mutationFn: async (boutId: string) => {
+      // Note: admin_recompute_aggregates is a future feature not yet deployed
+      // @ts-expect-error - RPC function not in database types yet
       const { data, error } = await supabase.rpc('admin_recompute_aggregates', {
         p_bout_id: boutId,
       });
@@ -551,7 +567,10 @@ export function useBoutLiveStatus(boutId: string | undefined) {
     queryKey: [...scorecardKeys.fight(boutId || ''), 'status'],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase
+        // Note: round_state table is a future feature not yet deployed
+        // Using any cast since table doesn't exist in production schema yet
+        const supabaseAny = supabase as unknown as { from: (table: string) => { select: (cols: string) => { eq: (col: string, val: unknown) => { maybeSingle: () => Promise<{ data: { phase: string; current_round: number; scheduled_rounds: number } | null; error: Error | null }> } } } };
+        const { data, error } = await supabaseAny
           .from('round_state')
           .select('phase, current_round, scheduled_rounds')
           .eq('bout_id', boutId)
@@ -573,9 +592,9 @@ export function useBoutLiveStatus(boutId: string | undefined) {
         return {
           isLive,
           isActive,
-          phase: data.phase,
-          currentRound: data.current_round,
-          scheduledRounds: data.scheduled_rounds,
+          phase: data.phase as string,
+          currentRound: data.current_round as number,
+          scheduledRounds: data.scheduled_rounds as number,
         };
       } catch {
         // Gracefully handle any unexpected errors
@@ -599,7 +618,11 @@ export function useEventLiveStatus(boutIds: string[]) {
       if (boutIds.length === 0) return new Map();
 
       try {
-        const { data, error } = await supabase
+        // Note: round_state table is a future feature not yet deployed
+        // Using any cast since table doesn't exist in production schema yet
+        type RoundStateRow = { bout_id: string; phase: string; current_round: number; scheduled_rounds: number };
+        const supabaseAny = supabase as unknown as { from: (table: string) => { select: (cols: string) => { in: (col: string, vals: string[]) => Promise<{ data: RoundStateRow[] | null; error: Error | null }> } } };
+        const { data, error } = await supabaseAny
           .from('round_state')
           .select('bout_id, phase, current_round, scheduled_rounds')
           .in('bout_id', boutIds);
@@ -618,7 +641,7 @@ export function useEventLiveStatus(boutIds: string[]) {
           isScoring: boolean;
         }>();
 
-        (data || []).forEach((row) => {
+        (data || []).forEach((row: RoundStateRow) => {
           statusMap.set(row.bout_id, {
             phase: row.phase,
             currentRound: row.current_round,

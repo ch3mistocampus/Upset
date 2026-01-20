@@ -266,7 +266,7 @@ export default function NotificationSettingsScreen() {
               style={[
                 styles.notificationItem,
                 { borderBottomColor: colors.border },
-                !notification.read_at && { backgroundColor: colors.surfaceAlt || colors.surface },
+                !notification.read_at && { backgroundColor: colors.surfaceAlt },
               ]}
               onPress={async () => {
                 try {

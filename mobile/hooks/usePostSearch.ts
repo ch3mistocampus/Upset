@@ -42,7 +42,7 @@ export function useSearchPosts(query: string, sortBy: SearchSortBy = 'relevance'
       logger.breadcrumb('Searching posts', 'search', { query: searchTerm, sortBy, offset: pageParam });
 
       // Try the RPC function first
-      const { data, error } = await supabase.rpc('search_posts', {
+      const { data, error } = await (supabase.rpc as any)('search_posts', {
         p_query: searchTerm,
         p_limit: 20,
         p_offset: pageParam,
@@ -120,7 +120,7 @@ export function useTrendingPosts(hours = 24) {
       logger.breadcrumb('Fetching trending posts', 'search', { hours });
 
       // Try the trending posts function first
-      const { data, error } = await supabase.rpc('get_trending_posts', {
+      const { data, error } = await (supabase.rpc as any)('get_trending_posts', {
         p_hours: hours,
         p_limit: 10,
       });
@@ -153,7 +153,7 @@ export function useTrendingPosts(hours = 24) {
 export function useRecordPostView() {
   return async (postId: string): Promise<void> => {
     try {
-      await supabase.rpc('record_post_view', { p_post_id: postId });
+      await (supabase.rpc as any)('record_post_view', { p_post_id: postId });
     } catch (error) {
       // Silently fail - view tracking is not critical
       logger.debug('Failed to record post view', { postId });

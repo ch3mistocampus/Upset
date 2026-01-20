@@ -1,6 +1,6 @@
 /**
  * Avatar component with expandable modal view
- * Displays user profile picture or initials fallback
+ * Displays user profile picture or DiceBear generated avatar fallback
  */
 
 import React, { useState } from 'react';
@@ -20,6 +20,17 @@ import { useTheme } from '../lib/theme';
 import { spacing, radius, typography } from '../lib/tokens';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+/**
+ * Generate a DiceBear avatar URL based on username
+ * Uses 'notionists' style for clean, Notion-style illustrated characters
+ * @param username - The username to generate avatar for
+ * @param size - The size of the avatar in pixels
+ */
+export function generateAvatarUrl(username: string, size: number = 128): string {
+  const seed = encodeURIComponent(username.toLowerCase());
+  return `https://api.dicebear.com/9.x/notionists/png?seed=${seed}&size=${size}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+}
 
 interface AvatarProps {
   /** URL to the avatar image */
@@ -67,20 +78,40 @@ export const Avatar: React.FC<AvatarProps> = ({
   const [modalVisible, setModalVisible] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
+  const [fallbackError, setFallbackError] = useState(false);
 
   const avatarSize = SIZES[size];
   const borderRadius = BORDER_RADII[size];
   const fontSize = FONT_SIZES[size];
   const initials = username?.charAt(0).toUpperCase() || '?';
 
-  const hasValidImage = imageUrl && !imageError;
+  // Use custom image if provided, otherwise generate DiceBear avatar
+  const hasCustomImage = Boolean(imageUrl);
+  const fallbackUrl = generateAvatarUrl(username || 'user', avatarSize * 2); // 2x for retina
+  const displayUrl = hasCustomImage ? imageUrl : fallbackUrl;
+
+  // Determine which URL to actually display
+  const actualDisplayUrl = hasCustomImage && imageError ? fallbackUrl : displayUrl;
+  const showImage = actualDisplayUrl && !fallbackError;
 
   const handlePress = () => {
     if (onPress) {
       onPress();
-    } else if (expandable && hasValidImage) {
+    } else if (expandable && showImage) {
       setModalVisible(true);
     }
+  };
+
+  // Handle image load error - try fallback if custom image fails
+  const handleImageError = () => {
+    if (hasCustomImage && !imageError) {
+      // Custom image failed, try DiceBear fallback
+      setImageError(true);
+    } else {
+      // Fallback also failed, show initials
+      setFallbackError(true);
+    }
+    setImageLoading(false);
   };
 
   const avatarContent = (
@@ -91,11 +122,11 @@ export const Avatar: React.FC<AvatarProps> = ({
           width: avatarSize,
           height: avatarSize,
           borderRadius,
-          backgroundColor: hasValidImage ? colors.surfaceAlt : colors.accentSoft,
+          backgroundColor: showImage ? colors.surfaceAlt : colors.accentSoft,
         },
       ]}
     >
-      {hasValidImage ? (
+      {showImage ? (
         <>
           {imageLoading && (
             <ActivityIndicator
@@ -105,7 +136,7 @@ export const Avatar: React.FC<AvatarProps> = ({
             />
           )}
           <Image
-            source={{ uri: imageUrl }}
+            source={{ uri: actualDisplayUrl }}
             style={[
               styles.image,
               {
@@ -116,10 +147,7 @@ export const Avatar: React.FC<AvatarProps> = ({
             ]}
             onLoadStart={() => setImageLoading(true)}
             onLoadEnd={() => setImageLoading(false)}
-            onError={() => {
-              setImageError(true);
-              setImageLoading(false);
-            }}
+            onError={handleImageError}
           />
         </>
       ) : (
@@ -130,7 +158,7 @@ export const Avatar: React.FC<AvatarProps> = ({
     </View>
   );
 
-  const isClickable = onPress || (expandable && hasValidImage);
+  const isClickable = onPress || (expandable && showImage);
 
   return (
     <>
@@ -138,10 +166,10 @@ export const Avatar: React.FC<AvatarProps> = ({
         <TouchableOpacity
           onPress={handlePress}
           activeOpacity={0.8}
-          style={expandable && hasValidImage ? styles.expandableHint : undefined}
+          style={expandable && showImage ? styles.expandableHint : undefined}
         >
           {avatarContent}
-          {expandable && hasValidImage && (
+          {expandable && showImage && (
             <View style={[styles.expandIcon, { backgroundColor: colors.surface }]}>
               <Ionicons name="expand-outline" size={12} color={colors.textSecondary} />
             </View>
@@ -177,9 +205,9 @@ export const Avatar: React.FC<AvatarProps> = ({
             </Text>
 
             {/* Full Size Image */}
-            {imageUrl && (
+            {actualDisplayUrl && (
               <Image
-                source={{ uri: imageUrl }}
+                source={{ uri: actualDisplayUrl }}
                 style={styles.fullImage}
                 resizeMode="contain"
               />

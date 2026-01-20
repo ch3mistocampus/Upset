@@ -16,6 +16,7 @@ import { AuthProvider } from '../hooks/useAuth';
 import { ThemeProvider, useTheme } from '../lib/theme';
 import { DrawerProvider } from '../lib/DrawerContext';
 import { AppDrawer } from '../components/navigation/AppDrawer';
+import { AppErrorBoundary } from '../components/ErrorBoundary';
 import { initSentry } from '../lib/sentry';
 import { NetworkStatusBanner } from '../components/ui';
 
@@ -26,8 +27,15 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 2,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
       staleTime: 1000 * 60 * 5, // 5 minutes
       gcTime: 1000 * 60 * 10, // 10 minutes
+      networkMode: 'offlineFirst', // Use cached data when offline, fetch when online
+    },
+    mutations: {
+      retry: 1,
+      retryDelay: 1000,
+      networkMode: 'offlineFirst',
     },
   },
 });
@@ -137,20 +145,22 @@ export default function RootLayout() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <GuestPicksProvider>
-          <OnboardingProvider>
-            <ThemeProvider>
-              <DrawerProvider>
-                <ToastProvider>
-                  <RootNavigator />
-                </ToastProvider>
-              </DrawerProvider>
-            </ThemeProvider>
-          </OnboardingProvider>
-        </GuestPicksProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <AppErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <GuestPicksProvider>
+            <OnboardingProvider>
+              <ThemeProvider>
+                <DrawerProvider>
+                  <ToastProvider>
+                    <RootNavigator />
+                  </ToastProvider>
+                </DrawerProvider>
+              </ThemeProvider>
+            </OnboardingProvider>
+          </GuestPicksProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </AppErrorBoundary>
   );
 }

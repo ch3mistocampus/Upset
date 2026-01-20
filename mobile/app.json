@@ -20,7 +20,8 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Used for profile photos",
-        "NSPhotoLibraryUsageDescription": "Used for profile photos"
+        "NSPhotoLibraryUsageDescription": "Used for profile photos",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -48,7 +49,13 @@
           "organization": "upset"
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.429619189202-h3nep1c2aj7r3bcqmanq80n0mq7ci1io"
+        }
+      ]
     ],
     "extra": {
       "eas": {
@@ -60,7 +67,7 @@
     "updates": {
       "enabled": true,
       "fallbackToCacheTimeout": 0,
-      "url": ""
+      "url": "https://u.expo.dev/0e4bc5ef-48da-4080-817c-b069d6d5d7ec"
     },
     "runtimeVersion": {
       "policy": "appVersion"

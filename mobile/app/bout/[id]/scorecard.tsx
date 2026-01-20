@@ -312,9 +312,9 @@ export default function FightScorecardScreen() {
     isError,
     error,
     refetch,
-  } = useFightScorecard(id, {
-    refetchInterval: scorecard ? getScorecardPollingInterval(scorecard.round_state.phase) : false,
-  });
+  } = useFightScorecard(id);
+
+  // Note: Polling is handled via realtime subscriptions for scorecards
 
   const submitScore = useSubmitScore();
 
@@ -623,13 +623,13 @@ export default function FightScorecardScreen() {
                 </View>
                 {round_state.round_ends_at && (
                   <GracePeriodTimer
-                    endTime={new Date(round_state.round_ends_at)}
+                    endsAt={round_state.round_ends_at}
                     onExpire={() => {
                       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
                       toast.showNeutral('Scoring window closed');
                       refetch();
                     }}
-                    variant="compact"
+                    compact
                   />
                 )}
               </View>

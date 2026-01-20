@@ -27,6 +27,7 @@ import { useTheme } from '../../lib/theme';
 import { spacing, radius, typography } from '../../lib/tokens';
 import { EmptyState, SurfaceCard, Button } from '../../components/ui';
 import { AuthPromptModal } from '../../components/AuthPromptModal';
+import { Avatar } from '../../components/Avatar';
 import type { UserSearchResult } from '../../types/social';
 
 export default function AddFriend() {
@@ -166,10 +167,12 @@ export default function AddFriend() {
               onPress={() => handleViewUser(user.user_id)}
               activeOpacity={0.7}
             >
-              <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
-                <Text style={styles.avatarText}>
-                  {user.username.charAt(0).toUpperCase()}
-                </Text>
+              <View style={styles.avatarContainer}>
+                <Avatar
+                  imageUrl={user.avatar_url}
+                  username={user.username}
+                  size="small"
+                />
               </View>
 
               <View style={styles.userInfo}>
@@ -366,18 +369,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+  avatarContainer: {
     marginRight: spacing.sm,
-  },
-  avatarText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#fff',
   },
   userInfo: {
     flex: 1,

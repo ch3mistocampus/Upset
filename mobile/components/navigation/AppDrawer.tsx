@@ -34,6 +34,7 @@ import { useUserStats } from '../../hooks/useQueries';
 import { spacing, radius, displayTypography } from '../../lib/tokens';
 import type { ThemeMode } from '../../lib/tokens';
 import { MmaGloveIcon } from '../icons';
+import { generateAvatarUrl } from '../Avatar';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = SCREEN_WIDTH * 0.8;
@@ -349,18 +350,10 @@ export function AppDrawer() {
               activeOpacity={0.8}
             >
               {/* Avatar */}
-              {profile?.avatar_url ? (
-                <Image
-                  source={{ uri: profile.avatar_url }}
-                  style={[styles.avatar, { backgroundColor: colors.accent }]}
-                />
-              ) : (
-                <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
-                  <Text style={styles.avatarText}>
-                    {profile?.username?.charAt(0).toUpperCase() || '?'}
-                  </Text>
-                </View>
-              )}
+              <Image
+                source={{ uri: profile?.avatar_url || generateAvatarUrl(profile?.username || 'user', 112) }}
+                style={[styles.avatar, { backgroundColor: colors.accent }]}
+              />
 
               {/* User Info */}
               <View style={styles.userInfo}>
@@ -530,14 +523,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginBottom: spacing.sm,
-  },
-  avatarText: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#fff',
   },
   userInfo: {
     marginBottom: spacing.md,

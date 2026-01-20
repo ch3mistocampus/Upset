@@ -1,20 +1,69 @@
 /**
  * Welcome screen for first-time users
- * Offers guest mode or sign-in options
+ * Clean light mode design matching onboarding
  */
 
-import { View, Text, StyleSheet } from 'react-native';
+import { useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
-import { useTheme } from '../../lib/theme';
-import { spacing, typography, displayTypography } from '../../lib/tokens';
-import { Button } from '../../components/ui';
+import { spacing } from '../../lib/tokens';
+
+// Clean light mode colors
+const COLORS = {
+  background: '#FFFFFF',
+  accent: '#B0443F',
+  textPrimary: '#111215',
+  textSecondary: 'rgba(18, 19, 24, 0.6)',
+  textMuted: 'rgba(18, 19, 24, 0.4)',
+  border: '#E8EAED',
+  featureBg: '#F8F9FA',
+};
+
+const FEATURES = [
+  { icon: 'flash-outline' as const, text: 'Pick winners before the cage closes' },
+  { icon: 'analytics-outline' as const, text: 'Track your accuracy and streaks' },
+  { icon: 'trophy-outline' as const, text: 'Compete on the leaderboards' },
+];
 
 export default function Welcome() {
-  const { colors } = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { enterGuestMode, markFirstLaunchComplete } = useAuth();
+
+  // Entrance animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const featureAnims = useRef(FEATURES.map(() => new Animated.Value(0))).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 60,
+        friction: 10,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    featureAnims.forEach((anim, index) => {
+      setTimeout(() => {
+        Animated.spring(anim, {
+          toValue: 1,
+          tension: 60,
+          friction: 10,
+          useNativeDriver: true,
+        }).start();
+      }, 250 + index * 80);
+    });
+  }, [fadeAnim, slideAnim, featureAnims]);
 
   const handleGetStarted = async () => {
     await enterGuestMode();
@@ -27,76 +76,77 @@ export default function Welcome() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.content}>
-        {/* Hero Icon */}
-        <View style={[styles.iconContainer, { backgroundColor: colors.accent + '20' }]}>
-          <Ionicons name="trophy" size={64} color={colors.accent} />
-        </View>
+    <View style={styles.container}>
+      {/* Content */}
+      <View style={[styles.content, { paddingTop: insets.top + spacing.xxl }]}>
+        <Animated.View
+          style={[
+            styles.heroSection,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          {/* Title */}
+          <Text style={styles.title}>You're ready</Text>
+          <Text style={styles.highlight}>LET'S GO</Text>
 
-        {/* Title */}
-        <Text style={[styles.title, { color: colors.textPrimary }]}>
-          Upset
-        </Text>
+          {/* Tagline */}
+          <Text style={styles.tagline}>
+            Every fight is an upset waiting to happen.
+          </Text>
+        </Animated.View>
 
-        {/* Tagline */}
-        <Text style={[styles.tagline, { color: colors.textSecondary }]}>
-          Where chaos proves who's right.
-        </Text>
-
-        {/* Features List */}
+        {/* Features */}
         <View style={styles.features}>
-          <FeatureItem
-            icon="checkmark-circle"
-            text="Call it before it happens"
-            color={colors.accent}
-            textColor={colors.textSecondary}
-          />
-          <FeatureItem
-            icon="stats-chart"
-            text="The truth is in the tape"
-            color={colors.accent}
-            textColor={colors.textSecondary}
-          />
-          <FeatureItem
-            icon="people"
-            text="Prove you're right"
-            color={colors.accent}
-            textColor={colors.textSecondary}
-          />
+          {FEATURES.map((feature, index) => (
+            <Animated.View
+              key={index}
+              style={[
+                styles.featureItem,
+                {
+                  opacity: featureAnims[index],
+                  transform: [
+                    {
+                      translateY: featureAnims[index].interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [10, 0],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              <View style={styles.featureIcon}>
+                <Ionicons name={feature.icon} size={20} color={COLORS.accent} />
+              </View>
+              <Text style={styles.featureText}>{feature.text}</Text>
+            </Animated.View>
+          ))}
         </View>
       </View>
 
       {/* Actions */}
-      <View style={styles.actions}>
-        <Button
-          title="Get Started"
+      <View style={[styles.actions, { paddingBottom: insets.bottom + spacing.xl }]}>
+        {/* Primary CTA */}
+        <TouchableOpacity
+          style={styles.ctaButton}
           onPress={handleGetStarted}
-          variant="primary"
-        />
+          activeOpacity={0.9}
+        >
+          <Text style={styles.ctaText}>Get Started</Text>
+        </TouchableOpacity>
 
-        <Button
-          title="I have an account"
+        {/* Secondary CTA */}
+        <TouchableOpacity
+          style={styles.secondaryButton}
           onPress={handleSignIn}
-          variant="ghost"
-        />
+          activeOpacity={0.7}
+        >
+          <Text style={styles.secondaryText}>I have an account</Text>
+        </TouchableOpacity>
       </View>
-    </View>
-  );
-}
-
-interface FeatureItemProps {
-  icon: keyof typeof Ionicons.glyphMap;
-  text: string;
-  color: string;
-  textColor: string;
-}
-
-function FeatureItem({ icon, text, color, textColor }: FeatureItemProps) {
-  return (
-    <View style={styles.featureItem}>
-      <Ionicons name={icon} size={20} color={color} />
-      <Text style={[styles.featureText, { color: textColor }]}>{text}</Text>
     </View>
   );
 }
@@ -104,47 +154,89 @@ function FeatureItem({ icon, text, color, textColor }: FeatureItemProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: COLORS.background,
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     paddingHorizontal: spacing.xl,
   },
-  iconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+  heroSection: {
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xl,
+    marginTop: spacing.xxl,
   },
   title: {
-    ...displayTypography.hero,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
+    fontSize: 24,
+    fontWeight: '500',
+    color: COLORS.textSecondary,
+    marginBottom: 4,
+  },
+  highlight: {
+    fontFamily: 'BebasNeue',
+    fontSize: 72,
+    color: COLORS.textPrimary,
+    letterSpacing: -2,
+    lineHeight: 76,
   },
   tagline: {
-    ...typography.body,
+    fontSize: 17,
+    fontWeight: '400',
+    color: COLORS.textSecondary,
     textAlign: 'center',
-    marginBottom: spacing.xxl,
+    lineHeight: 24,
+    marginTop: spacing.lg,
   },
   features: {
-    width: '100%',
-    gap: spacing.md,
+    marginTop: spacing.xxl + spacing.lg,
+    gap: spacing.sm,
   },
   featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
+    paddingVertical: 14,
+    paddingHorizontal: spacing.md,
+    backgroundColor: COLORS.featureBg,
+    borderRadius: 12,
+  },
+  featureIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(176, 68, 63, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   featureText: {
-    ...typography.body,
     flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+    color: COLORS.textPrimary,
   },
   actions: {
     paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xxl,
     gap: spacing.sm,
+  },
+  ctaButton: {
+    backgroundColor: COLORS.accent,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctaText: {
+    fontFamily: 'BebasNeue',
+    fontSize: 18,
+    color: '#FFFFFF',
+    letterSpacing: 1,
+  },
+  secondaryButton: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: COLORS.textMuted,
   },
 });

@@ -10,19 +10,19 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const TEST_USERS = [
-  { username: 'alice_ufc', pickStyle: 'favorite', bias: 0.65 },
-  { username: 'bob_fighter', pickStyle: 'underdog', bias: 0.40 },
-  { username: 'charlie_picks', pickStyle: 'random', bias: 0.50 },
-  { username: 'david_mma', pickStyle: 'heavy_favorite', bias: 0.80 },
-  { username: 'emma_octagon', pickStyle: 'slight_favorite', bias: 0.55 },
-  { username: 'frank_knockout', pickStyle: 'favorite', bias: 0.60 },
-  { username: 'grace_grappling', pickStyle: 'slight_underdog', bias: 0.45 },
-  { username: 'henry_heavyweight', pickStyle: 'favorite', bias: 0.70 },
-  { username: 'iris_insider', pickStyle: 'heavy_underdog', bias: 0.30 },
-  { username: 'jack_judge', pickStyle: 'slight_favorite', bias: 0.55 },
-  { username: 'kate_kicks', pickStyle: 'random', bias: 0.50 },
-  { username: 'leo_legacy', pickStyle: 'favorite', bias: 0.60 },
-  { username: 'mia_momentum', pickStyle: 'favorite', bias: 0.65 },
+  { username: 'alicechen', pickStyle: 'favorite', bias: 0.65 },
+  { username: 'bsantos', pickStyle: 'underdog', bias: 0.40 },
+  { username: 'charliej', pickStyle: 'random', bias: 0.50 },
+  { username: 'dkim23', pickStyle: 'heavy_favorite', bias: 0.80 },
+  { username: 'emmarod', pickStyle: 'slight_favorite', bias: 0.55 },
+  { username: 'bigfrank', pickStyle: 'favorite', bias: 0.60 },
+  { username: 'gracet', pickStyle: 'slight_underdog', bias: 0.45 },
+  { username: 'henryjack', pickStyle: 'favorite', bias: 0.70 },
+  { username: 'irismtz', pickStyle: 'heavy_underdog', bias: 0.30 },
+  { username: 'jmorrison', pickStyle: 'slight_favorite', bias: 0.55 },
+  { username: 'kateo', pickStyle: 'random', bias: 0.50 },
+  { username: 'leonak', pickStyle: 'favorite', bias: 0.60 },
+  { username: 'miadavis', pickStyle: 'favorite', bias: 0.65 },
 ];
 
 const EVENTS_TO_SEED = 5;

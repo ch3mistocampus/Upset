@@ -15,7 +15,7 @@ import { useAuth } from '../../hooks/useAuth';
 export default function AdminLayout() {
   const { colors } = useTheme();
   const router = useRouter();
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { data: isAdmin, isLoading: adminLoading } = useIsAdmin();
 
   useEffect(() => {

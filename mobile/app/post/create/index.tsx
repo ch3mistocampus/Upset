@@ -22,7 +22,7 @@ import { useState } from 'react';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import { decode } from 'base64-arraybuffer';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';

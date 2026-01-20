@@ -36,19 +36,19 @@ DECLARE
   v_comment_ids UUID[];
 BEGIN
   -- Get user IDs
-  SELECT user_id INTO v_alice FROM public.profiles WHERE username = 'alice_ufc';
-  SELECT user_id INTO v_bob FROM public.profiles WHERE username = 'bob_fighter';
-  SELECT user_id INTO v_charlie FROM public.profiles WHERE username = 'charlie_picks';
-  SELECT user_id INTO v_david FROM public.profiles WHERE username = 'david_mma';
-  SELECT user_id INTO v_emma FROM public.profiles WHERE username = 'emma_octagon';
-  SELECT user_id INTO v_frank FROM public.profiles WHERE username = 'frank_knockout';
-  SELECT user_id INTO v_grace FROM public.profiles WHERE username = 'grace_grappling';
-  SELECT user_id INTO v_henry FROM public.profiles WHERE username = 'henry_heavyweight';
-  SELECT user_id INTO v_iris FROM public.profiles WHERE username = 'iris_insider';
-  SELECT user_id INTO v_jack FROM public.profiles WHERE username = 'jack_judge';
-  SELECT user_id INTO v_kate FROM public.profiles WHERE username = 'kate_kicks';
-  SELECT user_id INTO v_leo FROM public.profiles WHERE username = 'leo_legacy';
-  SELECT user_id INTO v_mia FROM public.profiles WHERE username = 'mia_momentum';
+  SELECT user_id INTO v_alice FROM public.profiles WHERE username = 'alicechen';
+  SELECT user_id INTO v_bob FROM public.profiles WHERE username = 'bsantos';
+  SELECT user_id INTO v_charlie FROM public.profiles WHERE username = 'charliej';
+  SELECT user_id INTO v_david FROM public.profiles WHERE username = 'dkim23';
+  SELECT user_id INTO v_emma FROM public.profiles WHERE username = 'emmarod';
+  SELECT user_id INTO v_frank FROM public.profiles WHERE username = 'bigfrank';
+  SELECT user_id INTO v_grace FROM public.profiles WHERE username = 'gracet';
+  SELECT user_id INTO v_henry FROM public.profiles WHERE username = 'henryjack';
+  SELECT user_id INTO v_iris FROM public.profiles WHERE username = 'irismtz';
+  SELECT user_id INTO v_jack FROM public.profiles WHERE username = 'jmorrison';
+  SELECT user_id INTO v_kate FROM public.profiles WHERE username = 'kateo';
+  SELECT user_id INTO v_leo FROM public.profiles WHERE username = 'leonak';
+  SELECT user_id INTO v_mia FROM public.profiles WHERE username = 'miadavis';
 
   IF v_alice IS NULL THEN
     RAISE NOTICE 'Test users not found. Skipping notification seeds.';
@@ -138,9 +138,9 @@ DECLARE
 BEGIN
   -- Create notification preferences for all test users
   FOR v_username IN SELECT unnest(ARRAY[
-    'alice_ufc', 'bob_fighter', 'charlie_picks', 'david_mma', 'emma_octagon',
-    'frank_knockout', 'grace_grappling', 'henry_heavyweight', 'iris_insider',
-    'jack_judge', 'kate_kicks', 'leo_legacy', 'mia_momentum'
+    'alicechen', 'bsantos', 'charliej', 'dkim23', 'emmarod',
+    'bigfrank', 'gracet', 'henryjack', 'irismtz',
+    'jmorrison', 'kateo', 'leonak', 'miadavis'
   ]) LOOP
     SELECT user_id INTO v_user_id FROM public.profiles WHERE username = v_username;
 
@@ -159,8 +159,8 @@ BEGIN
         true,  -- new_follower
         true,  -- picks_graded
         true,  -- event_reminder_24h
-        CASE WHEN v_username IN ('alice_ufc', 'jack_judge', 'mia_momentum') THEN true ELSE false END, -- event_reminder_1h (only active users)
-        CASE WHEN v_username IN ('alice_ufc', 'bob_fighter', 'charlie_picks') THEN true ELSE false END, -- friend_activity
+        CASE WHEN v_username IN ('alicechen', 'jmorrison', 'miadavis') THEN true ELSE false END, -- event_reminder_1h (only active users)
+        CASE WHEN v_username IN ('alicechen', 'bsantos', 'charliej') THEN true ELSE false END, -- friend_activity
         true,  -- weekly_recap
         true   -- streak_at_risk
       ) ON CONFLICT (user_id) DO UPDATE SET
@@ -185,11 +185,11 @@ DECLARE
   v_mia UUID;
   v_event_id UUID := 'e0000000-0000-0000-0000-000000000002'; -- UFC 299
 BEGIN
-  SELECT user_id INTO v_alice FROM public.profiles WHERE username = 'alice_ufc';
-  SELECT user_id INTO v_bob FROM public.profiles WHERE username = 'bob_fighter';
-  SELECT user_id INTO v_charlie FROM public.profiles WHERE username = 'charlie_picks';
-  SELECT user_id INTO v_jack FROM public.profiles WHERE username = 'jack_judge';
-  SELECT user_id INTO v_mia FROM public.profiles WHERE username = 'mia_momentum';
+  SELECT user_id INTO v_alice FROM public.profiles WHERE username = 'alicechen';
+  SELECT user_id INTO v_bob FROM public.profiles WHERE username = 'bsantos';
+  SELECT user_id INTO v_charlie FROM public.profiles WHERE username = 'charliej';
+  SELECT user_id INTO v_jack FROM public.profiles WHERE username = 'jmorrison';
+  SELECT user_id INTO v_mia FROM public.profiles WHERE username = 'miadavis';
 
   IF v_alice IS NULL THEN
     RAISE NOTICE 'Test users not found. Skipping notification log.';
@@ -208,7 +208,7 @@ BEGIN
     (v_alice, 'picks_graded', 'UFC 299 Results Are In!', 'You got 2 out of 3 picks correct. 66% accuracy!',
      '{"event_id": "e0000000-0000-0000-0000-000000000002", "correct": 2, "total": 3}'::jsonb,
      NOW() - INTERVAL '6 days', NOW() - INTERVAL '6 days' + INTERVAL '1 hour'),
-    (v_alice, 'new_follower', 'New Follower', 'mia_momentum started following you',
+    (v_alice, 'new_follower', 'New Follower', 'miadavis started following you',
      '{"user_id": "' || v_mia || '"}'::jsonb,
      NOW() - INTERVAL '2 days', NOW() - INTERVAL '2 days' + INTERVAL '30 minutes'),
     (v_alice, 'streak_at_risk', 'Don''t Lose Your Streak!', 'You have a 5-fight win streak. Make your picks for UFC 310!',
@@ -228,10 +228,10 @@ BEGIN
     (v_bob, 'picks_graded', 'UFC 299 Results Are In!', 'You got 1 out of 3 picks correct. Keep trying!',
      '{"event_id": "e0000000-0000-0000-0000-000000000002", "correct": 1, "total": 3}'::jsonb,
      NOW() - INTERVAL '6 days', NOW() - INTERVAL '5 days'),
-    (v_bob, 'new_follower', 'New Follower', 'grace_grappling started following you',
-     '{"user_id": "' || (SELECT user_id FROM profiles WHERE username = 'grace_grappling') || '"}'::jsonb,
+    (v_bob, 'new_follower', 'New Follower', 'gracet started following you',
+     '{"user_id": "' || (SELECT user_id FROM profiles WHERE username = 'gracet') || '"}'::jsonb,
      NOW() - INTERVAL '4 days', NULL),
-    (v_bob, 'friend_activity', 'Alice is on a Hot Streak!', 'Your friend alice_ufc just hit 5 correct picks in a row',
+    (v_bob, 'friend_activity', 'Alice is on a Hot Streak!', 'Your friend alicechen just hit 5 correct picks in a row',
      '{"user_id": "' || v_alice || '", "streak": 5}'::jsonb,
      NOW() - INTERVAL '2 days', NULL)
   ON CONFLICT DO NOTHING;
@@ -245,7 +245,7 @@ BEGIN
     (v_jack, 'weekly_recap', 'Your Weekly Recap', 'This week: 5 correct, 0 wrong, 100% accuracy. Incredible!',
      '{"correct": 5, "wrong": 0, "accuracy": 100}'::jsonb,
      NOW() - INTERVAL '3 days', NOW() - INTERVAL '3 days' + INTERVAL '1 hour'),
-    (v_jack, 'new_follower', '3 New Followers', 'alice_ufc and 2 others started following you',
+    (v_jack, 'new_follower', '3 New Followers', 'alicechen and 2 others started following you',
      '{"count": 3}'::jsonb,
      NOW() - INTERVAL '1 day', NOW() - INTERVAL '1 day' + INTERVAL '2 hours')
   ON CONFLICT DO NOTHING;
@@ -281,11 +281,11 @@ DECLARE
   v_new_post_4 UUID;
   v_event_id UUID;
 BEGIN
-  SELECT user_id INTO v_kate FROM public.profiles WHERE username = 'kate_kicks';
-  SELECT user_id INTO v_leo FROM public.profiles WHERE username = 'leo_legacy';
-  SELECT user_id INTO v_henry FROM public.profiles WHERE username = 'henry_heavyweight';
-  SELECT user_id INTO v_grace FROM public.profiles WHERE username = 'grace_grappling';
-  SELECT user_id INTO v_emma FROM public.profiles WHERE username = 'emma_octagon';
+  SELECT user_id INTO v_kate FROM public.profiles WHERE username = 'kateo';
+  SELECT user_id INTO v_leo FROM public.profiles WHERE username = 'leonak';
+  SELECT user_id INTO v_henry FROM public.profiles WHERE username = 'henryjack';
+  SELECT user_id INTO v_grace FROM public.profiles WHERE username = 'gracet';
+  SELECT user_id INTO v_emma FROM public.profiles WHERE username = 'emmarod';
 
   IF v_kate IS NULL THEN
     RAISE NOTICE 'Test users not found. Skipping additional posts.';
@@ -353,7 +353,7 @@ BEGIN
     INSERT INTO public.post_likes (post_id, user_id, created_at)
     SELECT v_new_post_4, user_id, NOW() - INTERVAL '6 hours'
     FROM public.profiles
-    WHERE username IN ('alice_ufc', 'bob_fighter', 'leo_legacy', 'emma_octagon', 'jack_judge')
+    WHERE username IN ('alicechen', 'bsantos', 'leonak', 'emmarod', 'jmorrison')
     ON CONFLICT DO NOTHING;
 
     -- Comment from Emma
@@ -393,7 +393,7 @@ BEGIN
   END IF;
 
   -- Henry: Followers only (testing privacy)
-  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'henry_heavyweight';
+  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'henryjack';
   IF v_user_id IS NOT NULL THEN
     INSERT INTO public.privacy_settings (user_id, picks_visibility, stats_visibility, profile_visibility)
     VALUES (v_user_id, 'followers', 'followers', 'public')
@@ -403,7 +403,7 @@ BEGIN
   END IF;
 
   -- Iris: Private (the contrarian hides her picks)
-  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'iris_insider';
+  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'irismtz';
   IF v_user_id IS NOT NULL THEN
     INSERT INTO public.privacy_settings (user_id, picks_visibility, stats_visibility, profile_visibility)
     VALUES (v_user_id, 'private', 'followers', 'followers')
@@ -427,9 +427,9 @@ DECLARE
   v_henry UUID;
   v_random_user UUID;
 BEGIN
-  SELECT user_id INTO v_alice FROM public.profiles WHERE username = 'alice_ufc';
-  SELECT user_id INTO v_iris FROM public.profiles WHERE username = 'iris_insider';
-  SELECT user_id INTO v_henry FROM public.profiles WHERE username = 'henry_heavyweight';
+  SELECT user_id INTO v_alice FROM public.profiles WHERE username = 'alicechen';
+  SELECT user_id INTO v_iris FROM public.profiles WHERE username = 'irismtz';
+  SELECT user_id INTO v_henry FROM public.profiles WHERE username = 'henryjack';
 
   IF v_alice IS NULL THEN
     RAISE NOTICE 'Test users not found. Skipping block/mute seeds.';
@@ -470,12 +470,12 @@ DECLARE
   v_emma UUID;
   v_charlie UUID;
 BEGIN
-  SELECT user_id INTO v_alice FROM public.profiles WHERE username = 'alice_ufc';
-  SELECT user_id INTO v_kate FROM public.profiles WHERE username = 'kate_kicks';
-  SELECT user_id INTO v_henry FROM public.profiles WHERE username = 'henry_heavyweight';
-  SELECT user_id INTO v_grace FROM public.profiles WHERE username = 'grace_grappling';
-  SELECT user_id INTO v_emma FROM public.profiles WHERE username = 'emma_octagon';
-  SELECT user_id INTO v_charlie FROM public.profiles WHERE username = 'charlie_picks';
+  SELECT user_id INTO v_alice FROM public.profiles WHERE username = 'alicechen';
+  SELECT user_id INTO v_kate FROM public.profiles WHERE username = 'kateo';
+  SELECT user_id INTO v_henry FROM public.profiles WHERE username = 'henryjack';
+  SELECT user_id INTO v_grace FROM public.profiles WHERE username = 'gracet';
+  SELECT user_id INTO v_emma FROM public.profiles WHERE username = 'emmarod';
+  SELECT user_id INTO v_charlie FROM public.profiles WHERE username = 'charliej';
 
   IF v_alice IS NULL THEN
     RAISE NOTICE 'Test users not found. Skipping follow seeds.';
@@ -512,11 +512,11 @@ DECLARE
   v_charlie UUID;
   v_event_id UUID := 'e0000000-0000-0000-0000-000000000002';
 BEGIN
-  SELECT user_id INTO v_kate FROM public.profiles WHERE username = 'kate_kicks';
-  SELECT user_id INTO v_leo FROM public.profiles WHERE username = 'leo_legacy';
-  SELECT user_id INTO v_henry FROM public.profiles WHERE username = 'henry_heavyweight';
-  SELECT user_id INTO v_grace FROM public.profiles WHERE username = 'grace_grappling';
-  SELECT user_id INTO v_charlie FROM public.profiles WHERE username = 'charlie_picks';
+  SELECT user_id INTO v_kate FROM public.profiles WHERE username = 'kateo';
+  SELECT user_id INTO v_leo FROM public.profiles WHERE username = 'leonak';
+  SELECT user_id INTO v_henry FROM public.profiles WHERE username = 'henryjack';
+  SELECT user_id INTO v_grace FROM public.profiles WHERE username = 'gracet';
+  SELECT user_id INTO v_charlie FROM public.profiles WHERE username = 'charliej';
 
   IF v_kate IS NULL THEN
     RAISE NOTICE 'Test users not found. Skipping activity seeds.';
@@ -533,7 +533,7 @@ BEGIN
   INSERT INTO public.activities (user_id, activity_type, title, description, data, engagement_score, created_at)
   VALUES
     (v_kate, 'accuracy_milestone', '70% Accuracy in Striker Fights!',
-     'kate_kicks has correctly predicted 70% of fights featuring elite strikers.',
+     'kateo has correctly predicted 70% of fights featuring elite strikers.',
      '{"accuracy": 70, "category": "striker", "picks": 20}'::jsonb,
      12, NOW() - INTERVAL '3 days')
   ON CONFLICT DO NOTHING;
@@ -542,7 +542,7 @@ BEGIN
   INSERT INTO public.activities (user_id, activity_type, title, description, data, engagement_score, created_at)
   VALUES
     (v_grace, 'accuracy_milestone', 'Grappler Expert Badge!',
-     'grace_grappling correctly predicted 8 out of 10 grappler-focused fights.',
+     'gracet correctly predicted 8 out of 10 grappler-focused fights.',
      '{"accuracy": 80, "category": "grappler", "picks": 10}'::jsonb,
      18, NOW() - INTERVAL '2 days')
   ON CONFLICT DO NOTHING;
@@ -551,7 +551,7 @@ BEGIN
   INSERT INTO public.activities (user_id, activity_type, title, description, data, engagement_score, created_at)
   VALUES
     (v_henry, 'streak_milestone', '6 HW Fights in a Row!',
-     'henry_heavyweight predicted 6 consecutive heavyweight fight winners.',
+     'henryjack predicted 6 consecutive heavyweight fight winners.',
      '{"streak_count": 6, "streak_type": "win", "division": "Heavyweight"}'::jsonb,
      20, NOW() - INTERVAL '1 day')
   ON CONFLICT DO NOTHING;
@@ -560,7 +560,7 @@ BEGIN
   INSERT INTO public.activities (user_id, activity_type, title, description, data, engagement_score, created_at)
   VALUES
     (v_charlie, 'badge_earned', 'Data Analyst Badge',
-     'charlie_picks has made picks for 50+ events with detailed analysis.',
+     'charliej has made picks for 50+ events with detailed analysis.',
      '{"badge_name": "Data Analyst", "events_analyzed": 52}'::jsonb,
      8, NOW() - INTERVAL '4 days')
   ON CONFLICT DO NOTHING;
@@ -569,7 +569,7 @@ BEGIN
   INSERT INTO public.activities (user_id, activity_type, title, description, data, engagement_score, created_at)
   VALUES
     (v_leo, 'accuracy_milestone', 'Master of Experience!',
-     'leo_legacy''s veteran-picks strategy hits 65% overall accuracy.',
+     'leonak''s veteran-picks strategy hits 65% overall accuracy.',
      '{"accuracy": 65, "total_picks": 100, "correct_picks": 65}'::jsonb,
      15, NOW() - INTERVAL '12 hours')
   ON CONFLICT DO NOTHING;
@@ -589,10 +589,10 @@ DECLARE
   v_emma UUID;
   v_comment_ids UUID[];
 BEGIN
-  SELECT user_id INTO v_alice FROM public.profiles WHERE username = 'alice_ufc';
-  SELECT user_id INTO v_bob FROM public.profiles WHERE username = 'bob_fighter';
-  SELECT user_id INTO v_jack FROM public.profiles WHERE username = 'jack_judge';
-  SELECT user_id INTO v_emma FROM public.profiles WHERE username = 'emma_octagon';
+  SELECT user_id INTO v_alice FROM public.profiles WHERE username = 'alicechen';
+  SELECT user_id INTO v_bob FROM public.profiles WHERE username = 'bsantos';
+  SELECT user_id INTO v_jack FROM public.profiles WHERE username = 'jmorrison';
+  SELECT user_id INTO v_emma FROM public.profiles WHERE username = 'emmarod';
 
   IF v_alice IS NULL THEN
     RAISE NOTICE 'Test users not found. Skipping comment likes.';

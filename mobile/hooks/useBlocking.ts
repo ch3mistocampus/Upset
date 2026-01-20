@@ -86,7 +86,7 @@ export function useBlocking() {
       }
 
       // Also unfollow the user if following
-      await supabase
+      await (supabase as any)
         .from('follows')
         .delete()
         .or(`user_id.eq.${user.id},following_id.eq.${user.id}`)

@@ -179,8 +179,6 @@ export function RoundHistoryCard({
                   <ScoreBucketBar
                     buckets={aggregate.buckets}
                     totalSubmissions={aggregate.submission_count}
-                    redName={redName}
-                    blueName={blueName}
                   />
                 </View>
               )}

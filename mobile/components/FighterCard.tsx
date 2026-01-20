@@ -36,7 +36,7 @@ export function FighterCard({ fighter, compact = false }: FighterCardProps) {
   const record = 'record' in fighter && typeof fighter.record === 'string'
     ? fighter.record
     : 'record_wins' in fighter
-      ? formatRecord(fighter.record_wins, fighter.record_losses, fighter.record_draws, fighter.record_nc)
+      ? formatRecord(fighter.record_wins ?? 0, fighter.record_losses ?? 0, fighter.record_draws ?? 0, fighter.record_nc ?? 0)
       : '--';
 
   const weightClass = getWeightClassName(weightLbs);

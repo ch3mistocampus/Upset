@@ -35,7 +35,7 @@ export function useUpdatePost() {
     mutationFn: async ({ postId, title, body }: UpdatePostInput): Promise<UpdateResult> => {
       logger.breadcrumb('Updating post', 'posts', { postId });
 
-      const { data, error } = await supabase.rpc('update_post', {
+      const { data, error } = await (supabase.rpc as any)('update_post', {
         p_post_id: postId,
         p_title: title,
         p_body: body || null,
@@ -47,7 +47,7 @@ export function useUpdatePost() {
       }
 
       logger.info('Post updated', { postId });
-      return data as UpdateResult;
+      return data as unknown as UpdateResult;
     },
     onSuccess: (_, variables) => {
       // Invalidate post detail to refresh with new content
@@ -68,7 +68,7 @@ export function useUpdateComment() {
     mutationFn: async ({ commentId, body }: UpdateCommentInput): Promise<UpdateResult> => {
       logger.breadcrumb('Updating comment', 'posts', { commentId });
 
-      const { data, error } = await supabase.rpc('update_comment', {
+      const { data, error } = await (supabase.rpc as any)('update_comment', {
         p_comment_id: commentId,
         p_body: body,
       });
@@ -79,7 +79,7 @@ export function useUpdateComment() {
       }
 
       logger.info('Comment updated', { commentId });
-      return data as UpdateResult;
+      return data as unknown as UpdateResult;
     },
     onSuccess: (_, variables) => {
       // Invalidate post detail to refresh comments

@@ -33,7 +33,7 @@ export function useDeleteAccount() {
       });
 
       if (error) throw error;
-      return data as DeleteAccountResult;
+      return data as unknown as DeleteAccountResult;
     },
     onSuccess: async () => {
       // Clear all cached data

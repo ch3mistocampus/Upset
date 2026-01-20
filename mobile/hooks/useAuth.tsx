@@ -7,6 +7,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Linking from 'expo-linking';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../types/database';
 import { logger } from '../lib/logger';
@@ -259,6 +260,66 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => subscription.unsubscribe();
   }, [checkAndMigrateGuestPicks, loadProfile]);
 
+  // Handle deep links for auth callbacks (password reset, email verification, etc.)
+  useEffect(() => {
+    const handleDeepLink = async (url: string) => {
+      logger.info('Deep link received', { url });
+
+      try {
+        // Parse the URL to extract auth tokens
+        // Format: upset://reset-password#access_token=xxx&refresh_token=xxx&type=recovery
+        const hashIndex = url.indexOf('#');
+        if (hashIndex === -1) {
+          logger.debug('No hash fragment in deep link, ignoring');
+          return;
+        }
+
+        const hashParams = new URLSearchParams(url.substring(hashIndex + 1));
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        const type = hashParams.get('type');
+
+        if (!accessToken || !refreshToken) {
+          logger.debug('No auth tokens in deep link');
+          return;
+        }
+
+        logger.info('Processing auth deep link', { type });
+
+        // Set the session from the deep link tokens
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+
+        if (error) {
+          logger.error('Failed to set session from deep link', error);
+        } else {
+          logger.info('Session set from deep link successfully', { type });
+        }
+      } catch (error) {
+        logger.error('Error processing deep link', error as Error);
+      }
+    };
+
+    // Check for initial URL (app opened via deep link)
+    const checkInitialURL = async () => {
+      const initialUrl = await Linking.getInitialURL();
+      if (initialUrl) {
+        handleDeepLink(initialUrl);
+      }
+    };
+
+    checkInitialURL();
+
+    // Listen for URL changes while app is open
+    const subscription = Linking.addEventListener('url', (event) => {
+      handleDeepLink(event.url);
+    });
+
+    return () => subscription.remove();
+  }, []);
+
   const signInWithOTP = useCallback(async (email: string) => {
     const { error } = await supabase.auth.signInWithOtp({
       email,
@@ -411,9 +472,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   const signOut = useCallback(async () => {
+    // Sign out from Google to clear cached credentials
+    await googleAuth.signOutFromGoogle();
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
-  }, []);
+  }, [googleAuth]);
 
   // Full reset for testing - clears all auth state and simulates fresh install
   const resetForTesting = useCallback(async () => {
@@ -484,11 +547,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signInWithUsername,
     resetPassword,
     updatePassword,
-    // OAuth methods
-    signInWithApple: appleAuth.signInWithApple,
+    // OAuth methods (wrapped to match void return type)
+    signInWithApple: async () => { await appleAuth.signInWithApple(); },
     isAppleAvailable: appleAuth.isAvailable,
     appleLoading: appleAuth.loading,
-    signInWithGoogle: googleAuth.signInWithGoogle,
+    signInWithGoogle: async () => { await googleAuth.signInWithGoogle(); },
     isGoogleAvailable: googleAuth.isAvailable,
     googleLoading: googleAuth.loading,
     // Profile

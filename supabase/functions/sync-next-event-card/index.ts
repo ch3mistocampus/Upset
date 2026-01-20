@@ -8,7 +8,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { createUFCStatsProvider } from "../_shared/ufcstats-provider.ts";
-import { healthCheck as scraperHealthCheck } from "../_shared/ufcstats-scraper.ts";
+import { healthCheck as scraperHealthCheck, scrapeFighterProfile, sleep } from "../_shared/ufcstats-scraper.ts";
 import { createLogger } from "../_shared/logger.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -18,6 +18,133 @@ const logger = createLogger("sync-next-event-card");
 
 // Minimum expected fights per event to detect scraping issues
 const MIN_EXPECTED_FIGHTS = 3;
+
+// Live sync snapshot ID for automated fighter syncs
+const LIVE_SYNC_SNAPSHOT_ID = "live-sync-auto";
+
+/**
+ * Ensure the live sync snapshot exists
+ */
+async function ensureLiveSyncSnapshot(supabase: any): Promise<void> {
+  const { data: existing } = await supabase
+    .from("ufc_source_snapshots")
+    .select("snapshot_id")
+    .eq("snapshot_id", LIVE_SYNC_SNAPSHOT_ID)
+    .single();
+
+  if (!existing) {
+    logger.info("Creating live sync snapshot");
+    await supabase.from("ufc_source_snapshots").insert({
+      snapshot_id: LIVE_SYNC_SNAPSHOT_ID,
+      source: "ufcstats-live",
+      notes: "Automated live sync from sync-next-event-card function",
+      row_counts: {},
+    });
+  }
+}
+
+/**
+ * Sync fighters for all bouts in an event
+ * Scrapes and upserts fighter profiles for all fighters on the card
+ */
+async function syncFighters(
+  supabase: any,
+  fights: any[],
+  eventName: string
+): Promise<{ synced: number; skipped: number; errors: string[] }> {
+  const result = { synced: 0, skipped: 0, errors: [] as string[] };
+
+  // Ensure snapshot exists
+  await ensureLiveSyncSnapshot(supabase);
+
+  // Collect unique fighter IDs from all fights
+  const fighterIds = new Set<string>();
+  for (const fight of fights) {
+    if (fight.redFighter?.externalId) fighterIds.add(fight.redFighter.externalId);
+    if (fight.blueFighter?.externalId) fighterIds.add(fight.blueFighter.externalId);
+  }
+
+  logger.info(`Syncing ${fighterIds.size} unique fighters for ${eventName}`);
+
+  // Check which fighters already exist in ufc_fighters
+  const { data: existingFighters } = await supabase
+    .from("ufc_fighters")
+    .select("fighter_id")
+    .in("fighter_id", Array.from(fighterIds));
+
+  const existingIds = new Set(existingFighters?.map((f: any) => f.fighter_id) || []);
+
+  // Sync each fighter (with rate limiting)
+  for (const fighterId of fighterIds) {
+    try {
+      // Skip if already exists (we can add a force refresh option later)
+      if (existingIds.has(fighterId)) {
+        logger.info(`Fighter ${fighterId} already exists, skipping`);
+        result.skipped++;
+        continue;
+      }
+
+      // Rate limit to avoid overwhelming UFCStats
+      await sleep(500);
+
+      // Scrape fighter profile
+      const profile = await scrapeFighterProfile(fighterId);
+
+      if (!profile) {
+        logger.warn(`Could not scrape profile for fighter ${fighterId}`);
+        result.errors.push(`Failed to scrape fighter ${fighterId}`);
+        continue;
+      }
+
+      // Upsert fighter to database
+      const { error } = await supabase
+        .from("ufc_fighters")
+        .upsert({
+          fighter_id: profile.fighter_id,
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+          full_name: profile.full_name,
+          nickname: profile.nickname,
+          dob: profile.dob,
+          height_inches: profile.height_inches,
+          weight_lbs: profile.weight_lbs,
+          reach_inches: profile.reach_inches,
+          stance: profile.stance,
+          record_wins: profile.record_wins,
+          record_losses: profile.record_losses,
+          record_draws: profile.record_draws,
+          record_nc: profile.record_nc,
+          slpm: profile.slpm,
+          sapm: profile.sapm,
+          str_acc: profile.str_acc,
+          str_def: profile.str_def,
+          td_avg: profile.td_avg,
+          td_acc: profile.td_acc,
+          td_def: profile.td_def,
+          sub_avg: profile.sub_avg,
+          ufcstats_url: profile.ufcstats_url,
+          source_snapshot_id: LIVE_SYNC_SNAPSHOT_ID,
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: "fighter_id",
+        });
+
+      if (error) {
+        logger.error("Error upserting fighter", error, { fighterId: profile.fighter_id });
+        result.errors.push(`DB error for ${profile.full_name}: ${error.message}`);
+      } else {
+        logger.info(`Synced fighter: ${profile.full_name}`);
+        result.synced++;
+      }
+    } catch (error) {
+      logger.error("Error syncing fighter", error, { fighterId });
+      result.errors.push(`Error for ${fighterId}: ${(error as Error).message}`);
+    }
+  }
+
+  logger.info(`Fighter sync complete: ${result.synced} synced, ${result.skipped} skipped, ${result.errors.length} errors`);
+  return result;
+}
 
 serve(async (req) => {
   const startTime = Date.now();
@@ -292,6 +419,10 @@ serve(async (req) => {
       }
     }
 
+    // Sync fighter profiles for all fighters on the card
+    logger.info("Starting fighter profile sync");
+    const fighterSyncResult = await syncFighters(supabase, fights, event.name);
+
     // Update event sync timestamp
     await supabase
       .from("events")
@@ -312,6 +443,9 @@ serve(async (req) => {
       fights_updated: updated,
       fights_canceled: canceled,
       total_fights: fights.length,
+      fighters_synced: fighterSyncResult.synced,
+      fighters_skipped: fighterSyncResult.skipped,
+      fighter_errors: fighterSyncResult.errors.length > 0 ? fighterSyncResult.errors : undefined,
       errors: errors.length > 0 ? errors : undefined,
       duration_ms: duration,
     };
@@ -323,6 +457,8 @@ serve(async (req) => {
       updated,
       canceled,
       total: fights.length,
+      fighters_synced: fighterSyncResult.synced,
+      fighters_skipped: fighterSyncResult.skipped,
     });
 
     return new Response(JSON.stringify(result), {

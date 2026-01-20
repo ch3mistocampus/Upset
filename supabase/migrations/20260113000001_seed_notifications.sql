@@ -36,18 +36,18 @@ DECLARE
   v_j INT;
 BEGIN
   -- Get all test user IDs
-  SELECT user_id INTO v_alice FROM public.profiles WHERE username = 'alice_ufc';
-  SELECT user_id INTO v_bob FROM public.profiles WHERE username = 'bob_fighter';
-  SELECT user_id INTO v_charlie FROM public.profiles WHERE username = 'charlie_picks';
-  SELECT user_id INTO v_david FROM public.profiles WHERE username = 'david_mma';
-  SELECT user_id INTO v_emma FROM public.profiles WHERE username = 'emma_octagon';
-  SELECT user_id INTO v_frank FROM public.profiles WHERE username = 'frank_knockout';
-  SELECT user_id INTO v_grace FROM public.profiles WHERE username = 'grace_grappling';
-  SELECT user_id INTO v_henry FROM public.profiles WHERE username = 'henry_heavyweight';
-  SELECT user_id INTO v_iris FROM public.profiles WHERE username = 'iris_insider';
-  SELECT user_id INTO v_jack FROM public.profiles WHERE username = 'jack_judge';
-  SELECT user_id INTO v_kate FROM public.profiles WHERE username = 'kate_kicks';
-  SELECT user_id INTO v_leo FROM public.profiles WHERE username = 'leo_legacy';
+  SELECT user_id INTO v_alice FROM public.profiles WHERE username = 'alicechen';
+  SELECT user_id INTO v_bob FROM public.profiles WHERE username = 'bsantos';
+  SELECT user_id INTO v_charlie FROM public.profiles WHERE username = 'charliej';
+  SELECT user_id INTO v_david FROM public.profiles WHERE username = 'dkim23';
+  SELECT user_id INTO v_emma FROM public.profiles WHERE username = 'emmarod';
+  SELECT user_id INTO v_frank FROM public.profiles WHERE username = 'bigfrank';
+  SELECT user_id INTO v_grace FROM public.profiles WHERE username = 'gracet';
+  SELECT user_id INTO v_henry FROM public.profiles WHERE username = 'henryjack';
+  SELECT user_id INTO v_iris FROM public.profiles WHERE username = 'irismtz';
+  SELECT user_id INTO v_jack FROM public.profiles WHERE username = 'jmorrison';
+  SELECT user_id INTO v_kate FROM public.profiles WHERE username = 'kateo';
+  SELECT user_id INTO v_leo FROM public.profiles WHERE username = 'leonak';
   SELECT user_id INTO v_mia FROM public.profiles WHERE username = 'mia_matchup';
 
   -- Exit if no users found

@@ -93,7 +93,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({ message, onRetry, contex
         </TouchableOpacity>
 
         {/* Subtle help text */}
-        <Text style={[styles.helpText, { color: colors.textTertiary || colors.textSecondary }]}>
+        <Text style={[styles.helpText, { color: colors.textTertiary }]}>
           Pull down to refresh or tap above to retry
         </Text>
       </View>

@@ -31,14 +31,14 @@ export function useDataSourceSettings() {
   return useQuery({
     queryKey: ['data-source-settings'],
     queryFn: async (): Promise<DataSourceSettings | null> => {
-      const { data, error } = await supabase.rpc('get_data_source_settings');
+      const { data, error } = await (supabase.rpc as any)('get_data_source_settings');
 
       if (error) {
         console.error('Error fetching data source settings:', error);
         throw error;
       }
 
-      return data;
+      return data as DataSourceSettings | null;
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
@@ -51,7 +51,7 @@ export function useShouldSync(syncType: 'events' | 'fighters' | 'results') {
   return useQuery({
     queryKey: ['should-sync', syncType],
     queryFn: async (): Promise<boolean> => {
-      const { data, error } = await supabase.rpc('should_sync', {
+      const { data, error } = await (supabase.rpc as any)('should_sync', {
         p_sync_type: syncType,
       });
 
@@ -60,7 +60,7 @@ export function useShouldSync(syncType: 'events' | 'fighters' | 'results') {
         return true; // Default to syncing on error
       }
 
-      return data ?? true;
+      return (data as boolean) ?? true;
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
   });

@@ -30,132 +30,132 @@ DECLARE
   v_user_id UUID;
 BEGIN
   -- Alice UFC
-  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'alice_ufc';
+  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'alicechen';
   IF v_user_id IS NOT NULL THEN
     UPDATE public.profiles SET
       display_name = 'Alice Chen',
       bio = 'UFC analyst and picks enthusiast since 2018. Love breaking down striking matchups.',
-      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=alice_ufc&backgroundColor=b6e3f4'
+      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=alicechen&backgroundColor=b6e3f4'
     WHERE user_id = v_user_id;
   END IF;
 
   -- Bob Fighter
-  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'bob_fighter';
+  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'bsantos';
   IF v_user_id IS NOT NULL THEN
     UPDATE public.profiles SET
       display_name = 'Bob Santos',
       bio = 'Former amateur fighter, now predicting pros. BJJ brown belt. Team pressure fighters.',
-      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=bob_fighter&backgroundColor=c0aede'
+      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=bsantos&backgroundColor=c0aede'
     WHERE user_id = v_user_id;
   END IF;
 
   -- Charlie Picks
-  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'charlie_picks';
+  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'charliej';
   IF v_user_id IS NOT NULL THEN
     UPDATE public.profiles SET
       display_name = 'Charlie James',
       bio = 'Data-driven picks. I analyze fight stats and let the numbers guide me.',
-      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=charlie_picks&backgroundColor=d1d4f9'
+      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=charliej&backgroundColor=d1d4f9'
     WHERE user_id = v_user_id;
   END IF;
 
   -- David MMA
-  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'david_mma';
+  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'dkim23';
   IF v_user_id IS NOT NULL THEN
     UPDATE public.profiles SET
       display_name = 'David Kim',
       bio = 'Chalk picker and proud. Why bet against the better fighter? 80% favorite picks.',
-      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=david_mma&backgroundColor=ffd5dc'
+      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=dkim23&backgroundColor=ffd5dc'
     WHERE user_id = v_user_id;
   END IF;
 
   -- Emma Octagon
-  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'emma_octagon';
+  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'emmarod';
   IF v_user_id IS NOT NULL THEN
     UPDATE public.profiles SET
       display_name = 'Emma Rodriguez',
       bio = 'MMA journalist covering UFC since 2015. I pick what I report.',
-      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=emma_octagon&backgroundColor=ffdfbf'
+      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=emmarod&backgroundColor=ffdfbf'
     WHERE user_id = v_user_id;
   END IF;
 
   -- Frank Knockout
-  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'frank_knockout';
+  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'bigfrank';
   IF v_user_id IS NOT NULL THEN
     UPDATE public.profiles SET
       display_name = 'Frank "KO" Williams',
       bio = 'Power punchers win fights. I follow the knockout artists.',
-      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=frank_knockout&backgroundColor=c1e1c1'
+      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=bigfrank&backgroundColor=c1e1c1'
     WHERE user_id = v_user_id;
   END IF;
 
   -- Grace Grappling
-  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'grace_grappling';
+  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'gracet';
   IF v_user_id IS NOT NULL THEN
     UPDATE public.profiles SET
       display_name = 'Grace Thompson',
       bio = 'Jiu-jitsu coach. I believe in the ground game. Grapplers are underrated.',
-      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=grace_grappling&backgroundColor=bae1ff'
+      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=gracet&backgroundColor=bae1ff'
     WHERE user_id = v_user_id;
   END IF;
 
   -- Henry Heavyweight
-  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'henry_heavyweight';
+  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'henryjack';
   IF v_user_id IS NOT NULL THEN
     UPDATE public.profiles SET
       display_name = 'Henry "Big Man" Jackson',
       bio = 'Heavyweight specialist. The big boys hit different. Power > technique.',
-      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=henry_heavyweight&backgroundColor=ffffba'
+      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=henryjack&backgroundColor=ffffba'
     WHERE user_id = v_user_id;
   END IF;
 
   -- Iris Insider
-  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'iris_insider';
+  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'irismtz';
   IF v_user_id IS NOT NULL THEN
     UPDATE public.profiles SET
       display_name = 'Iris Martinez',
       bio = 'Contrarian picks since 2020. The upset is always one fight away.',
-      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=iris_insider&backgroundColor=ffb3ba'
+      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=irismtz&backgroundColor=ffb3ba'
     WHERE user_id = v_user_id;
   END IF;
 
   -- Jack Judge
-  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'jack_judge';
+  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'jmorrison';
   IF v_user_id IS NOT NULL THEN
     UPDATE public.profiles SET
       display_name = 'Jack "The Judge" Morrison',
       bio = 'Balanced analyst. I score fights and pick based on who wins rounds.',
-      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=jack_judge&backgroundColor=baffc9'
+      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=jmorrison&backgroundColor=baffc9'
     WHERE user_id = v_user_id;
   END IF;
 
   -- Kate Kicks
-  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'kate_kicks';
+  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'kateo';
   IF v_user_id IS NOT NULL THEN
     UPDATE public.profiles SET
       display_name = 'Kate "Kicks" O''Brien',
       bio = 'Kickboxing background. Volume strikers are my picks. Leg kicks win fights.',
-      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=kate_kicks&backgroundColor=e2f0cb'
+      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=kateo&backgroundColor=e2f0cb'
     WHERE user_id = v_user_id;
   END IF;
 
   -- Leo Legacy
-  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'leo_legacy';
+  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'leonak';
   IF v_user_id IS NOT NULL THEN
     UPDATE public.profiles SET
       display_name = 'Leo Nakamura',
       bio = 'Experience matters. Veterans over prospects. Trust the record.',
-      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=leo_legacy&backgroundColor=feffd5'
+      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=leonak&backgroundColor=feffd5'
     WHERE user_id = v_user_id;
   END IF;
 
   -- Mia Momentum
-  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'mia_momentum';
+  SELECT user_id INTO v_user_id FROM public.profiles WHERE username = 'miadavis';
   IF v_user_id IS NOT NULL THEN
     UPDATE public.profiles SET
       display_name = 'Mia "Momentum" Davis',
       bio = 'Riding hot streaks since day one. Winners keep winning.',
-      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=mia_momentum&backgroundColor=ffc9de'
+      avatar_url = 'https://api.dicebear.com/7.x/avataaars/svg?seed=miadavis&backgroundColor=ffc9de'
     WHERE user_id = v_user_id;
   END IF;
 
@@ -183,19 +183,19 @@ DECLARE
   v_mia UUID;
 BEGIN
   -- Get user IDs
-  SELECT user_id INTO v_alice FROM public.profiles WHERE username = 'alice_ufc';
-  SELECT user_id INTO v_bob FROM public.profiles WHERE username = 'bob_fighter';
-  SELECT user_id INTO v_charlie FROM public.profiles WHERE username = 'charlie_picks';
-  SELECT user_id INTO v_david FROM public.profiles WHERE username = 'david_mma';
-  SELECT user_id INTO v_emma FROM public.profiles WHERE username = 'emma_octagon';
-  SELECT user_id INTO v_frank FROM public.profiles WHERE username = 'frank_knockout';
-  SELECT user_id INTO v_grace FROM public.profiles WHERE username = 'grace_grappling';
-  SELECT user_id INTO v_henry FROM public.profiles WHERE username = 'henry_heavyweight';
-  SELECT user_id INTO v_iris FROM public.profiles WHERE username = 'iris_insider';
-  SELECT user_id INTO v_jack FROM public.profiles WHERE username = 'jack_judge';
-  SELECT user_id INTO v_kate FROM public.profiles WHERE username = 'kate_kicks';
-  SELECT user_id INTO v_leo FROM public.profiles WHERE username = 'leo_legacy';
-  SELECT user_id INTO v_mia FROM public.profiles WHERE username = 'mia_momentum';
+  SELECT user_id INTO v_alice FROM public.profiles WHERE username = 'alicechen';
+  SELECT user_id INTO v_bob FROM public.profiles WHERE username = 'bsantos';
+  SELECT user_id INTO v_charlie FROM public.profiles WHERE username = 'charliej';
+  SELECT user_id INTO v_david FROM public.profiles WHERE username = 'dkim23';
+  SELECT user_id INTO v_emma FROM public.profiles WHERE username = 'emmarod';
+  SELECT user_id INTO v_frank FROM public.profiles WHERE username = 'bigfrank';
+  SELECT user_id INTO v_grace FROM public.profiles WHERE username = 'gracet';
+  SELECT user_id INTO v_henry FROM public.profiles WHERE username = 'henryjack';
+  SELECT user_id INTO v_iris FROM public.profiles WHERE username = 'irismtz';
+  SELECT user_id INTO v_jack FROM public.profiles WHERE username = 'jmorrison';
+  SELECT user_id INTO v_kate FROM public.profiles WHERE username = 'kateo';
+  SELECT user_id INTO v_leo FROM public.profiles WHERE username = 'leonak';
+  SELECT user_id INTO v_mia FROM public.profiles WHERE username = 'miadavis';
 
   IF v_alice IS NULL THEN
     RAISE NOTICE 'Test users not found. Skipping friendships.';
@@ -289,15 +289,15 @@ DECLARE
   v_event_id UUID := 'e0000000-0000-0000-0000-000000000002'; -- UFC 299
 BEGIN
   -- Get user IDs
-  SELECT user_id INTO v_alice FROM public.profiles WHERE username = 'alice_ufc';
-  SELECT user_id INTO v_bob FROM public.profiles WHERE username = 'bob_fighter';
-  SELECT user_id INTO v_charlie FROM public.profiles WHERE username = 'charlie_picks';
-  SELECT user_id INTO v_david FROM public.profiles WHERE username = 'david_mma';
-  SELECT user_id INTO v_frank FROM public.profiles WHERE username = 'frank_knockout';
-  SELECT user_id INTO v_iris FROM public.profiles WHERE username = 'iris_insider';
-  SELECT user_id INTO v_jack FROM public.profiles WHERE username = 'jack_judge';
-  SELECT user_id INTO v_leo FROM public.profiles WHERE username = 'leo_legacy';
-  SELECT user_id INTO v_mia FROM public.profiles WHERE username = 'mia_momentum';
+  SELECT user_id INTO v_alice FROM public.profiles WHERE username = 'alicechen';
+  SELECT user_id INTO v_bob FROM public.profiles WHERE username = 'bsantos';
+  SELECT user_id INTO v_charlie FROM public.profiles WHERE username = 'charliej';
+  SELECT user_id INTO v_david FROM public.profiles WHERE username = 'dkim23';
+  SELECT user_id INTO v_frank FROM public.profiles WHERE username = 'bigfrank';
+  SELECT user_id INTO v_iris FROM public.profiles WHERE username = 'irismtz';
+  SELECT user_id INTO v_jack FROM public.profiles WHERE username = 'jmorrison';
+  SELECT user_id INTO v_leo FROM public.profiles WHERE username = 'leonak';
+  SELECT user_id INTO v_mia FROM public.profiles WHERE username = 'miadavis';
 
   IF v_alice IS NULL THEN
     RAISE NOTICE 'Test users not found. Skipping activities.';
@@ -316,7 +316,7 @@ BEGIN
     v_alice,
     'accuracy_milestone',
     'Hit 75% Accuracy!',
-    'alice_ufc reached 75% prediction accuracy across 28 picks.',
+    'alicechen reached 75% prediction accuracy across 28 picks.',
     '{"accuracy": 75, "total_picks": 28, "correct_picks": 21}'::jsonb,
     15,
     NOW() - INTERVAL '5 days'
@@ -328,7 +328,7 @@ BEGIN
     v_iris,
     'accuracy_milestone',
     'Reached Elite Status: 90%+ Accuracy!',
-    'iris_insider defied the odds with 93% accuracy. Contrarian picks for the win!',
+    'irismtz defied the odds with 93% accuracy. Contrarian picks for the win!',
     '{"accuracy": 93, "total_picks": 29, "correct_picks": 27}'::jsonb,
     45,
     NOW() - INTERVAL '4 days'
@@ -340,7 +340,7 @@ BEGIN
     v_jack,
     'event_winner',
     'Won UFC 299 Leaderboard!',
-    'jack_judge correctly predicted all 3 main card fights at UFC 299.',
+    'jmorrison correctly predicted all 3 main card fights at UFC 299.',
     '{"event_name": "UFC 299", "correct_picks": 3, "total_picks": 3, "rank": 1}'::jsonb,
     v_event_id,
     35,
@@ -353,7 +353,7 @@ BEGIN
     v_frank,
     'streak_milestone',
     '8-Fight Win Streak!',
-    'frank_knockout is on fire with 8 correct predictions in a row.',
+    'bigfrank is on fire with 8 correct predictions in a row.',
     '{"streak_count": 8, "streak_type": "win"}'::jsonb,
     25,
     NOW() - INTERVAL '3 days'
@@ -365,7 +365,7 @@ BEGIN
     v_david,
     'accuracy_milestone',
     'Most Consistent Picker This Month',
-    'david_mma maintained 73% accuracy across 30 picks this month.',
+    'dkim23 maintained 73% accuracy across 30 picks this month.',
     '{"accuracy": 73, "total_picks": 30, "correct_picks": 22}'::jsonb,
     20,
     NOW() - INTERVAL '2 days'
@@ -377,7 +377,7 @@ BEGIN
     v_mia,
     'streak_milestone',
     '5 Winning Events in a Row!',
-    'mia_momentum has a winning record at 5 consecutive UFC events.',
+    'miadavis has a winning record at 5 consecutive UFC events.',
     '{"streak_count": 5, "streak_type": "event_wins"}'::jsonb,
     30,
     NOW() - INTERVAL '7 days'
@@ -389,7 +389,7 @@ BEGIN
     v_leo,
     'badge_earned',
     'Earned "Veteran" Badge',
-    'leo_legacy has been making picks for over 1 year!',
+    'leonak has been making picks for over 1 year!',
     '{"badge_name": "Veteran", "badge_description": "1 year of predictions"}'::jsonb,
     10,
     NOW() - INTERVAL '1 day'
@@ -415,11 +415,11 @@ DECLARE
   v_event_id UUID := 'e0000000-0000-0000-0000-000000000002'; -- UFC 299
 BEGIN
   -- Get user IDs
-  SELECT user_id INTO v_alice FROM public.profiles WHERE username = 'alice_ufc';
-  SELECT user_id INTO v_bob FROM public.profiles WHERE username = 'bob_fighter';
-  SELECT user_id INTO v_iris FROM public.profiles WHERE username = 'iris_insider';
-  SELECT user_id INTO v_jack FROM public.profiles WHERE username = 'jack_judge';
-  SELECT user_id INTO v_frank FROM public.profiles WHERE username = 'frank_knockout';
+  SELECT user_id INTO v_alice FROM public.profiles WHERE username = 'alicechen';
+  SELECT user_id INTO v_bob FROM public.profiles WHERE username = 'bsantos';
+  SELECT user_id INTO v_iris FROM public.profiles WHERE username = 'irismtz';
+  SELECT user_id INTO v_jack FROM public.profiles WHERE username = 'jmorrison';
+  SELECT user_id INTO v_frank FROM public.profiles WHERE username = 'bigfrank';
 
   IF v_alice IS NULL THEN
     RAISE NOTICE 'Test users not found. Skipping posts.';
@@ -496,7 +496,7 @@ BEGIN
     VALUES (
       v_post_2,
       v_jack,
-      '@alice_ufc Fair point on R2! It was definitely the swing round. The 54% consensus shows how split the community was.',
+      '@alicechen Fair point on R2! It was definitely the swing round. The 54% consensus shows how split the community was.',
       NOW() - INTERVAL '5 days' + INTERVAL '6 hours'
     ) ON CONFLICT DO NOTHING;
   END IF;

@@ -65,7 +65,7 @@ export default function AdminPostsScreen() {
   const { data, isLoading, isRefetching, refetch } = useQuery({
     queryKey: ['adminReports', reportType],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('admin_get_pending_reports', {
+      const { data, error } = await (supabase.rpc as any)('admin_get_pending_reports', {
         p_type: reportType,
         p_limit: 50,
         p_offset: 0,
@@ -92,7 +92,7 @@ export default function AdminPostsScreen() {
       status: 'reviewed' | 'action_taken' | 'dismissed';
       deleteContent: boolean;
     }) => {
-      const { data, error } = await supabase.rpc('admin_resolve_report', {
+      const { data, error } = await (supabase.rpc as any)('admin_resolve_report', {
         p_report_id: reportId,
         p_report_type: reportType,
         p_status: status,

@@ -18,20 +18,20 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 // Test user configurations - 13 users with varied picking styles
 const TEST_USERS = [
   // Original 3 users
-  { email: 'alice@test.com', password: 'Password123', username: 'alice_ufc' },
-  { email: 'bob@test.com', password: 'Password123', username: 'bob_fighter' },
-  { email: 'charlie@test.com', password: 'Password123', username: 'charlie_picks' },
+  { email: 'alice@test.com', password: 'Password123', username: 'alicechen' },
+  { email: 'bob@test.com', password: 'Password123', username: 'bsantos' },
+  { email: 'charlie@test.com', password: 'Password123', username: 'charliej' },
   // 10 new users with distinct personalities
-  { email: 'david@test.com', password: 'Password123', username: 'david_mma' },        // Chalk picker - always favorites
-  { email: 'emma@test.com', password: 'Password123', username: 'emma_octagon' },      // Technical - balanced
-  { email: 'frank@test.com', password: 'Password123', username: 'frank_knockout' },   // Finish picker - likes KO artists
-  { email: 'grace@test.com', password: 'Password123', username: 'grace_grappling' },  // Submission picker - grapplers
-  { email: 'henry@test.com', password: 'Password123', username: 'henry_heavyweight' },// Power picker - bigger fighters
-  { email: 'iris@test.com', password: 'Password123', username: 'iris_insider' },      // Contrarian - picks underdogs
-  { email: 'jack@test.com', password: 'Password123', username: 'jack_judge' },        // Analyst - very balanced
-  { email: 'kate@test.com', password: 'Password123', username: 'kate_kicks' },        // Striker - picks strikers
-  { email: 'leo@test.com', password: 'Password123', username: 'leo_legacy' },         // Experience - picks veterans
-  { email: 'mia@test.com', password: 'Password123', username: 'mia_momentum' },       // Streak picker - hot fighters
+  { email: 'david@test.com', password: 'Password123', username: 'dkim23' },        // Chalk picker - always favorites
+  { email: 'emma@test.com', password: 'Password123', username: 'emmarod' },      // Technical - balanced
+  { email: 'frank@test.com', password: 'Password123', username: 'bigfrank' },   // Finish picker - likes KO artists
+  { email: 'grace@test.com', password: 'Password123', username: 'gracet' },  // Submission picker - grapplers
+  { email: 'henry@test.com', password: 'Password123', username: 'henryjack' },// Power picker - bigger fighters
+  { email: 'iris@test.com', password: 'Password123', username: 'irismtz' },      // Contrarian - picks underdogs
+  { email: 'jack@test.com', password: 'Password123', username: 'jmorrison' },        // Analyst - very balanced
+  { email: 'kate@test.com', password: 'Password123', username: 'kateo' },        // Striker - picks strikers
+  { email: 'leo@test.com', password: 'Password123', username: 'leonak' },         // Experience - picks veterans
+  { email: 'mia@test.com', password: 'Password123', username: 'miadavis' },       // Streak picker - hot fighters
 ];
 
 async function sleep(ms: number) {
@@ -243,19 +243,19 @@ async function main() {
   // Pick probability mapping based on user style
   // Red corner is typically the favorite (home/higher ranked fighter)
   const PICK_STYLES: Record<string, number> = {
-    'alice_ufc': 0.65,         // Tends toward favorites
-    'bob_fighter': 0.40,       // Tends toward underdogs
-    'charlie_picks': 0.50,     // Random/balanced
-    'david_mma': 0.80,         // Heavy chalk - almost always favorites
-    'emma_octagon': 0.55,      // Slight favorite lean
-    'frank_knockout': 0.60,    // Likes power (often red corner)
-    'grace_grappling': 0.45,   // Slight underdog lean (grapplers often blue)
-    'henry_heavyweight': 0.70, // Bigger fighters (often favorites)
-    'iris_insider': 0.30,      // Contrarian - heavy underdog
-    'jack_judge': 0.55,        // Balanced analyst
-    'kate_kicks': 0.50,        // Random striker picks
-    'leo_legacy': 0.60,        // Veterans often favorites
-    'mia_momentum': 0.65,      // Picks momentum/hot fighters
+    'alicechen': 0.65,         // Tends toward favorites
+    'bsantos': 0.40,       // Tends toward underdogs
+    'charliej': 0.50,     // Random/balanced
+    'dkim23': 0.80,         // Heavy chalk - almost always favorites
+    'emmarod': 0.55,      // Slight favorite lean
+    'bigfrank': 0.60,    // Likes power (often red corner)
+    'gracet': 0.45,   // Slight underdog lean (grapplers often blue)
+    'henryjack': 0.70, // Bigger fighters (often favorites)
+    'irismtz': 0.30,      // Contrarian - heavy underdog
+    'jmorrison': 0.55,        // Balanced analyst
+    'kateo': 0.50,        // Random striker picks
+    'leonak': 0.60,        // Veterans often favorites
+    'miadavis': 0.65,      // Picks momentum/hot fighters
   };
 
   for (const user of createdUsers) {
@@ -394,20 +394,20 @@ async function main() {
   // Simulated picks across ~25-30 fights from these events
   const MOCK_STATS = [
     // Original 3 users
-    { username: 'alice_ufc', total_picks: 28, correct_winner: 19, accuracy_pct: 67.9, current_streak: 4, best_streak: 7 },
-    { username: 'bob_fighter', total_picks: 28, correct_winner: 15, accuracy_pct: 53.6, current_streak: 1, best_streak: 5 },
-    { username: 'charlie_picks', total_picks: 28, correct_winner: 17, accuracy_pct: 60.7, current_streak: 2, best_streak: 4 },
+    { username: 'alicechen', total_picks: 28, correct_winner: 19, accuracy_pct: 67.9, current_streak: 4, best_streak: 7 },
+    { username: 'bsantos', total_picks: 28, correct_winner: 15, accuracy_pct: 53.6, current_streak: 1, best_streak: 5 },
+    { username: 'charliej', total_picks: 28, correct_winner: 17, accuracy_pct: 60.7, current_streak: 2, best_streak: 4 },
     // 10 new users with varied stats reflecting their picking styles
-    { username: 'david_mma', total_picks: 30, correct_winner: 22, accuracy_pct: 73.3, current_streak: 6, best_streak: 9 },      // Chalk picker - high accuracy
-    { username: 'emma_octagon', total_picks: 26, correct_winner: 17, accuracy_pct: 65.4, current_streak: 3, best_streak: 6 },   // Technical - solid
-    { username: 'frank_knockout', total_picks: 25, correct_winner: 14, accuracy_pct: 56.0, current_streak: 0, best_streak: 4 }, // Finish picker - volatile
-    { username: 'grace_grappling', total_picks: 27, correct_winner: 16, accuracy_pct: 59.3, current_streak: 2, best_streak: 5 },// Submission picker
-    { username: 'henry_heavyweight', total_picks: 24, correct_winner: 13, accuracy_pct: 54.2, current_streak: 1, best_streak: 3 },// Power picker
-    { username: 'iris_insider', total_picks: 29, correct_winner: 13, accuracy_pct: 44.8, current_streak: 0, best_streak: 3 },   // Contrarian - low accuracy (underdogs lose)
-    { username: 'jack_judge', total_picks: 30, correct_winner: 20, accuracy_pct: 66.7, current_streak: 5, best_streak: 8 },     // Analyst - very good
-    { username: 'kate_kicks', total_picks: 26, correct_winner: 15, accuracy_pct: 57.7, current_streak: 2, best_streak: 4 },     // Striker picker
-    { username: 'leo_legacy', total_picks: 28, correct_winner: 18, accuracy_pct: 64.3, current_streak: 3, best_streak: 6 },     // Experience picker
-    { username: 'mia_momentum', total_picks: 27, correct_winner: 19, accuracy_pct: 70.4, current_streak: 7, best_streak: 10 },  // Streak picker - on fire!
+    { username: 'dkim23', total_picks: 30, correct_winner: 22, accuracy_pct: 73.3, current_streak: 6, best_streak: 9 },      // Chalk picker - high accuracy
+    { username: 'emmarod', total_picks: 26, correct_winner: 17, accuracy_pct: 65.4, current_streak: 3, best_streak: 6 },   // Technical - solid
+    { username: 'bigfrank', total_picks: 25, correct_winner: 14, accuracy_pct: 56.0, current_streak: 0, best_streak: 4 }, // Finish picker - volatile
+    { username: 'gracet', total_picks: 27, correct_winner: 16, accuracy_pct: 59.3, current_streak: 2, best_streak: 5 },// Submission picker
+    { username: 'henryjack', total_picks: 24, correct_winner: 13, accuracy_pct: 54.2, current_streak: 1, best_streak: 3 },// Power picker
+    { username: 'irismtz', total_picks: 29, correct_winner: 13, accuracy_pct: 44.8, current_streak: 0, best_streak: 3 },   // Contrarian - low accuracy (underdogs lose)
+    { username: 'jmorrison', total_picks: 30, correct_winner: 20, accuracy_pct: 66.7, current_streak: 5, best_streak: 8 },     // Analyst - very good
+    { username: 'kateo', total_picks: 26, correct_winner: 15, accuracy_pct: 57.7, current_streak: 2, best_streak: 4 },     // Striker picker
+    { username: 'leonak', total_picks: 28, correct_winner: 18, accuracy_pct: 64.3, current_streak: 3, best_streak: 6 },     // Experience picker
+    { username: 'miadavis', total_picks: 27, correct_winner: 19, accuracy_pct: 70.4, current_streak: 7, best_streak: 10 },  // Streak picker - on fire!
   ];
 
   for (const user of createdUsers) {

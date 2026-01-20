@@ -61,7 +61,7 @@ export function useUnreadNotificationCount() {
     queryKey: notificationKeys.count(),
     queryFn: async (): Promise<number> => {
       try {
-        const { data, error } = await supabase.rpc('get_post_notification_count');
+        const { data, error } = await (supabase.rpc as any)('get_post_notification_count');
 
         if (error) {
           // Silently return 0 if function doesn't exist (migration not applied)
@@ -70,7 +70,7 @@ export function useUnreadNotificationCount() {
           return 0;
         }
 
-        return data ?? 0;
+        return (data as number) ?? 0;
       } catch {
         return 0;
       }
@@ -90,7 +90,7 @@ export function usePostNotifications(unreadOnly = false) {
       logger.breadcrumb('Fetching post notifications', 'notifications', { offset: pageParam });
 
       try {
-        const { data, error } = await supabase.rpc('get_post_notifications', {
+        const { data, error } = await (supabase.rpc as any)('get_post_notifications', {
           p_limit: 30,
           p_offset: pageParam,
           p_unread_only: unreadOnly,
@@ -131,7 +131,7 @@ export function useMarkNotificationsRead() {
         count: notificationIds?.length ?? 'all',
       });
 
-      const { data, error } = await supabase.rpc('mark_post_notifications_read', {
+      const { data, error } = await (supabase.rpc as any)('mark_post_notifications_read', {
         p_notification_ids: notificationIds || null,
       });
 
@@ -140,7 +140,7 @@ export function useMarkNotificationsRead() {
         throw error;
       }
 
-      return data as { updated_count: number };
+      return data as unknown as { updated_count: number };
     },
     onSuccess: () => {
       // Invalidate both list and count

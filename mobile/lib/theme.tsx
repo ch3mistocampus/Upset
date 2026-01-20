@@ -10,7 +10,7 @@ interface ThemeContextValue {
   themeMode: ThemeMode;
   resolvedTheme: ResolvedTheme;
   colors: ThemeColors;
-  shadows: typeof shadows.light;
+  shadows: typeof shadows.light | typeof shadows.dark;
   isDark: boolean;
   setThemeMode: (mode: ThemeMode) => void;
 }

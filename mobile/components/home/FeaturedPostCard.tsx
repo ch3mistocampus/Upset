@@ -9,6 +9,7 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../lib/theme';
 import { spacing, radius } from '../../lib/tokens';
 import { Post } from '../../types/posts';
+import { generateAvatarUrl } from '../Avatar';
 
 interface FeaturedPostCardProps {
   post: Post;
@@ -58,13 +59,10 @@ export function FeaturedPostCard({ post, onPress }: FeaturedPostCardProps) {
         {/* Meta Row */}
         <View style={styles.metaRow}>
           {/* Author Avatar */}
-          {post.author_avatar_url ? (
-            <Image source={{ uri: post.author_avatar_url }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatarPlaceholder, { backgroundColor: colors.surfaceAlt }]}>
-              <Ionicons name="person" size={12} color={colors.textTertiary} />
-            </View>
-          )}
+          <Image
+            source={{ uri: post.author_avatar_url || generateAvatarUrl(post.author_username || 'user', 44) }}
+            style={styles.avatar}
+          />
 
           {/* Username */}
           <Text style={[styles.username, { color: colors.textSecondary }]}>
@@ -142,13 +140,6 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-  },
-  avatarPlaceholder: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   username: {
     fontSize: 13,

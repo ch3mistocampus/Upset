@@ -35,7 +35,7 @@ export function useSearchFighters(query: string, limit = 20) {
 
       if (error) throw error;
 
-      return data || [];
+      return (data as unknown as UFCFighterSearchResult[]) || [];
     },
     enabled: query.trim().length >= 2,
     staleTime: 1000 * 60 * 10, // 10 minutes - fighter data doesn't change often

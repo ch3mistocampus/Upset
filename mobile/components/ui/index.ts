@@ -24,3 +24,5 @@ export { ScorecardSkeleton, EventScorecardsSkeleton } from './ScorecardSkeleton'
 export { ScoreConfirmationModal } from './ScoreConfirmationModal';
 export { ShareScorecard } from './ShareScorecard';
 export { RoundHistoryCard } from './RoundHistoryCard';
+export { SubmitFooter } from './SubmitFooter';
+export { TopProgressBar } from './TopProgressBar';

@@ -13,8 +13,11 @@ import React from 'react';
 import { useFriends } from '../../hooks/useFriends';
 import { supabase } from '../../lib/supabase';
 
-// Type the supabase mock
+// Type the supabase mock with proper jest.Mock types
 const mockSupabase = supabase as jest.Mocked<typeof supabase>;
+
+// Helper to get properly typed mock functions
+const mockGetUser = mockSupabase.auth.getUser as jest.Mock;
 
 // Create a wrapper with QueryClient for each test
 function createWrapper() {
@@ -112,8 +115,8 @@ describe('useFriends', () => {
   });
 
   describe('follow/unfollow', () => {
-    it('should follow a user successfully', async () => {
-      // Initial data fetches
+    it('should follow a user successfully via RPC', async () => {
+      // Initial data fetches (get_friends, get_friend_requests)
       mockSupabase.rpc.mockResolvedValueOnce({
         data: [],
         error: null,
@@ -121,20 +124,6 @@ describe('useFriends', () => {
       mockSupabase.rpc.mockResolvedValueOnce({
         data: [],
         error: null,
-      } as any);
-
-      // Mock getUser
-      mockSupabase.auth.getUser.mockResolvedValueOnce({
-        data: { user: { id: 'user-123' } },
-        error: null,
-      } as any);
-
-      // Mock insert for follow
-      mockSupabase.from.mockReturnValueOnce({
-        insert: jest.fn().mockResolvedValueOnce({
-          data: null,
-          error: null,
-        }),
       } as any);
 
       const { result } = renderHook(() => useFriends(), {
@@ -144,28 +133,31 @@ describe('useFriends', () => {
       await waitFor(() => {
         expect(result.current.friendsLoading).toBe(false);
       });
+
+      // Mock follow_user RPC call
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: { success: true },
+        error: null,
+      } as any);
 
       await act(async () => {
         await result.current.follow('friend-id');
       });
 
-      expect(mockSupabase.from).toHaveBeenCalledWith('friendships');
+      // Check that RPC was called with follow_user
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('follow_user', {
+        p_target_user_id: 'friend-id',
+      });
     });
 
-    it('should throw error when not authenticated for follow', async () => {
+    it('should unfollow a user successfully via RPC', async () => {
       // Initial data fetches
       mockSupabase.rpc.mockResolvedValueOnce({
-        data: [],
+        data: [{ friend_user_id: 'friend-1', username: 'alice' }],
         error: null,
       } as any);
       mockSupabase.rpc.mockResolvedValueOnce({
         data: [],
-        error: null,
-      } as any);
-
-      // Mock getUser returning no user
-      mockSupabase.auth.getUser.mockResolvedValueOnce({
-        data: { user: null },
         error: null,
       } as any);
 
@@ -177,55 +169,20 @@ describe('useFriends', () => {
         expect(result.current.friendsLoading).toBe(false);
       });
 
-      await expect(
-        act(async () => {
-          await result.current.follow('friend-id');
-        })
-      ).rejects.toThrow('Not authenticated');
-    });
-
-    it('should unfollow a user successfully', async () => {
-      // Initial data fetches
+      // Mock unfollow_user RPC call
       mockSupabase.rpc.mockResolvedValueOnce({
-        data: [{ user_id: 'friend-1', username: 'alice' }],
+        data: { success: true },
         error: null,
       } as any);
-      mockSupabase.rpc.mockResolvedValueOnce({
-        data: [],
-        error: null,
-      } as any);
-
-      // Mock getUser
-      mockSupabase.auth.getUser.mockResolvedValueOnce({
-        data: { user: { id: 'user-123' } },
-        error: null,
-      } as any);
-
-      // Mock delete chain for unfollow
-      const mockEq2 = jest.fn().mockResolvedValueOnce({
-        data: null,
-        error: null,
-      });
-      const mockEq1 = jest.fn().mockReturnValue({ eq: mockEq2 });
-      const mockDelete = jest.fn().mockReturnValue({ eq: mockEq1 });
-
-      mockSupabase.from.mockReturnValueOnce({
-        delete: mockDelete,
-      } as any);
-
-      const { result } = renderHook(() => useFriends(), {
-        wrapper: createWrapper(),
-      });
-
-      await waitFor(() => {
-        expect(result.current.friendsLoading).toBe(false);
-      });
 
       await act(async () => {
         await result.current.unfollow('friend-1');
       });
 
-      expect(mockSupabase.from).toHaveBeenCalledWith('friendships');
+      // Check that RPC was called with unfollow_user
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('unfollow_user', {
+        p_target_user_id: 'friend-1',
+      });
     });
   });
 

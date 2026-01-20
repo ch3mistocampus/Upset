@@ -9,40 +9,40 @@ All test users share the same password for convenience: **Password123**
 ### Original Users
 | Username | Email | Password | Pick Style |
 |----------|-------|----------|------------|
-| alice_ufc | alice@test.com | Password123 | Tends toward favorites (~65%) |
-| bob_fighter | bob@test.com | Password123 | Tends toward underdogs (~40%) |
-| charlie_picks | charlie@test.com | Password123 | Random/balanced (~50%) |
+| alicechen | alice@test.com | Password123 | Tends toward favorites (~65%) |
+| bsantos | bob@test.com | Password123 | Tends toward underdogs (~40%) |
+| charliej | charlie@test.com | Password123 | Random/balanced (~50%) |
 
 ### Extended Test Users (10 Additional)
 | Username | Email | Password | Pick Style | Description |
 |----------|-------|----------|------------|-------------|
-| david_mma | david@test.com | Password123 | Heavy chalk (~80%) | Almost always picks favorites |
-| emma_octagon | emma@test.com | Password123 | Slight favorite (~55%) | Technical analyst |
-| frank_knockout | frank@test.com | Password123 | Power picker (~60%) | Likes KO artists |
-| grace_grappling | grace@test.com | Password123 | Slight underdog (~45%) | Favors grapplers |
-| henry_heavyweight | henry@test.com | Password123 | Power picker (~70%) | Picks bigger fighters |
-| iris_insider | iris@test.com | Password123 | Contrarian (~30%) | Heavy underdog picker |
-| jack_judge | jack@test.com | Password123 | Balanced analyst (~55%) | Very analytical |
-| kate_kicks | kate@test.com | Password123 | Random striker (~50%) | Striker focused |
-| leo_legacy | leo@test.com | Password123 | Experience picker (~60%) | Picks veterans |
-| mia_momentum | mia@test.com | Password123 | Momentum picker (~65%) | Picks hot fighters |
+| dkim23 | david@test.com | Password123 | Heavy chalk (~80%) | Almost always picks favorites |
+| emmarod | emma@test.com | Password123 | Slight favorite (~55%) | Technical analyst |
+| bigfrank | frank@test.com | Password123 | Power picker (~60%) | Likes KO artists |
+| gracet | grace@test.com | Password123 | Slight underdog (~45%) | Favors grapplers |
+| henryjack | henry@test.com | Password123 | Power picker (~70%) | Picks bigger fighters |
+| irismtz | iris@test.com | Password123 | Contrarian (~30%) | Heavy underdog picker |
+| jmorrison | jack@test.com | Password123 | Balanced analyst (~55%) | Very analytical |
+| kateo | kate@test.com | Password123 | Random striker (~50%) | Striker focused |
+| leonak | leo@test.com | Password123 | Experience picker (~60%) | Picks veterans |
+| miadavis | mia@test.com | Password123 | Momentum picker (~65%) | Picks hot fighters |
 
 ### Leaderboard Preview (by accuracy)
 | Rank | Username | Accuracy | Correct/Total | Style |
 |------|----------|----------|---------------|-------|
-| 🥇 1 | david_mma | 73.3% | 22/30 | Chalk |
-| 🥈 2 | mia_momentum | 70.4% | 19/27 | Momentum |
-| 🥉 3 | alice_ufc | 67.9% | 19/28 | Favorite |
-| 4 | jack_judge | 66.7% | 20/30 | Analyst |
-| 5 | emma_octagon | 65.4% | 17/26 | Technical |
-| 6 | leo_legacy | 64.3% | 18/28 | Experience |
-| 7 | charlie_picks | 60.7% | 17/28 | Random |
-| 8 | grace_grappling | 59.3% | 16/27 | Grappling |
-| 9 | kate_kicks | 57.7% | 15/26 | Striker |
-| 10 | frank_knockout | 56.0% | 14/25 | Finishes |
-| 11 | henry_heavyweight | 54.2% | 13/24 | Power |
-| 12 | bob_fighter | 53.6% | 15/28 | Underdog |
-| 13 | iris_insider | 44.8% | 13/29 | Contrarian |
+| 🥇 1 | dkim23 | 73.3% | 22/30 | Chalk |
+| 🥈 2 | miadavis | 70.4% | 19/27 | Momentum |
+| 🥉 3 | alicechen | 67.9% | 19/28 | Favorite |
+| 4 | jmorrison | 66.7% | 20/30 | Analyst |
+| 5 | emmarod | 65.4% | 17/26 | Technical |
+| 6 | leonak | 64.3% | 18/28 | Experience |
+| 7 | charliej | 60.7% | 17/28 | Random |
+| 8 | gracet | 59.3% | 16/27 | Grappling |
+| 9 | kateo | 57.7% | 15/26 | Striker |
+| 10 | bigfrank | 56.0% | 14/25 | Finishes |
+| 11 | henryjack | 54.2% | 13/24 | Power |
+| 12 | bsantos | 53.6% | 15/28 | Underdog |
+| 13 | irismtz | 44.8% | 13/29 | Contrarian |
 
 ---
 
@@ -99,7 +99,7 @@ If you prefer to create users manually:
    - Go to Table Editor → profiles table
    - Click "Insert" → "Insert row"
    - user_id: Paste the user ID from step 1
-   - username: Enter username (e.g., alice_ufc)
+   - username: Enter username (e.g., alicechen)
    - created_at: Leave as default (now())
    - Click "Save"
 
@@ -134,7 +134,7 @@ ORDER BY p.created_at DESC;
 1. Open the app
 2. Click "Password" tab (default)
 3. Enter username or email:
-   - Option A: `alice_ufc` (username)
+   - Option A: `alicechen` (username)
    - Option B: `alice@test.com` (email)
 4. Enter password: `Password123`
 5. Click "Sign In"
@@ -168,15 +168,15 @@ If you want to test the OTP flow:
 1. Enter: alice@test.com
 2. Enter: Password123
 3. Click "Sign In"
-4. Verify you're logged in as alice_ufc
+4. Verify you're logged in as alicechen
 ```
 
 ### Scenario 3: Sign In with Username
 ```
-1. Enter: bob_fighter
+1. Enter: bsantos
 2. Enter: Password123
 3. Click "Sign In"
-4. Verify you're logged in as bob_fighter
+4. Verify you're logged in as bsantos
 ```
 
 ### Scenario 4: Password Reset
@@ -194,17 +194,17 @@ If you want to test the OTP flow:
 ```
 With 13 test users available, you can test rich social interactions:
 
-1. Sign in as alice_ufc (favorites picker)
-2. Check leaderboard - see david_mma at top (73.3%)
+1. Sign in as alicechen (favorites picker)
+2. Check leaderboard - see dkim23 at top (73.3%)
 3. View friend list - see connections to bob, charlie, emma, leo
 4. Sign out
 
-5. Sign in as iris_insider (contrarian/underdog picker)
+5. Sign in as irismtz (contrarian/underdog picker)
 6. Check leaderboard - lowest accuracy (44.8%)
 7. Make some underdog picks
 8. Sign out
 
-9. Sign in as mia_momentum (streak picker - 7 streak!)
+9. Sign in as miadavis (streak picker - 7 streak!)
 10. View stats - highest current streak
 11. Check friend connections
 
@@ -241,19 +241,19 @@ Expected output (showing 13 test users):
 ```
 username          | email              | email_confirmed | created_at
 ------------------|--------------------|-----------------|-----------
-mia_momentum      | mia@test.com       | true           | ...
-leo_legacy        | leo@test.com       | true           | ...
-kate_kicks        | kate@test.com      | true           | ...
-jack_judge        | jack@test.com      | true           | ...
-iris_insider      | iris@test.com      | true           | ...
-henry_heavyweight | henry@test.com     | true           | ...
-grace_grappling   | grace@test.com     | true           | ...
-frank_knockout    | frank@test.com     | true           | ...
-emma_octagon      | emma@test.com      | true           | ...
-david_mma         | david@test.com     | true           | ...
-charlie_picks     | charlie@test.com   | true           | ...
-bob_fighter       | bob@test.com       | true           | ...
-alice_ufc         | alice@test.com     | true           | ...
+miadavis      | mia@test.com       | true           | ...
+leonak        | leo@test.com       | true           | ...
+kateo        | kate@test.com      | true           | ...
+jmorrison        | jack@test.com      | true           | ...
+irismtz      | iris@test.com      | true           | ...
+henryjack | henry@test.com     | true           | ...
+gracet   | grace@test.com     | true           | ...
+bigfrank    | frank@test.com     | true           | ...
+emmarod      | emma@test.com      | true           | ...
+dkim23         | david@test.com     | true           | ...
+charliej     | charlie@test.com   | true           | ...
+bsantos       | bob@test.com       | true           | ...
+alicechen         | alice@test.com     | true           | ...
 ```
 
 ---
@@ -266,10 +266,10 @@ If you want to start fresh:
 ```sql
 -- Delete profiles (cascades from auth.users)
 DELETE FROM profiles WHERE username IN (
-  'alice_ufc', 'bob_fighter', 'charlie_picks',
-  'david_mma', 'emma_octagon', 'frank_knockout',
-  'grace_grappling', 'henry_heavyweight', 'iris_insider',
-  'jack_judge', 'kate_kicks', 'leo_legacy', 'mia_momentum'
+  'alicechen', 'bsantos', 'charliej',
+  'dkim23', 'emmarod', 'bigfrank',
+  'gracet', 'henryjack', 'irismtz',
+  'jmorrison', 'kateo', 'leonak', 'miadavis'
 );
 ```
 

@@ -27,7 +27,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
@@ -50,6 +50,7 @@ import { ErrorState } from '../../components/ErrorState';
 import { SkeletonProfileCard, SkeletonStats } from '../../components/SkeletonStats';
 import type { ThemeMode } from '../../lib/tokens';
 import type { Event } from '../../types/database';
+import { generateAvatarUrl } from '../../components/Avatar';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -710,15 +711,10 @@ export default function Profile() {
             accessibilityRole="button"
             accessibilityLabel={uploadingAvatar ? 'Uploading profile picture' : 'Tap to view or change profile picture'}
           >
-            {profile?.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={[styles.avatarSquare, { backgroundColor: colors.accent }, uploadingAvatar && styles.avatarUploading]} />
-            ) : (
-              <View style={[styles.avatarSquare, { backgroundColor: colors.accent }, uploadingAvatar && styles.avatarUploading]}>
-                <Text style={styles.avatarText}>
-                  {profile?.username?.charAt(0).toUpperCase() || '?'}
-                </Text>
-              </View>
-            )}
+            <Image
+              source={{ uri: profile?.avatar_url || generateAvatarUrl(profile?.username || 'user', 176) }}
+              style={[styles.avatarSquare, { backgroundColor: colors.surfaceAlt }, uploadingAvatar && styles.avatarUploading]}
+            />
             {uploadingAvatar && (
               <View style={styles.avatarUploadOverlay}>
                 <ActivityIndicator size="small" color="#fff" />
@@ -880,15 +876,10 @@ export default function Profile() {
           >
             {/* Large avatar preview */}
             <View style={[styles.avatarPreview, { backgroundColor: colors.surface }]}>
-              {profile?.avatar_url ? (
-                <Image source={{ uri: profile.avatar_url }} style={styles.avatarPreviewImage} />
-              ) : (
-                <View style={[styles.avatarPreviewPlaceholder, { backgroundColor: colors.accent }]}>
-                  <Text style={styles.avatarPreviewText}>
-                    {profile?.username?.charAt(0).toUpperCase() || '?'}
-                  </Text>
-                </View>
-              )}
+              <Image
+                source={{ uri: profile?.avatar_url || generateAvatarUrl(profile?.username || 'user', 480) }}
+                style={styles.avatarPreviewImage}
+              />
             </View>
 
             {/* Edit button */}

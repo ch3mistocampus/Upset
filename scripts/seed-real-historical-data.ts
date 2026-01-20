@@ -16,20 +16,20 @@ import { load } from 'https://esm.sh/cheerio@1.0.0-rc.12';
 
 const TEST_USERS = [
   // Original 3 users
-  { username: 'alice_ufc', pickStyle: 'favorite' },        // Tends to pick favorites
-  { username: 'bob_fighter', pickStyle: 'underdog' },      // Tends to pick underdogs
-  { username: 'charlie_picks', pickStyle: 'random' },      // Random picks
+  { username: 'alicechen', pickStyle: 'favorite' },        // Tends to pick favorites
+  { username: 'bsantos', pickStyle: 'underdog' },      // Tends to pick underdogs
+  { username: 'charliej', pickStyle: 'random' },      // Random picks
   // 10 new users with distinct picking styles
-  { username: 'david_mma', pickStyle: 'heavy_favorite' },  // Almost always picks chalk
-  { username: 'emma_octagon', pickStyle: 'slight_favorite' }, // Technical - slight fav lean
-  { username: 'frank_knockout', pickStyle: 'favorite' },   // Likes power/finishers
-  { username: 'grace_grappling', pickStyle: 'slight_underdog' }, // Grapplers often underdogs
-  { username: 'henry_heavyweight', pickStyle: 'favorite' }, // Picks bigger fighters
-  { username: 'iris_insider', pickStyle: 'heavy_underdog' }, // Contrarian - always underdogs
-  { username: 'jack_judge', pickStyle: 'slight_favorite' }, // Balanced analyst
-  { username: 'kate_kicks', pickStyle: 'random' },         // Random striker picks
-  { username: 'leo_legacy', pickStyle: 'favorite' },       // Veterans often favorites
-  { username: 'mia_momentum', pickStyle: 'favorite' },     // Hot fighters often favorites
+  { username: 'dkim23', pickStyle: 'heavy_favorite' },  // Almost always picks chalk
+  { username: 'emmarod', pickStyle: 'slight_favorite' }, // Technical - slight fav lean
+  { username: 'bigfrank', pickStyle: 'favorite' },   // Likes power/finishers
+  { username: 'gracet', pickStyle: 'slight_underdog' }, // Grapplers often underdogs
+  { username: 'henryjack', pickStyle: 'favorite' }, // Picks bigger fighters
+  { username: 'irismtz', pickStyle: 'heavy_underdog' }, // Contrarian - always underdogs
+  { username: 'jmorrison', pickStyle: 'slight_favorite' }, // Balanced analyst
+  { username: 'kateo', pickStyle: 'random' },         // Random striker picks
+  { username: 'leonak', pickStyle: 'favorite' },       // Veterans often favorites
+  { username: 'miadavis', pickStyle: 'favorite' },     // Hot fighters often favorites
 ];
 
 const DELAY_MS = 800;

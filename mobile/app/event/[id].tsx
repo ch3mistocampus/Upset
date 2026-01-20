@@ -4,6 +4,7 @@
  * Theme-aware design with SurfaceCard and entrance animations
  */
 
+import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Animated, Easing, Modal } from 'react-native';
 import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -19,7 +20,7 @@ import { useOnboarding } from '../../hooks/useOnboarding';
 import { useTheme } from '../../lib/theme';
 import { spacing, radius, typography, displayTypography } from '../../lib/tokens';
 import { submitEvent, isEventSubmitted, unsubmitEvent } from '../../lib/storage';
-import { SurfaceCard, EmptyState, LiveBadge } from '../../components/ui';
+import { SurfaceCard, EmptyState, LiveBadge, TopProgressBar, SubmitFooter, FighterPickRow } from '../../components/ui';
 import { ErrorState } from '../../components/ErrorState';
 import { GlobalTabBar } from '../../components/navigation/GlobalTabBar';
 import { SkeletonFightCard } from '../../components/SkeletonFightCard';
@@ -50,222 +51,93 @@ const useCornerColors = () => {
 const MIN_COMMUNITY_PICKS = 5;
 
 
-// Fighter Pill Button - horizontal pill with checkmark when selected
-// Supports navigation to fighter info via long press or info button
-// Includes smooth selection animations: color transition, checkmark bounce, pulse effect
-const FighterPill: React.FC<{
-  name: string;
-  corner: 'red' | 'blue';
-  isSelected: boolean;
-  locked: boolean;
-  onPress: () => void;
-  fighterId?: string;
-  onFighterInfo?: (fighterId: string) => void;
-}> = ({ name, corner, isSelected, locked, onPress, fighterId, onFighterInfo }) => {
+// Section Header - visual divider for MAIN CARD / PRELIMS
+const SectionHeader: React.FC<{ title: string }> = ({ title }) => {
   const { colors } = useTheme();
-  const cornerColors = useCornerColors();
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const selectionAnim = useRef(new Animated.Value(isSelected ? 1 : 0)).current;
-  const checkmarkAnim = useRef(new Animated.Value(isSelected ? 1 : 0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const prevSelected = useRef(isSelected);
-
-  const cornerColor = corner === 'red' ? cornerColors.red : cornerColors.blue;
-
-  // Animate selection state changes
-  useEffect(() => {
-    if (isSelected !== prevSelected.current) {
-      prevSelected.current = isSelected;
-
-      if (isSelected) {
-        // Selection animation sequence
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-        // Animate background fill
-        Animated.spring(selectionAnim, {
-          toValue: 1,
-          useNativeDriver: false,
-          tension: 80,
-          friction: 8,
-        }).start();
-
-        // Checkmark bounce in
-        checkmarkAnim.setValue(0);
-        Animated.spring(checkmarkAnim, {
-          toValue: 1,
-          useNativeDriver: true,
-          tension: 200,
-          friction: 6,
-        }).start();
-
-        // Pulse effect
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.05,
-            duration: 100,
-            useNativeDriver: true,
-            easing: Easing.out(Easing.ease),
-          }),
-          Animated.spring(pulseAnim, {
-            toValue: 1,
-            useNativeDriver: true,
-            tension: 100,
-            friction: 8,
-          }),
-        ]).start();
-      } else {
-        // Deselection animation
-        Animated.spring(selectionAnim, {
-          toValue: 0,
-          useNativeDriver: false,
-          tension: 80,
-          friction: 8,
-        }).start();
-        checkmarkAnim.setValue(0);
-      }
-    }
-  }, [isSelected, selectionAnim, checkmarkAnim, pulseAnim]);
-
-  const handlePressIn = () => {
-    Animated.spring(scaleAnim, { toValue: 0.96, useNativeDriver: true, tension: 150, friction: 5 }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, tension: 150, friction: 5 }).start();
-  };
-
-  const handleLongPress = () => {
-    if (fighterId && onFighterInfo) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      onFighterInfo(fighterId);
-    }
-  };
-
-  // Interpolate background color based on selection state
-  const backgroundColor = selectionAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [colors.surfaceAlt, cornerColor],
-  });
-
-  // Interpolate border opacity (fade out when selected)
-  const borderOpacity = selectionAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 0],
-  });
-
-  // Checkmark scale animation
-  const checkmarkScale = checkmarkAnim.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [0, 1.2, 1],
-  });
-
   return (
-    <Animated.View style={[pillStyles.wrapper, { transform: [{ scale: scaleAnim }, { scale: pulseAnim }] }]}>
-      <TouchableOpacity
-        onPress={onPress}
-        onLongPress={handleLongPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        disabled={locked}
-        activeOpacity={0.85}
-        delayLongPress={300}
-      >
-        <Animated.View
-          style={[
-            pillStyles.pill,
-            { backgroundColor },
-            locked && pillStyles.disabled,
-          ]}
-        >
-          {/* Border overlay that fades out when selected */}
-          <Animated.View
-            style={[
-              pillStyles.borderOverlay,
-              {
-                borderColor: colors.border,
-                opacity: borderOpacity,
-              },
-            ]}
-            pointerEvents="none"
-          />
-
-          {isSelected && (
-            <Animated.View style={{ transform: [{ scale: checkmarkScale }] }}>
-              <Ionicons name="checkmark" size={14} color="#fff" style={pillStyles.checkIcon} />
-            </Animated.View>
-          )}
-          <Animated.Text
-            style={[
-              pillStyles.name,
-              {
-                color: selectionAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [colors.text, '#fff'],
-                }),
-                fontWeight: isSelected ? '700' : '500',
-              },
-            ]}
-            numberOfLines={2}
-          >
-            {name}
-          </Animated.Text>
-          {fighterId && onFighterInfo && (
-            <TouchableOpacity
-              style={pillStyles.infoButton}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                onFighterInfo(fighterId);
-              }}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Animated.View>
-                <Ionicons
-                  name="information-circle-outline"
-                  size={16}
-                  color={isSelected ? '#fff' : colors.textTertiary}
-                />
-              </Animated.View>
-            </TouchableOpacity>
-          )}
-        </Animated.View>
-      </TouchableOpacity>
-    </Animated.View>
+    <View style={sectionStyles.container}>
+      <Text style={[sectionStyles.text, { color: colors.textTertiary }]}>
+        {title}
+      </Text>
+      <View style={[sectionStyles.line, { backgroundColor: colors.divider }]} />
+    </View>
   );
 };
 
-const pillStyles = StyleSheet.create({
-  wrapper: {
-    flex: 1,
-  },
-  pill: {
+const sectionStyles = StyleSheet.create({
+  container: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.button,
-    minHeight: 36,
+    gap: spacing.sm,
+    marginVertical: spacing.xs,
+  },
+  text: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  line: {
+    flex: 1,
+    height: 1,
+  },
+});
+
+// Progress Bar - visual indicator for picks completion
+const ProgressBar: React.FC<{ current: number; total: number }> = ({ current, total }) => {
+  const { colors } = useTheme();
+  const cornerColors = useCornerColors();
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const progress = total > 0 ? current / total : 0;
+
+  useEffect(() => {
+    Animated.spring(progressAnim, {
+      toValue: progress,
+      useNativeDriver: false,
+      tension: 50,
+      friction: 10,
+    }).start();
+  }, [progress, progressAnim]);
+
+  const progressWidth = progressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
+
+  return (
+    <View style={progressStyles.container}>
+      <View style={[progressStyles.track, { backgroundColor: colors.surfaceAlt }]}>
+        <Animated.View
+          style={[
+            progressStyles.fill,
+            { width: progressWidth, backgroundColor: cornerColors.red },
+          ]}
+        />
+      </View>
+      <Text style={[progressStyles.label, { color: colors.textSecondary }]}>
+        {current} of {total} picks
+      </Text>
+    </View>
+  );
+};
+
+const progressStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    gap: 4,
+  },
+  track: {
+    height: 4,
+    borderRadius: 2,
     overflow: 'hidden',
   },
-  borderOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    borderWidth: 1,
-    borderRadius: radius.button,
+  fill: {
+    height: '100%',
+    borderRadius: 2,
   },
-  disabled: {
-    opacity: 0.5,
-  },
-  checkIcon: {
-    marginRight: 4,
-  },
-  name: {
-    fontSize: 13,
-    textAlign: 'center',
-    flexShrink: 1,
-  },
-  infoButton: {
-    marginLeft: 4,
-    padding: 2,
+  label: {
+    fontSize: 12,
+    fontWeight: '500',
   },
 });
 
@@ -278,7 +150,7 @@ export default function EventDetail() {
   const { user, isGuest, enterGuestMode } = useAuth();
   const { showGate, gateContext, openGate, closeGate } = useAuthGate();
   const toast = useToast();
-  const { state: onboardingState, markSeen } = useOnboarding();
+  const { state: onboardingState, shouldShowCompareTooltip, markSeen } = useOnboarding();
 
   const [showLockExplainer, setShowLockExplainer] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
@@ -560,7 +432,7 @@ export default function EventDetail() {
     setShowComparison(true);
   };
 
-  // Custom header with back button and sticky progress
+  // Custom header with back button and top progress bar
   const Header = () => (
     <View style={[styles.headerContainer, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       <View style={[styles.header, { paddingTop: insets.top }]}>
@@ -585,7 +457,11 @@ export default function EventDetail() {
           <Ionicons name="stats-chart" size={22} color={colors.accent} />
         </TouchableOpacity>
       </View>
-      {/* Sticky Progress Header */}
+      {/* Top Progress Bar - 4px line pinned under header */}
+      {!locked && !isSubmitted && totalBouts > 0 && (
+        <TopProgressBar current={picksCount} total={totalBouts} />
+      )}
+      {/* Sticky Progress Header - Shows on scroll */}
       <Animated.View
         style={[
           styles.progressHeader,
@@ -597,35 +473,53 @@ export default function EventDetail() {
         ]}
       >
         {locked ? (
-          <>
-            <Ionicons name="lock-closed" size={14} color={colors.warning} />
-            <Text style={[styles.progressText, { color: colors.warning }]}>
-              Picks locked
+          <View style={[styles.progressPill, { backgroundColor: colors.warningSoft }]}>
+            <Ionicons name="lock-closed" size={12} color={colors.warning} />
+            <Text style={[styles.progressPillText, { color: colors.warning }]}>
+              PICKS LOCKED
             </Text>
-          </>
+          </View>
         ) : isSubmitted ? (
-          <>
-            <Ionicons name="checkmark-circle" size={14} color={colors.accent} />
-            <Text style={[styles.progressText, { color: colors.accent }]}>
-              Card submitted
+          <View style={[styles.progressPill, { backgroundColor: colors.successSoft }]}>
+            <Ionicons name="checkmark-circle" size={12} color={colors.success} />
+            <Text style={[styles.progressPillText, { color: colors.success }]}>
+              CARD SUBMITTED
             </Text>
-          </>
+          </View>
         ) : (
           <>
-            <Text style={[styles.progressText, { color: colors.textSecondary }]}>
-              {picksCount} of {totalBouts} picks completed
-            </Text>
+            {/* Mini progress indicator */}
+            <View style={styles.miniProgressContainer}>
+              <View style={[styles.miniProgressTrack, { backgroundColor: colors.border }]}>
+                <View
+                  style={[
+                    styles.miniProgressFill,
+                    {
+                      backgroundColor: picksCount === totalBouts ? colors.success : colors.accent,
+                      width: `${totalBouts > 0 ? (picksCount / totalBouts) * 100 : 0}%`
+                    }
+                  ]}
+                />
+              </View>
+              <Text style={[styles.progressCountText, { color: colors.text }]}>
+                <Text style={styles.progressCountBold}>{picksCount}</Text>
+                <Text style={{ color: colors.textTertiary }}> / {totalBouts}</Text>
+              </Text>
+            </View>
+
             {picksCount === totalBouts && totalBouts > 0 && (
-              <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+              <Ionicons name="checkmark-circle" size={16} color={colors.success} style={{ marginLeft: 6 }} />
             )}
+
             {picksCount > 0 && (
               <TouchableOpacity
-                style={styles.clearAllButton}
+                style={[styles.clearAllPill, { backgroundColor: colors.dangerSoft }]}
                 onPress={handleClearAllPicks}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Text style={[styles.clearAllText, { color: colors.textTertiary }]}>
-                  Clear All
+                <Ionicons name="trash-outline" size={12} color={colors.danger} />
+                <Text style={[styles.clearAllPillText, { color: colors.danger }]}>
+                  Clear
                 </Text>
               </TouchableOpacity>
             )}
@@ -758,36 +652,23 @@ export default function EventDetail() {
           </View>
         )}
 
-        {/* Event Info */}
+        {/* Event Info - Combined Location + Date */}
         <View style={styles.eventInfo}>
-          {event.location && (
-            <View style={styles.locationRow}>
-              <Ionicons name="location-outline" size={16} color={colors.textSecondary} />
-              <Text style={[styles.locationText, { color: colors.textSecondary }]}>
-                {event.location}
-              </Text>
-            </View>
-          )}
-          <View style={styles.dateRow}>
-            <Ionicons name="calendar-outline" size={16} color={colors.textSecondary} />
-            <Text style={[styles.dateText, { color: colors.textSecondary }]}>
+          <View style={styles.metaRow}>
+            <Ionicons name="calendar-outline" size={15} color={colors.textSecondary} />
+            <Text style={[styles.metaText, { color: colors.textSecondary }]}>
+              {event.location ? `${event.location} · ` : ''}
               {new Date(event.event_date).toLocaleDateString('en-US', {
-                weekday: 'long',
-                month: 'long',
+                weekday: 'short',
+                month: 'short',
                 day: 'numeric',
-                year: 'numeric',
               })}
             </Text>
           </View>
-          {/* Progress row with clear button */}
+          {/* Visual Progress Bar with clear button */}
           {!locked && !isSubmitted && (
-            <View style={styles.picksProgressRow}>
-              <Text style={[styles.picksProgressText, { color: colors.textSecondary }]}>
-                {picksCount} of {totalBouts} picks
-              </Text>
-              {picksCount === totalBouts && totalBouts > 0 && (
-                <Ionicons name="checkmark-circle" size={14} color={colors.success} style={{ marginLeft: 4 }} />
-              )}
+            <View style={styles.progressSection}>
+              <ProgressBar current={picksCount} total={totalBouts} />
               {picksCount > 0 && (
                 <TouchableOpacity
                   onPress={handleClearAllPicks}
@@ -795,7 +676,7 @@ export default function EventDetail() {
                   style={styles.clearButton}
                 >
                   <Text style={[styles.clearButtonText, { color: colors.textTertiary }]}>
-                    Clear
+                    Clear All
                   </Text>
                 </TouchableOpacity>
               )}
@@ -816,181 +697,145 @@ export default function EventDetail() {
           )}
         </View>
 
+        {/* Section Header: MAIN CARD */}
+        <SectionHeader title="Main Card" />
+
         {/* Fights List */}
         {bouts.map((bout, index) => {
           const liveStatus = liveStatusMap?.get(bout.id);
           const isLive = liveStatus?.isLive || liveStatus?.isScoring;
           const canScore = liveStatus?.phase === 'ROUND_BREAK';
+          const isMainEvent = index === 0;
+          const showPrelimsHeader = index === 5 && bouts.length > 5;
 
           return (
-          <SurfaceCard
-            key={bout.id}
-            weakWash
-            animatedBorder={index === 0 && !isSubmitted}
-            paddingSize="sm"
-            style={styles.fightCard}
-          >
-            {/* Order Index / Weight Class / Live Badge / Compare Button */}
-            <View style={styles.fightHeader}>
-              <View style={styles.fightHeaderLeft}>
-                <Text style={[styles.fightOrder, { color: colors.accent }]}>
-                  {index === 0 ? 'Main Event' : `Fight ${bouts.length - index}`}
-                </Text>
-                {liveStatus?.phase && (
-                  <LiveBadge
-                    phase={liveStatus.phase as RoundPhase}
-                    currentRound={liveStatus.currentRound}
-                    size="sm"
-                    showRound
-                  />
-                )}
+          <React.Fragment key={bout.id}>
+            {/* Section Header: PRELIMS (before fight 5) */}
+            {showPrelimsHeader && <SectionHeader title="Prelims" />}
+
+            <SurfaceCard
+              weakWash={!isMainEvent}
+              heroGlow={isMainEvent}
+              animatedBorder={isMainEvent && !isSubmitted}
+              paddingSize="sm"
+              style={styles.fightCard}
+            >
+              {/* Fight Header - Label + Weight Class */}
+              <View style={styles.fightHeader}>
+                <View style={styles.fightHeaderLeft}>
+                  {isMainEvent ? (
+                    <View style={[styles.mainEventBadge, { backgroundColor: colors.accent }]}>
+                      <Text style={styles.mainEventBadgeText}>MAIN EVENT</Text>
+                    </View>
+                  ) : (
+                    <Text style={[styles.fightOrder, { color: colors.accent }]}>
+                      Fight {bouts.length - index}
+                    </Text>
+                  )}
+                  {liveStatus?.phase && (
+                    <LiveBadge
+                      phase={liveStatus.phase as RoundPhase}
+                      currentRound={liveStatus.currentRound}
+                      size="sm"
+                      showRound
+                    />
+                  )}
+                </View>
+                <View style={styles.fightHeaderRight}>
+                  {bout.weight_class && (
+                    <Text style={[styles.weightClass, { color: colors.textTertiary }]}>
+                      {bout.weight_class}
+                    </Text>
+                  )}
+                  {/* Stats Icon - opens comparison modal */}
+                  {bout.red_fighter_ufcstats_id && bout.blue_fighter_ufcstats_id && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        handleOpenComparison(bout);
+                        if (shouldShowCompareTooltip) {
+                          markSeen('hasSeenCompareTooltip');
+                        }
+                      }}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="stats-chart" size={18} color="#A0A0A0" />
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
-              <View style={styles.fightHeaderRight}>
-                {bout.weight_class && (
-                  <Text style={[styles.weightClass, { color: colors.textTertiary }]}>
-                    {bout.weight_class}
+
+              {/* Voided/Canceled Banner */}
+              {(bout.status === 'canceled' || bout.status === 'replaced' || bout.pick?.status === 'voided') && (
+                <View style={[styles.canceledBanner, { backgroundColor: colors.dangerSoft }]}>
+                  <Text style={[styles.canceledText, { color: colors.danger }]}>
+                    Fight Canceled - Pick Voided
                   </Text>
-                )}
-                {bout.red_fighter_ufcstats_id && bout.blue_fighter_ufcstats_id && (
-                  <TouchableOpacity
-                    style={[styles.compareButton, { backgroundColor: colors.surfaceAlt }]}
-                    onPress={() => handleOpenComparison(bout)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Ionicons name="stats-chart-outline" size={14} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
+                </View>
+              )}
 
-            {/* Voided/Canceled Banner */}
-            {(bout.status === 'canceled' || bout.status === 'replaced' || bout.pick?.status === 'voided') && (
-              <View style={[styles.canceledBanner, { backgroundColor: colors.dangerSoft }]}>
-                <Text style={[styles.canceledText, { color: colors.danger }]}>
-                  Fight Canceled - Pick Voided
-                </Text>
-              </View>
-            )}
+              {/* Fighters - Vertically Stacked Rows */}
+              {(() => {
+                const pcts = communityPercentages?.get(bout.id);
+                const userHasPicked = !!bout.pick;
+                const hasEnoughPicks = (pcts?.total_picks || 0) >= MIN_COMMUNITY_PICKS;
+                const showCommunity = userHasPicked && hasEnoughPicks;
 
-            {/* Fighters - Side by Side Pills */}
-            {(() => {
-              const pcts = communityPercentages?.get(bout.id);
-              const userHasPicked = !!bout.pick;
-              const hasEnoughPicks = (pcts?.total_picks || 0) >= MIN_COMMUNITY_PICKS;
-              const showCommunity = userHasPicked && hasEnoughPicks;
+                const redPct = pcts?.fighter_a_percentage || 0;
+                const bluePct = pcts?.fighter_b_percentage || 0;
+                const pickedRed = bout.pick?.picked_corner === 'red';
+                const pickedBlue = bout.pick?.picked_corner === 'blue';
 
-              const redPct = pcts?.fighter_a_percentage || 0;
-              const bluePct = pcts?.fighter_b_percentage || 0;
-              const pickedRed = bout.pick?.picked_corner === 'red';
-              const pickedBlue = bout.pick?.picked_corner === 'blue';
+                // Determine result for each fighter
+                const getResult = (corner: 'red' | 'blue'): 'win' | 'loss' | null => {
+                  if (!bout.result?.winner_corner) return null;
+                  if (bout.result.winner_corner === 'draw' || bout.result.winner_corner === 'nc') return null;
+                  return bout.result.winner_corner === corner ? 'win' : 'loss';
+                };
 
-              return (
-                <>
-                  {/* Fighter Pills Row */}
-                  <View style={styles.fightersRow}>
-                    <FighterPill
-                      name={bout.red_name}
-                      corner="red"
-                      isSelected={pickedRed}
-                      locked={locked || isSubmitted || bout.status !== 'scheduled'}
-                      onPress={() => handlePickFighter(bout, 'red')}
-                      fighterId={bout.red_fighter_ufcstats_id}
-                      onFighterInfo={handleFighterInfo}
-                    />
+                return (
+                  <>
+                    {/* Fighter Rows - Vertically Stacked */}
+                    <View style={styles.fighterRowsContainer}>
+                      <FighterPickRow
+                        fighterName={bout.red_name}
+                        record={bout.red_record}
+                        corner="red"
+                        isSelected={pickedRed}
+                        isOpponentSelected={pickedBlue}
+                        onPress={() => handlePickFighter(bout, 'red')}
+                        disabled={locked || isSubmitted || bout.status !== 'scheduled'}
+                        result={getResult('red')}
+                        communityPickPct={showCommunity ? redPct : undefined}
+                        pickedMethod={pickedRed ? bout.pick?.picked_method : undefined}
+                        pickedRound={pickedRed ? bout.pick?.picked_round : undefined}
+                      />
 
-                    <Text style={[styles.vs, { color: colors.textTertiary }]}>vs</Text>
-
-                    <FighterPill
-                      name={bout.blue_name}
-                      corner="blue"
-                      isSelected={pickedBlue}
-                      locked={locked || isSubmitted || bout.status !== 'scheduled'}
-                      onPress={() => handlePickFighter(bout, 'blue')}
-                      fighterId={bout.blue_fighter_ufcstats_id}
-                      onFighterInfo={handleFighterInfo}
-                    />
-                  </View>
-
-                  {/* Labels Row - Your pick + prediction + percentages under each fighter */}
-                  {userHasPicked && (
-                    <View style={styles.labelsRow}>
-                      <View style={styles.labelColumn}>
-                        {pickedRed && (
-                          <>
-                            <Text style={[styles.pickLabel, { color: colors.textTertiary }]}>
-                              Your pick
-                            </Text>
-                            {(bout.pick?.picked_method || bout.pick?.picked_round) && (
-                              <Text style={[styles.predictionLabel, { color: colors.accent }]} numberOfLines={1}>
-                                {bout.pick.picked_method?.replace('Decision - ', '').replace('Submission - ', '') || ''}
-                                {bout.pick.picked_method && bout.pick.picked_round ? ' ' : ''}
-                                {bout.pick.picked_round ? `R${bout.pick.picked_round}` : ''}
-                              </Text>
-                            )}
-                          </>
-                        )}
-                        {showCommunity && (
-                          <Text style={[styles.pctLabel, { color: colors.textSecondary }]}>
-                            {redPct.toFixed(0)}%
-                          </Text>
-                        )}
+                      {/* VS Divider */}
+                      <View style={styles.vsDivider}>
+                        <View style={[styles.vsDividerLine, { backgroundColor: colors.border }]} />
+                        <View style={[styles.vsBadge, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+                          <Text style={[styles.vsText, { color: colors.textTertiary }]}>VS</Text>
+                        </View>
+                        <View style={[styles.vsDividerLine, { backgroundColor: colors.border }]} />
                       </View>
-                      <View style={styles.labelSpacer} />
-                      <View style={styles.labelColumn}>
-                        {pickedBlue && (
-                          <>
-                            <Text style={[styles.pickLabel, { color: colors.textTertiary }]}>
-                              Your pick
-                            </Text>
-                            {(bout.pick?.picked_method || bout.pick?.picked_round) && (
-                              <Text style={[styles.predictionLabel, { color: colors.accent }]} numberOfLines={1}>
-                                {bout.pick.picked_method?.replace('Decision - ', '').replace('Submission - ', '') || ''}
-                                {bout.pick.picked_method && bout.pick.picked_round ? ' ' : ''}
-                                {bout.pick.picked_round ? `R${bout.pick.picked_round}` : ''}
-                              </Text>
-                            )}
-                          </>
-                        )}
-                        {showCommunity && (
-                          <Text style={[styles.pctLabel, { color: colors.textSecondary }]}>
-                            {bluePct.toFixed(0)}%
-                          </Text>
-                        )}
-                      </View>
+
+                      <FighterPickRow
+                        fighterName={bout.blue_name}
+                        record={bout.blue_record}
+                        corner="blue"
+                        isSelected={pickedBlue}
+                        isOpponentSelected={pickedRed}
+                        onPress={() => handlePickFighter(bout, 'blue')}
+                        disabled={locked || isSubmitted || bout.status !== 'scheduled'}
+                        result={getResult('blue')}
+                        communityPickPct={showCommunity ? bluePct : undefined}
+                        pickedMethod={pickedBlue ? bout.pick?.picked_method : undefined}
+                        pickedRound={pickedBlue ? bout.pick?.picked_round : undefined}
+                      />
                     </View>
-                  )}
-
-                  {/* Community Bar - two-color split showing both corners */}
-                  {showCommunity && (
-                    <View style={styles.communityBarContainer}>
-                      <View style={styles.communityBar}>
-                        <View
-                          style={[
-                            styles.communityBarRed,
-                            {
-                              backgroundColor: cornerColors.red,
-                              width: `${redPct}%`,
-                            }
-                          ]}
-                        />
-                        <View
-                          style={[
-                            styles.communityBarBlue,
-                            {
-                              backgroundColor: cornerColors.blue,
-                              flex: 1,
-                            }
-                          ]}
-                        />
-                      </View>
-                      <Text style={[styles.communityLabel, { color: colors.textTertiary }]}>
-                        Community picks
-                      </Text>
-                    </View>
-                  )}
-                </>
-              );
-            })()}
+                  </>
+                );
+              })()}
 
             {/* Result (if available) */}
             {bout.result?.winner_corner && (() => {
@@ -1057,7 +902,9 @@ export default function EventDetail() {
                 </Text>
               </TouchableOpacity>
             )}
+
           </SurfaceCard>
+          </React.Fragment>
         );
         })}
 
@@ -1099,7 +946,7 @@ export default function EventDetail() {
         selectedCorner={pendingPick?.corner || 'red'}
         currentMethod={pendingPick?.bout.pick?.picked_method}
         currentRound={pendingPick?.bout.pick?.picked_round}
-        scheduledRounds={pendingPick?.bout.scheduled_rounds}
+        scheduledRounds={pendingPick?.bout.scheduled_rounds ?? undefined}
         orderIndex={bouts?.findIndex(b => b.id === pendingPick?.bout.id)}
       />
 
@@ -1114,22 +961,17 @@ export default function EventDetail() {
         blueFighterId={comparisonBout?.blue_fighter_ufcstats_id || ''}
         redFighterName={comparisonBout?.red_name || ''}
         blueFighterName={comparisonBout?.blue_name || ''}
-        weightClass={comparisonBout?.weight_class}
+        weightClass={comparisonBout?.weight_class ?? undefined}
       />
 
-      {/* Submit Button - Fixed above tab bar (only when not submitted) */}
+      {/* Submit Footer - Sticky bottom (only when not submitted) */}
       {!locked && picksCount > 0 && !isSubmitted && (
-        <View style={[styles.submitContainer, { bottom: Math.max(insets.bottom, 16) + 80 }]}>
-          <TouchableOpacity
-            style={[styles.submitButton, { backgroundColor: colors.accent }]}
-            onPress={handleOpenSubmitModal}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.submitButtonText}>
-              Submit Card ({picksCount} {picksCount === 1 ? 'pick' : 'picks'})
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <SubmitFooter
+          picksCount={picksCount}
+          totalBouts={totalBouts}
+          onSubmit={handleOpenSubmitModal}
+          bottomOffset={80}
+        />
       )}
 
       {/* Submit Confirmation Modal */}
@@ -1230,22 +1072,58 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: spacing.xs,
+    gap: 10,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
     borderBottomWidth: 1,
   },
-  progressText: {
-    ...typography.meta,
-    fontWeight: '500',
+  progressPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: radius.pill,
   },
-  clearAllButton: {
-    marginLeft: spacing.md,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+  progressPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
-  clearAllText: {
-    fontSize: 12,
-    fontWeight: '500',
+  miniProgressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  miniProgressTrack: {
+    width: 60,
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  miniProgressFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  progressCountText: {
+    fontSize: 13,
+  },
+  progressCountBold: {
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  clearAllPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: radius.pill,
+    marginLeft: spacing.xs,
+  },
+  clearAllPillText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   backButton: {
     width: 40,
@@ -1253,7 +1131,9 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    ...typography.h3,
+    fontFamily: 'BebasNeue',
+    fontSize: 22,
+    letterSpacing: 0.3,
     textAlign: 'center',
   },
   headerSpacer: {
@@ -1272,6 +1152,21 @@ const styles = StyleSheet.create({
   eventInfo: {
     gap: spacing.xs,
     marginBottom: spacing.sm,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  metaText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  progressSection: {
+    marginTop: spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
   },
   picksProgressRow: {
     flexDirection: 'row',
@@ -1429,15 +1324,19 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
+  mainEventBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radius.sm,
+  },
+  mainEventBadgeText: {
+    fontFamily: 'BebasNeue',
+    fontSize: 12,
+    color: '#fff',
+    letterSpacing: 0.5,
+  },
   weightClass: {
     fontSize: 11,
-  },
-  compareButton: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   scoreFightButton: {
     flexDirection: 'row',
@@ -1464,6 +1363,51 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
+  // Vertical fighter rows container
+  fighterRowsContainer: {
+    gap: 0,
+  },
+  // VS Divider between fighter rows
+  vsDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  vsDividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  vsBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    marginHorizontal: spacing.sm,
+  },
+  vsText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  // Prediction label below fighter rows
+  predictionContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.xs,
+  },
+  predictionPrefix: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  predictionText: {
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
+  // Legacy horizontal styles (kept for reference)
   fightersRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1498,27 +1442,6 @@ const styles = StyleSheet.create({
   },
   labelSpacer: {
     width: 24,
-  },
-  communityBarContainer: {
-    marginTop: 4,
-  },
-  communityBar: {
-    flexDirection: 'row',
-    height: 3,
-    borderRadius: 1.5,
-    overflow: 'hidden',
-  },
-  communityBarRed: {
-    height: '100%',
-  },
-  communityBarBlue: {
-    height: '100%',
-  },
-  communityLabel: {
-    fontSize: 9,
-    textAlign: 'center',
-    marginTop: 3,
-    fontWeight: '500',
   },
   resultContainer: {
     marginTop: spacing.xs,
