@@ -20,7 +20,7 @@ import { useOnboarding } from '../../hooks/useOnboarding';
 import { useTheme } from '../../lib/theme';
 import { spacing, radius, typography, displayTypography } from '../../lib/tokens';
 import { submitEvent, isEventSubmitted, unsubmitEvent } from '../../lib/storage';
-import { SurfaceCard, EmptyState, LiveBadge, TopProgressBar, SubmitFooter, FighterPickRow } from '../../components/ui';
+import { SurfaceCard, EmptyState, LiveBadge, TopProgressBar, SubmitFooter, FighterPickRow, FeatureTooltip } from '../../components/ui';
 import { ErrorState } from '../../components/ErrorState';
 import { GlobalTabBar } from '../../components/navigation/GlobalTabBar';
 import { SkeletonFightCard } from '../../components/SkeletonFightCard';
@@ -150,12 +150,13 @@ export default function EventDetail() {
   const { user, isGuest, enterGuestMode } = useAuth();
   const { showGate, gateContext, openGate, closeGate } = useAuthGate();
   const toast = useToast();
-  const { state: onboardingState, shouldShowCompareTooltip, markSeen } = useOnboarding();
+  const { shouldShowLockExplainer, shouldShowCompareTooltip, shouldShowFighterInfoTooltip, markSeen } = useOnboarding();
 
   const [showLockExplainer, setShowLockExplainer] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showMethodModal, setShowMethodModal] = useState(false);
+  const [hintBannerDismissed, setHintBannerDismissed] = useState(false);
   const [pendingPick, setPendingPick] = useState<{
     bout: BoutWithPick;
     corner: 'red' | 'blue';
@@ -199,10 +200,10 @@ export default function EventDetail() {
 
   // Show lock explainer on first visit
   useEffect(() => {
-    if (!onboardingState.hasSeenLockExplainer && event && !eventLoading) {
+    if (shouldShowLockExplainer && event && !eventLoading) {
       setShowLockExplainer(true);
     }
-  }, [onboardingState.hasSeenLockExplainer, event, eventLoading]);
+  }, [shouldShowLockExplainer, event, eventLoading]);
 
   // Load submission state when event changes
   useEffect(() => {
@@ -749,17 +750,19 @@ export default function EventDetail() {
                   )}
                   {/* Stats Icon - opens comparison modal */}
                   {bout.red_fighter_ufcstats_id && bout.blue_fighter_ufcstats_id && (
-                    <TouchableOpacity
-                      onPress={() => {
-                        handleOpenComparison(bout);
-                        if (shouldShowCompareTooltip) {
-                          markSeen('hasSeenCompareTooltip');
-                        }
-                      }}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Ionicons name="stats-chart" size={18} color="#A0A0A0" />
-                    </TouchableOpacity>
+                    <View>
+                      <TouchableOpacity
+                        onPress={() => {
+                          handleOpenComparison(bout);
+                          if (shouldShowCompareTooltip) {
+                            markSeen('hasSeenCompareTooltip');
+                          }
+                        }}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="stats-chart" size={18} color="#A0A0A0" />
+                      </TouchableOpacity>
+                    </View>
                   )}
                 </View>
               </View>
@@ -794,21 +797,49 @@ export default function EventDetail() {
 
                 return (
                   <>
+                    {/* First-time user hints - only on first bout, only for new users */}
+                    {index === 0 && !hintBannerDismissed && (shouldShowCompareTooltip || shouldShowFighterInfoTooltip) && (
+                      <TouchableOpacity
+                        style={[styles.hintBanner, { backgroundColor: colors.accentSoft }]}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setHintBannerDismissed(true);
+                          markSeen('hasSeenCompareTooltip');
+                          markSeen('hasSeenFighterInfoTooltip');
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="bulb-outline" size={16} color={colors.accent} />
+                        <Text style={[styles.hintText, { color: colors.text }]}>
+                          Tap <Ionicons name="information-circle-outline" size={14} color={colors.accent} /> for fighter stats, or <Ionicons name="stats-chart" size={14} color={colors.accent} /> to compare
+                        </Text>
+                        <Ionicons name="close" size={16} color={colors.textTertiary} />
+                      </TouchableOpacity>
+                    )}
+
                     {/* Fighter Rows - Vertically Stacked */}
                     <View style={styles.fighterRowsContainer}>
-                      <FighterPickRow
-                        fighterName={bout.red_name}
-                        record={bout.red_record}
-                        corner="red"
-                        isSelected={pickedRed}
-                        isOpponentSelected={pickedBlue}
-                        onPress={() => handlePickFighter(bout, 'red')}
-                        disabled={locked || isSubmitted || bout.status !== 'scheduled'}
-                        result={getResult('red')}
-                        communityPickPct={showCommunity ? redPct : undefined}
-                        pickedMethod={pickedRed ? bout.pick?.picked_method : undefined}
-                        pickedRound={pickedRed ? bout.pick?.picked_round : undefined}
-                      />
+                      <View>
+                        <FighterPickRow
+                          fighterName={bout.red_name}
+                          record={bout.red_record}
+                          corner="red"
+                          isSelected={pickedRed}
+                          isOpponentSelected={pickedBlue}
+                          onPress={() => handlePickFighter(bout, 'red')}
+                          onInfoPress={bout.red_fighter_ufcstats_id ? () => {
+                            handleFighterInfo(bout.red_fighter_ufcstats_id!);
+                            if (shouldShowFighterInfoTooltip) {
+                              markSeen('hasSeenFighterInfoTooltip');
+                            }
+                          } : undefined}
+                          disabled={locked || isSubmitted || bout.status !== 'scheduled'}
+                          result={getResult('red')}
+                          communityPickPct={showCommunity ? redPct : undefined}
+                          pickedMethod={pickedRed ? bout.pick?.picked_method : undefined}
+                          pickedRound={pickedRed ? bout.pick?.picked_round : undefined}
+                        />
+                      </View>
 
                       {/* VS Divider */}
                       <View style={styles.vsDivider}>
@@ -826,6 +857,12 @@ export default function EventDetail() {
                         isSelected={pickedBlue}
                         isOpponentSelected={pickedRed}
                         onPress={() => handlePickFighter(bout, 'blue')}
+                        onInfoPress={bout.blue_fighter_ufcstats_id ? () => {
+                          handleFighterInfo(bout.blue_fighter_ufcstats_id!);
+                          if (shouldShowFighterInfoTooltip) {
+                            markSeen('hasSeenFighterInfoTooltip');
+                          }
+                        } : undefined}
                         disabled={locked || isSubmitted || bout.status !== 'scheduled'}
                         result={getResult('blue')}
                         communityPickPct={showCommunity ? bluePct : undefined}
@@ -1585,5 +1622,20 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#fff',
+  },
+  // First-time user hint banner
+  hintBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.sm,
+    marginBottom: spacing.sm,
+  },
+  hintText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

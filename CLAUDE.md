@@ -140,6 +140,22 @@ Access via Settings (admin users only):
 
 Admin users are stored in `admin_users` table with roles: `moderator`, `admin`, `super_admin`
 
+## Promo Video (`promo-video/`)
+Built with Remotion (React video framework). 16-second portrait video for TikTok/Reels/Stories.
+
+```bash
+cd promo-video
+npm install
+npm start              # Preview in browser
+npx remotion render UpsetPromoPortrait out/promo-portrait.mp4
+```
+
+**Scenes:** Hook → Fight Card → Fighter Stats → App Showcase (4 screens) → CTA
+
+**Effects:** 3D phone tilt, dynamic shadows, screen glow, shimmer sweep, floating particles, staggered text reveal, confetti burst
+
+See `promo-video/README.md` for full documentation.
+
 ## Post-Launch TODO
 - [ ] **Superwall Integration** - Paywall and subscription management
   - See `mobile/docs/MONETIZATION_PLAN.md` for options

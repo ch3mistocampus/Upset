@@ -5,7 +5,8 @@
 import { useEffect } from 'react';
 import { View } from 'react-native';
 import { Stack } from 'expo-router';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '../lib/queryClient';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
@@ -22,23 +23,6 @@ import { NetworkStatusBanner } from '../components/ui';
 
 // Keep splash screen visible while loading fonts
 SplashScreen.preventAutoHideAsync();
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 2,
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      gcTime: 1000 * 60 * 10, // 10 minutes
-      networkMode: 'offlineFirst', // Use cached data when offline, fetch when online
-    },
-    mutations: {
-      retry: 1,
-      retryDelay: 1000,
-      networkMode: 'offlineFirst',
-    },
-  },
-});
 
 function RootNavigator() {
   const { colors, isDark } = useTheme();
@@ -78,10 +62,9 @@ function RootNavigator() {
         <Stack.Screen
           name="settings"
           options={{
-            title: 'Settings',
+            headerShown: false,
             animation: 'fade',
             animationDuration: 200,
-            headerBackTitle: 'Back',
           }}
         />
         <Stack.Screen name="post/notifications" options={{ title: 'Notifications', headerBackTitle: 'Back' }} />

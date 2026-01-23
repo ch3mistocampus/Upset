@@ -27,7 +27,6 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
@@ -40,6 +39,7 @@ import {
   useUserPicksCount,
   useBoutsCount,
 } from '../../hooks/useQueries';
+import { useUserPosts } from '../../hooks/usePosts';
 import { useTheme } from '../../lib/theme';
 import { supabase } from '../../lib/supabase';
 import { logger } from '../../lib/logger';
@@ -48,9 +48,15 @@ import { isEventSubmitted } from '../../lib/storage';
 import { SurfaceCard, Button, SegmentedControl, EmptyState } from '../../components/ui';
 import { ErrorState } from '../../components/ErrorState';
 import { SkeletonProfileCard, SkeletonStats } from '../../components/SkeletonStats';
+import { FeedPostRow, PostErrorBoundary } from '../../components/posts';
+import { AccuracyRing } from '../../components/AccuracyRing';
+import { MiniChart } from '../../components/MiniChart';
 import type { ThemeMode } from '../../lib/tokens';
 import type { Event } from '../../types/database';
+import type { Post } from '../../types/posts';
 import { generateAvatarUrl } from '../../components/Avatar';
+
+type ProfileTab = 'posts' | 'picks' | 'stats';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -112,6 +118,11 @@ export default function Profile() {
   const [followingCount, setFollowingCount] = useState(0);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
+
+  // Fetch user's posts
+  const userPosts = useUserPosts(user?.id || null);
+  const posts = userPosts.data?.pages.flat() ?? [];
 
   // Animations
   const headerScale = useRef(new Animated.Value(0.95)).current;
@@ -209,7 +220,13 @@ export default function Profile() {
   const onRefresh = async () => {
     setRefreshing(true);
     if (!isGuest) {
-      await Promise.all([refetchStats(), refetchSummary(), refetchUpcoming(), fetchSocialCounts()]);
+      await Promise.all([
+        refetchStats(),
+        refetchSummary(),
+        refetchUpcoming(),
+        fetchSocialCounts(),
+        userPosts.refetch(),
+      ]);
     }
     setRefreshing(false);
   };
@@ -320,19 +337,26 @@ export default function Profile() {
             allowsEditing: true,
             aspect,
             quality: 0.8,
+            base64: true,
           })
         : await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images'],
             allowsEditing: true,
             aspect,
             quality: 0.8,
+            base64: true,
           });
 
       if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        if (!asset.base64) {
+          toast.showError('Failed to process image');
+          return;
+        }
         if (type === 'avatar') {
-          await uploadAvatar(result.assets[0].uri);
+          await uploadAvatar(asset.base64, asset.uri);
         } else {
-          await uploadBanner(result.assets[0].uri);
+          await uploadBanner(asset.base64, asset.uri);
         }
       }
     } catch (error: any) {
@@ -341,7 +365,7 @@ export default function Profile() {
     }
   };
 
-  const uploadAvatar = async (uri: string) => {
+  const uploadAvatar = async (base64: string, uri: string) => {
     if (!user?.id) return;
 
     try {
@@ -352,10 +376,7 @@ export default function Profile() {
       // Use post-images bucket with user folder for proper RLS
       const fileName = `${user.id}/avatar-${Date.now()}.${ext}`;
 
-      // Read file as base64 and decode for React Native compatibility
-      const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: 'base64',
-      });
+      // Decode base64 to array buffer for upload
       const arrayBuffer = decode(base64);
 
       const { error: uploadError } = await supabase.storage
@@ -384,7 +405,7 @@ export default function Profile() {
     }
   };
 
-  const uploadBanner = async (uri: string) => {
+  const uploadBanner = async (base64: string, uri: string) => {
     if (!user?.id) return;
 
     try {
@@ -395,10 +416,7 @@ export default function Profile() {
       // Use post-images bucket with user folder for proper RLS
       const fileName = `${user.id}/banner-${Date.now()}.${ext}`;
 
-      // Read file as base64 and decode for React Native compatibility
-      const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: 'base64',
-      });
+      // Decode base64 to array buffer for upload
       const arrayBuffer = decode(base64);
 
       const { error: uploadError } = await supabase.storage
@@ -797,10 +815,140 @@ export default function Profile() {
 
         </Animated.View>
 
-        {/* Content Area - Always shows picks */}
+        {/* Tabs */}
+        <View style={[styles.tabContainer, { backgroundColor: colors.background, borderBottomColor: colors.border }]} accessibilityRole="tablist">
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'posts' && { borderBottomColor: colors.accent }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setActiveTab('posts');
+            }}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'posts' }}
+            accessibilityLabel="Posts tab"
+          >
+            <Text style={[
+              styles.tabText,
+              { color: colors.textTertiary },
+              activeTab === 'posts' && { color: colors.text }
+            ]}>
+              Posts
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'picks' && { borderBottomColor: colors.accent }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setActiveTab('picks');
+            }}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'picks' }}
+            accessibilityLabel="Picks tab"
+          >
+            <Text style={[
+              styles.tabText,
+              { color: colors.textTertiary },
+              activeTab === 'picks' && { color: colors.text }
+            ]}>
+              Picks
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'stats' && { borderBottomColor: colors.accent }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setActiveTab('stats');
+            }}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'stats' }}
+            accessibilityLabel="Stats tab"
+          >
+            <Text style={[
+              styles.tabText,
+              { color: colors.textTertiary },
+              activeTab === 'stats' && { color: colors.text }
+            ]}>
+              Stats
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Content Area */}
         <View style={styles.contentArea}>
-          <>
-              {/* Upcoming Events */}
+          {/* Posts Tab */}
+          {activeTab === 'posts' && (
+            userPosts.isLoading ? (
+              <View style={styles.postsLoadingContainer}>
+                <ActivityIndicator color={colors.accent} />
+              </View>
+            ) : posts.length === 0 ? (
+              <EmptyState
+                icon="chatbubbles-outline"
+                title="No Posts Yet"
+                message="Share your thoughts and predictions with the community!"
+                actionLabel="Create Post"
+                onAction={() => router.push('/post/create')}
+              />
+            ) : (
+              <View style={styles.postsList}>
+                {posts.map((post: Post, index: number) => (
+                  <View key={post.id}>
+                    <PostErrorBoundary>
+                      <FeedPostRow post={post} />
+                    </PostErrorBoundary>
+                    {index < posts.length - 1 && (
+                      <View style={[styles.postDivider, { backgroundColor: colors.divider }]} />
+                    )}
+                  </View>
+                ))}
+                {userPosts.hasNextPage && (
+                  <TouchableOpacity
+                    style={[styles.loadMoreButton, { backgroundColor: colors.surfaceAlt }]}
+                    onPress={() => userPosts.fetchNextPage()}
+                    disabled={userPosts.isFetchingNextPage}
+                  >
+                    {userPosts.isFetchingNextPage ? (
+                      <ActivityIndicator color={colors.accent} size="small" />
+                    ) : (
+                      <Text style={[styles.loadMoreText, { color: colors.textSecondary }]}>
+                        Load More
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+            )
+          )}
+
+          {/* Picks Tab - Past events first, then upcoming */}
+          {activeTab === 'picks' && (
+            <>
+              {/* Past Events (Recent) - Show first */}
+              {recentSummary && recentSummary.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
+                    PAST EVENTS
+                  </Text>
+                  <View style={styles.eventsList}>
+                    {(recentSummary as RecentEventSummary[]).map((summary) => (
+                      <View key={summary.event.id}>
+                        {renderEventCard(
+                          summary.event.id,
+                          summary.event.name,
+                          summary.total,
+                          summary.total,
+                          summary.correct,
+                          false
+                        )}
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {/* Upcoming Events - Show second */}
               {upcomingEvents && upcomingEvents.length > 0 && (
                 <View style={styles.section}>
                   <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
@@ -818,28 +966,8 @@ export default function Profile() {
                 </View>
               )}
 
-              {/* Recent Events */}
-              {recentSummary && recentSummary.length > 0 ? (
-                <View style={styles.section}>
-                  <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
-                    RECENT EVENTS
-                  </Text>
-                  <View style={styles.eventsList}>
-                    {(recentSummary as RecentEventSummary[]).map((summary) => (
-                      <View key={summary.event.id}>
-                        {renderEventCard(
-                          summary.event.id,
-                          summary.event.name,
-                          summary.total,
-                          summary.total,
-                          summary.correct,
-                          false
-                        )}
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              ) : !upcomingEvents?.length && (
+              {/* Empty state if no events */}
+              {(!recentSummary || recentSummary.length === 0) && (!upcomingEvents || upcomingEvents.length === 0) && (
                 <EmptyState
                   icon="stats-chart-outline"
                   title="No Picks Yet"
@@ -850,6 +978,179 @@ export default function Profile() {
                 />
               )}
             </>
+          )}
+
+          {/* Stats Tab */}
+          {activeTab === 'stats' && (
+            <View style={{ gap: spacing.md }}>
+              {/* Accuracy Ring Card */}
+              <SurfaceCard heroGlow animatedBorder>
+                <View style={styles.accuracyRingContainer}>
+                  <AccuracyRing percentage={accuracy} label="Accuracy" size={120} />
+                </View>
+
+                <View style={styles.statsGrid}>
+                  <View style={styles.statItem}>
+                    <Text style={[styles.statValue, { color: colors.text }]}>{stats?.total_picks || 0}</Text>
+                    <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Picks</Text>
+                  </View>
+                  <View style={[styles.statDivider, { backgroundColor: colors.divider }]} />
+                  <View style={styles.statItem}>
+                    <Text style={[styles.statValue, { color: colors.success }]}>{stats?.correct_winner || 0}</Text>
+                    <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Correct</Text>
+                  </View>
+                  <View style={[styles.statDivider, { backgroundColor: colors.divider }]} />
+                  <View style={styles.statItem}>
+                    <Text style={[styles.statValue, { color: colors.textTertiary }]}>
+                      {(stats?.total_picks || 0) - (stats?.correct_winner || 0)}
+                    </Text>
+                    <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Missed</Text>
+                  </View>
+                </View>
+              </SurfaceCard>
+
+              {/* Past Events with Results */}
+              {recentSummary && recentSummary.length > 0 && (
+                <SurfaceCard weakWash>
+                  <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
+                    PAST EVENTS
+                  </Text>
+
+                  <View style={styles.chartContainer}>
+                    <MiniChart
+                      data={(recentSummary as RecentEventSummary[]).slice(0, 5).map((summary) => ({
+                        eventName: summary.event.name,
+                        accuracy: summary.total > 0 ? (summary.correct / summary.total) * 100 : 0,
+                      }))}
+                    />
+                  </View>
+
+                  <Text style={[styles.chartLegend, { color: colors.textTertiary }]}>
+                    Accuracy per event
+                  </Text>
+
+                  {/* Event List with Details */}
+                  {(recentSummary as RecentEventSummary[]).slice(0, 5).map((summary, index) => {
+                    const eventAccuracy = summary.total > 0 ? Math.round((summary.correct / summary.total) * 100) : 0;
+                    const getAccuracyColor = () => {
+                      if (eventAccuracy >= 70) return colors.success;
+                      if (eventAccuracy >= 50) return colors.warning;
+                      return colors.danger;
+                    };
+
+                    return (
+                      <TouchableOpacity
+                        key={summary.event.id}
+                        style={styles.recentEventItem}
+                        onPress={() => navigateToEvent(summary.event.id)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.recentEventHeader}>
+                          <Text
+                            style={[styles.recentEventName, { color: colors.text }]}
+                            numberOfLines={1}
+                          >
+                            {summary.event.name}
+                          </Text>
+                          <View style={styles.recentEventRight}>
+                            <Text style={[styles.recentEventDate, { color: colors.textTertiary }]}>
+                              {new Date(summary.event.event_date).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                              })}
+                            </Text>
+                            <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+                          </View>
+                        </View>
+                        <View style={styles.recentEventStats}>
+                          <Text style={[styles.recentEventScore, { color: colors.text }]}>
+                            {summary.correct} / {summary.total}
+                          </Text>
+                          <Text style={[styles.recentEventAccuracy, { color: getAccuracyColor() }]}>
+                            {eventAccuracy}%
+                          </Text>
+                        </View>
+                        {index < Math.min((recentSummary as RecentEventSummary[]).length, 5) - 1 && (
+                          <View style={[styles.recentEventDivider, { backgroundColor: colors.border }]} />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </SurfaceCard>
+              )}
+
+              {/* Upcoming Events with Picks Progress */}
+              {upcomingEvents && upcomingEvents.length > 0 && (
+                <SurfaceCard weakWash>
+                  <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
+                    UPCOMING EVENTS
+                  </Text>
+                  <Text style={[styles.chartLegend, { color: colors.textTertiary, marginBottom: spacing.sm }]}>
+                    Your picks for upcoming fights
+                  </Text>
+                  {upcomingEvents.map((event) => (
+                    <UpcomingEventCard
+                      key={event.id}
+                      eventId={event.id}
+                      eventName={event.name}
+                      userId={user?.id || null}
+                      renderCard={(eventId, eventName, picksCount, totalBouts, _, isUpcoming, isSubmitted) => (
+                        <TouchableOpacity
+                          style={styles.recentEventItem}
+                          onPress={() => navigateToEvent(eventId)}
+                          activeOpacity={0.7}
+                        >
+                          <View style={styles.recentEventHeader}>
+                            <Text
+                              style={[styles.recentEventName, { color: colors.text }]}
+                              numberOfLines={1}
+                            >
+                              {eventName}
+                            </Text>
+                            <View style={styles.recentEventRight}>
+                              {isSubmitted && (
+                                <View style={[styles.statusBadge, { backgroundColor: colors.accent + '20' }]}>
+                                  <Text style={[styles.statusBadgeText, { color: colors.accent }]}>Submitted</Text>
+                                </View>
+                              )}
+                              <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
+                            </View>
+                          </View>
+                          <View style={styles.recentEventStats}>
+                            <Text style={[styles.recentEventScore, { color: colors.text }]}>
+                              {picksCount} / {totalBouts} picks
+                            </Text>
+                            <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
+                              <View
+                                style={[
+                                  styles.progressBarFill,
+                                  {
+                                    width: totalBouts > 0 ? `${(picksCount / totalBouts) * 100}%` : '0%',
+                                    backgroundColor: picksCount === totalBouts ? colors.success : colors.accent,
+                                  },
+                                ]}
+                              />
+                            </View>
+                          </View>
+                        </TouchableOpacity>
+                      )}
+                    />
+                  ))}
+                </SurfaceCard>
+              )}
+
+              {/* Empty state for stats if no data at all */}
+              {(!recentSummary || recentSummary.length === 0) && (!upcomingEvents || upcomingEvents.length === 0) && (
+                <EmptyState
+                  icon="analytics-outline"
+                  title="No Stats Yet"
+                  message="Make picks on events to see your stats here."
+                  actionLabel="Browse Events"
+                  onAction={() => router.push('/(tabs)/pick')}
+                />
+              )}
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -1396,5 +1697,142 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 12,
     marginTop: spacing.xl,
+  },
+
+  // Tabs
+  tabContainer: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+
+  // Posts Tab
+  postsLoadingContainer: {
+    paddingVertical: spacing.xxl,
+    alignItems: 'center',
+  },
+  postsList: {
+    marginHorizontal: -spacing.md,
+  },
+  postDivider: {
+    height: 1,
+    marginLeft: spacing.md + 40 + spacing.sm,
+  },
+  loadMoreButton: {
+    paddingVertical: spacing.md,
+    borderRadius: radius.card,
+    alignItems: 'center',
+    marginTop: spacing.sm,
+    marginHorizontal: spacing.md,
+  },
+  loadMoreText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  // Stats Tab
+  accuracyRingContainer: {
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  statLabel: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  chartContainer: {
+    marginVertical: spacing.sm,
+    marginHorizontal: -spacing.sm,
+  },
+  chartLegend: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  recentEventItem: {
+    paddingVertical: spacing.sm,
+  },
+  recentEventHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  recentEventName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    marginRight: spacing.sm,
+  },
+  recentEventRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  recentEventDate: {
+    fontSize: 12,
+  },
+  recentEventStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  recentEventScore: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  recentEventAccuracy: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  recentEventDivider: {
+    height: 1,
+    marginTop: spacing.sm,
+  },
+
+  // Progress bar for upcoming events in stats
+  progressBar: {
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
+    marginLeft: spacing.sm,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  statusBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginRight: spacing.xs,
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
   },
 });

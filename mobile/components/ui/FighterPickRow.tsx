@@ -41,6 +41,8 @@ interface FighterPickRowProps {
   isOpponentSelected?: boolean;
   /** Press handler */
   onPress: () => void;
+  /** Info button press handler (navigate to fighter stats) */
+  onInfoPress?: () => void;
   /** Disable interaction */
   disabled?: boolean;
   /** Result state for graded fights */
@@ -60,6 +62,7 @@ export function FighterPickRow({
   isSelected,
   isOpponentSelected = false,
   onPress,
+  onInfoPress,
   disabled = false,
   result,
   communityPickPct,
@@ -235,12 +238,27 @@ export function FighterPickRow({
 
           {/* Left: Fighter Name + Record/Method stacked */}
           <View style={styles.nameContainer}>
-            <Text
-              style={[styles.fighterName, { color: getNameColor() }]}
-              numberOfLines={1}
-            >
-              {fighterName}
-            </Text>
+            <View style={styles.nameRow}>
+              <Text
+                style={[styles.fighterName, { color: getNameColor() }]}
+                numberOfLines={1}
+              >
+                {fighterName}
+              </Text>
+              {onInfoPress && (
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    onInfoPress();
+                  }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={styles.infoButton}
+                >
+                  <Ionicons name="information-circle-outline" size={18} color={colors.textTertiary} />
+                </TouchableOpacity>
+              )}
+            </View>
             <View style={styles.secondaryRow}>
               {record && (
                 <Text style={[styles.record, { color: getSecondaryColor() }]}>
@@ -320,8 +338,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 3,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   fighterName: {
     ...displayTypography.fighterName,
+  },
+  infoButton: {
+    padding: 2,
   },
   secondaryRow: {
     flexDirection: 'row',

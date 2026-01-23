@@ -1,0 +1,35 @@
+{
+  "name": "promo-video",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "remotion studio",
+    "render:portrait": "remotion render UpsetPromoPortrait out/upset-promo-portrait.mp4 --codec h264",
+    "render:landscape": "remotion render UpsetPromoLandscape out/upset-promo-landscape.mp4 --codec h264",
+    "render:all": "npm run render:portrait && npm run render:landscape",
+    "upgrade": "remotion upgrade"
+  },
+  "keywords": [
+    "remotion",
+    "upset",
+    "promo",
+    "video"
+  ],
+  "author": "Upset MMA",
+  "license": "MIT",
+  "description": "Promotional video for Upset - UFC Picks Tracker app",
+  "dependencies": {
+    "@remotion/cli": "^4.0.407",
+    "@remotion/google-fonts": "^4.0.407",
+    "@remotion/transitions": "^4.0.407",
+    "@types/react": "^19.2.9",
+    "@types/react-dom": "^19.2.3",
+    "autoprefixer": "^10.4.23",
+    "postcss": "^8.5.6",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "remotion": "^4.0.407",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.9.3"
+  }
+}

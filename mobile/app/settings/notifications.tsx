@@ -17,6 +17,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../lib/theme';
@@ -146,17 +147,18 @@ export default function NotificationSettingsScreen() {
   }
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={styles.content}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      <ScrollView contentContainerStyle={styles.content}>
+        {/* Header */}
+        <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[styles.backButton, { backgroundColor: colors.surface }]}
+        >
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Notifications</Text>
-        <View style={styles.backButton} />
+        <View style={styles.headerSpacer} />
       </View>
 
       {/* Activity Notifications */}
@@ -324,7 +326,8 @@ export default function NotificationSettingsScreen() {
           You can change these settings at any time. Notifications are sent based on your timezone.
         </Text>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -347,10 +350,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  headerSpacer: {
+    width: 36,
   },
   headerTitle: {
     fontFamily: 'BebasNeue',

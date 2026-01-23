@@ -26,3 +26,4 @@ export { ShareScorecard } from './ShareScorecard';
 export { RoundHistoryCard } from './RoundHistoryCard';
 export { SubmitFooter } from './SubmitFooter';
 export { TopProgressBar } from './TopProgressBar';
+export { FeatureTooltip } from './FeatureTooltip';

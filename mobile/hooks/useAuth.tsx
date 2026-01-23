@@ -12,6 +12,7 @@ import { supabase } from '../lib/supabase';
 import { Profile } from '../types/database';
 import { logger } from '../lib/logger';
 import { migrateGuestDataToUser } from '../lib/guestMigration';
+import { queryClient } from '../lib/queryClient';
 import { GuestPick } from './useGuestPicks';
 import { useAppleAuth } from './useAppleAuth';
 import { useGoogleAuth } from './useGoogleAuth';
@@ -19,6 +20,7 @@ import { useGoogleAuth } from './useGoogleAuth';
 const GUEST_PICKS_KEY = '@ufc_guest_picks';
 const GUEST_MODE_KEY = '@ufc_guest_mode';
 const FIRST_LAUNCH_KEY = '@ufc_first_launch_complete';
+const ONBOARDING_KEY = '@ufc_picks_onboarding';
 
 interface AuthContextValue {
   session: Session | null;
@@ -481,8 +483,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Full reset for testing - clears all auth state and simulates fresh install
   const resetForTesting = useCallback(async () => {
     logger.info('Resetting app for testing');
-    await AsyncStorage.multiRemove([GUEST_MODE_KEY, FIRST_LAUNCH_KEY, GUEST_PICKS_KEY]);
+    await AsyncStorage.multiRemove([GUEST_MODE_KEY, FIRST_LAUNCH_KEY, GUEST_PICKS_KEY, ONBOARDING_KEY]);
     await supabase.auth.signOut();
+    // Clear React Query cache to remove stale guest picks
+    queryClient.clear();
     setSession(null);
     setUser(null);
     setProfile(null);

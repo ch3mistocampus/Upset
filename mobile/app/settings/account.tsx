@@ -19,6 +19,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -26,6 +27,7 @@ import { useTheme } from '../../lib/theme';
 import { useAuth } from '../../hooks/useAuth';
 import { useAccountManagement } from '../../hooks/useAccountManagement';
 import { spacing, radius, typography } from '../../lib/tokens';
+import { SurfaceCard } from '../../components/ui';
 
 export default function AccountSettingsScreen() {
   const { colors } = useTheme();
@@ -71,66 +73,71 @@ export default function AccountSettingsScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[styles.backButton, { backgroundColor: colors.surface }]}
+        >
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Account</Text>
-        <View style={styles.backButton} />
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* Account Info */}
-        <View style={[styles.section, { backgroundColor: colors.card }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Account Info</Text>
+        <View style={styles.sectionContainer}>
+          <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>ACCOUNT INFO</Text>
+          <SurfaceCard>
+            <View style={[styles.infoRow, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Email</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>
+                {user?.email || 'Not set'}
+              </Text>
+            </View>
 
-          <View style={[styles.infoRow, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Email</Text>
-            <Text style={[styles.infoValue, { color: colors.text }]}>
-              {user?.email || 'Not set'}
-            </Text>
-          </View>
+            <View style={[styles.infoRow, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Username</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>
+                @{profile?.username || 'Unknown'}
+              </Text>
+            </View>
 
-          <View style={[styles.infoRow, { borderBottomColor: colors.border }]}>
-            <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Username</Text>
-            <Text style={[styles.infoValue, { color: colors.text }]}>
-              @{profile?.username || 'Unknown'}
-            </Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Member since</Text>
-            <Text style={[styles.infoValue, { color: colors.text }]}>
-              {profile?.created_at
-                ? new Date(profile.created_at).toLocaleDateString('en-US', {
-                    month: 'long',
-                    year: 'numeric',
-                  })
-                : 'Unknown'}
-            </Text>
-          </View>
+            <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
+              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>Member since</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>
+                {profile?.created_at
+                  ? new Date(profile.created_at).toLocaleDateString('en-US', {
+                      month: 'long',
+                      year: 'numeric',
+                    })
+                  : 'Unknown'}
+              </Text>
+            </View>
+          </SurfaceCard>
         </View>
 
         {/* Danger Zone */}
-        <View style={[styles.section, { backgroundColor: colors.card }]}>
-          <Text style={[styles.sectionTitle, { color: colors.danger }]}>Danger Zone</Text>
+        <View style={styles.sectionContainer}>
+          <Text style={[styles.sectionLabel, { color: colors.danger }]}>DANGER ZONE</Text>
+          <SurfaceCard>
+            <TouchableOpacity
+              style={[styles.dangerButton, { borderColor: colors.danger }]}
+              onPress={openDeleteModal}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="trash-outline" size={20} color={colors.danger} />
+              <Text style={[styles.dangerButtonText, { color: colors.danger }]}>
+                Delete Account
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.dangerButton, { borderColor: colors.danger }]}
-            onPress={openDeleteModal}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="trash-outline" size={20} color={colors.danger} />
-            <Text style={[styles.dangerButtonText, { color: colors.danger }]}>
-              Delete Account
+            <Text style={[styles.dangerWarning, { color: colors.textTertiary }]}>
+              Permanently delete your account and all associated data. This action cannot be undone.
             </Text>
-          </TouchableOpacity>
-
-          <Text style={[styles.dangerWarning, { color: colors.textTertiary }]}>
-            Permanently delete your account and all associated data. This action cannot be undone.
-          </Text>
+          </SurfaceCard>
         </View>
       </ScrollView>
 
@@ -229,7 +236,7 @@ export default function AccountSettingsScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -245,10 +252,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  headerSpacer: {
+    width: 36,
   },
   headerTitle: {
     fontFamily: 'BebasNeue',
@@ -259,16 +270,15 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     paddingBottom: spacing.xxl,
   },
-  section: {
-    borderRadius: radius.lg,
-    padding: spacing.md,
+  sectionContainer: {
     marginBottom: spacing.lg,
   },
-  sectionTitle: {
+  sectionLabel: {
     fontFamily: 'BebasNeue',
     fontSize: 14,
     letterSpacing: 1,
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
+    paddingHorizontal: spacing.xs,
   },
   infoRow: {
     flexDirection: 'row',

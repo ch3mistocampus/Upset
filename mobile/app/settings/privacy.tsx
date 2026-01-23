@@ -13,6 +13,7 @@ import {
   Animated,
   Easing,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -171,10 +172,13 @@ export default function PrivacySettings() {
 
   if (isLoading) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={[styles.backButton, { backgroundColor: colors.surface }]}
+          >
+            <Ionicons name="arrow-back" size={22} color={colors.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Privacy Settings</Text>
           <View style={styles.placeholder} />
@@ -184,16 +188,19 @@ export default function PrivacySettings() {
           <SkeletonCard />
           <SkeletonCard />
         </ScrollView>
-      </View>
+      </SafeAreaView>
     );
   }
 
   if (error || !privacySettings) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={[styles.backButton, { backgroundColor: colors.surface }]}
+          >
+            <Ionicons name="arrow-back" size={22} color={colors.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Privacy Settings</Text>
           <View style={styles.placeholder} />
@@ -202,16 +209,19 @@ export default function PrivacySettings() {
           message="Failed to load privacy settings"
           onRetry={refetch}
         />
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[styles.backButton, { backgroundColor: colors.surface }]}
+        >
+          <Ionicons name="arrow-back" size={22} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Privacy Settings</Text>
         <View style={styles.placeholder}>
@@ -292,7 +302,7 @@ export default function PrivacySettings() {
           </SurfaceCard>
         </Animated.View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -305,12 +315,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
-    paddingTop: 60,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
+    paddingVertical: spacing.lg,
   },
   backButton: {
-    padding: 4,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
     fontFamily: 'BebasNeue',
@@ -318,7 +330,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   placeholder: {
-    width: 32,
+    width: 36,
     alignItems: 'center',
   },
   scrollView: {

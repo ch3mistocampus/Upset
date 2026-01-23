@@ -525,7 +525,8 @@ export function useUserStats(userId: string | null) {
 }
 
 /**
- * Get picks summary for recent events
+ * Get picks summary for recent events where the user has graded picks
+ * This fetches events where the user actually made picks, not just any completed events
  */
 export function useRecentPicksSummary(userId: string | null, limit = 5) {
   return useQuery({
@@ -533,54 +534,59 @@ export function useRecentPicksSummary(userId: string | null, limit = 5) {
     queryFn: async () => {
       if (!userId) return [];
 
-      // Get recent events
-      const { data: events, error: eventsError } = await supabase
-        .from('events')
-        .select('*')
-        .eq('status', 'completed')
-        .order('event_date', { ascending: false })
-        .limit(limit);
-
-      if (eventsError) {
-        throw eventsError;
-      }
-      if (!events || events.length === 0) return [];
-
-      const eventIds = events.map((e) => e.id);
-
-      // Get picks for these events
+      // Step 1: Get user's graded picks
       const { data: picks, error: picksError } = await supabase
         .from('picks')
         .select('*')
         .eq('user_id', userId)
-        .in('event_id', eventIds)
         .eq('status', 'graded');
 
       if (picksError) {
         throw picksError;
       }
 
-      // Group by event
+      if (!picks || picks.length === 0) return [];
+
+      // Step 2: Get unique event IDs from picks
+      const eventIds = [...new Set(picks.map((p) => p.event_id))];
+
+      // Step 3: Fetch those events (only completed ones)
+      const { data: events, error: eventsError } = await supabase
+        .from('events')
+        .select('*')
+        .in('id', eventIds)
+        .eq('status', 'completed')
+        .order('event_date', { ascending: false });
+
+      if (eventsError) {
+        throw eventsError;
+      }
+
+      if (!events || events.length === 0) return [];
+
+      // Step 4: Group picks by event
       const picksByEvent = new Map<string, Pick[]>();
-      (picks || []).forEach((pick) => {
+      picks.forEach((pick) => {
         if (!picksByEvent.has(pick.event_id)) {
           picksByEvent.set(pick.event_id, []);
         }
         picksByEvent.get(pick.event_id)!.push(pick);
       });
 
-      // Calculate summary for each event
-      return events.map((event) => {
-        const eventPicks = picksByEvent.get(event.id) || [];
-        const correct = eventPicks.filter((p) => p.score === 1).length;
-        const total = eventPicks.length;
+      // Step 5: Build summaries for completed events only
+      const eventSummaries = events
+        .slice(0, limit)
+        .map((event) => {
+          const eventPicks = picksByEvent.get(event.id) || [];
+          return {
+            event,
+            correct: eventPicks.filter((p) => p.score === 1).length,
+            total: eventPicks.length,
+          };
+        })
+        .filter((summary) => summary.total > 0);
 
-        return {
-          event,
-          correct,
-          total,
-        };
-      });
+      return eventSummaries;
     },
     enabled: !!userId,
     staleTime: 1000 * 60 * 5,

@@ -100,7 +100,7 @@ export default function UserProfile() {
   const { mutedUsers, mute, unmute, isMuting } = useMute();
   const { shareProfile } = useShare();
 
-  const [activeTab, setActiveTab] = useState<TabType>('picks');
+  const [activeTab, setActiveTab] = useState<TabType>('posts');
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -966,25 +966,6 @@ export default function UserProfile() {
         {/* Tabs */}
         <View style={[styles.tabContainer, { backgroundColor: colors.background, borderBottomColor: colors.border }]} accessibilityRole="tablist">
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'picks' && { borderBottomColor: colors.accent }]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setActiveTab('picks');
-            }}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeTab === 'picks' }}
-            accessibilityLabel="Picks tab - View user's picks"
-          >
-            <Text style={[
-              styles.tabText,
-              { color: colors.textTertiary },
-              activeTab === 'picks' && { color: colors.text }
-            ]}>
-              Picks
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
             style={[styles.tab, activeTab === 'posts' && { borderBottomColor: colors.accent }]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1000,6 +981,25 @@ export default function UserProfile() {
               activeTab === 'posts' && { color: colors.text }
             ]}>
               Posts
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'picks' && { borderBottomColor: colors.accent }]}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setActiveTab('picks');
+            }}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: activeTab === 'picks' }}
+            accessibilityLabel="Picks tab - View user's picks"
+          >
+            <Text style={[
+              styles.tabText,
+              { color: colors.textTertiary },
+              activeTab === 'picks' && { color: colors.text }
+            ]}>
+              Picks
             </Text>
           </TouchableOpacity>
 
@@ -1059,24 +1059,26 @@ export default function UserProfile() {
 
           return (
             <View style={styles.eventsList}>
-              {upcomingEvents.length > 0 && (
+              {/* Past events first */}
+              {pastEvents.length > 0 && (
                 <>
                   <Text style={[styles.eventSectionHeader, { color: colors.textSecondary }]}>
-                    UPCOMING EVENTS
+                    PAST EVENTS
                   </Text>
-                  {upcomingEvents.map((group, index) => renderEventCard(group, index))}
+                  {pastEvents.map((group, index) => renderEventCard(group, index))}
                 </>
               )}
-              {pastEvents.length > 0 && (
+              {/* Upcoming events second */}
+              {upcomingEvents.length > 0 && (
                 <>
                   <Text style={[
                     styles.eventSectionHeader,
                     { color: colors.textSecondary },
-                    upcomingEvents.length > 0 && { marginTop: spacing.lg }
+                    pastEvents.length > 0 && { marginTop: spacing.lg }
                   ]}>
-                    PAST EVENTS
+                    UPCOMING EVENTS
                   </Text>
-                  {pastEvents.map((group, index) => renderEventCard(group, index))}
+                  {upcomingEvents.map((group, index) => renderEventCard(group, index))}
                 </>
               )}
             </View>
@@ -1129,7 +1131,15 @@ export default function UserProfile() {
           )
         )}
 
-        {activeTab === 'stats' && (
+        {activeTab === 'stats' && (() => {
+          // Filter for past events only (events that have already happened)
+          const now = new Date();
+          now.setHours(0, 0, 0, 0);
+          const pastEventGroups = eventGroups.filter(
+            (group) => new Date(group.event_date) < now
+          );
+
+          return (
           <Animated.View
             style={{
               opacity: contentOpacity,
@@ -1162,16 +1172,16 @@ export default function UserProfile() {
               </View>
             </SurfaceCard>
 
-            {/* Recent Events Chart */}
-            {eventGroups.length > 0 && (
+            {/* Past Events Chart */}
+            {pastEventGroups.length > 0 && (
               <SurfaceCard weakWash>
                 <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
-                  RECENT EVENTS
+                  PAST EVENTS
                 </Text>
 
                 <View style={styles.chartContainer}>
                   <MiniChart
-                    data={eventGroups.slice(0, 5).map((group) => ({
+                    data={pastEventGroups.slice(0, 5).map((group) => ({
                       eventName: group.event_name,
                       accuracy: group.total > 0 ? (group.correct / group.total) * 100 : 0,
                     }))}
@@ -1183,7 +1193,7 @@ export default function UserProfile() {
                 </Text>
 
                 {/* Event List */}
-                {eventGroups.slice(0, 5).map((group, index) => {
+                {pastEventGroups.slice(0, 5).map((group, index) => {
                   const accuracy = group.total > 0 ? Math.round((group.correct / group.total) * 100) : 0;
                   const getAccuracyColor = () => {
                     if (accuracy >= 70) return colors.success;
@@ -1226,7 +1236,7 @@ export default function UserProfile() {
                           {accuracy}%
                         </Text>
                       </View>
-                      {index < Math.min(eventGroups.length, 5) - 1 && (
+                      {index < Math.min(pastEventGroups.length, 5) - 1 && (
                         <View style={[styles.recentEventDivider, { backgroundColor: colors.border }]} />
                       )}
                     </TouchableOpacity>
@@ -1234,8 +1244,18 @@ export default function UserProfile() {
                 })}
               </SurfaceCard>
             )}
+
+            {/* Empty state if no past events */}
+            {pastEventGroups.length === 0 && (
+              <EmptyState
+                icon="analytics-outline"
+                title="No Completed Events"
+                message={`@${profile.username} hasn't completed any events yet.`}
+              />
+            )}
           </Animated.View>
-        )}
+          );
+        })()}
       </ScrollView>
 
       {/* Avatar Preview Modal */}
