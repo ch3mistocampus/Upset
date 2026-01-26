@@ -125,11 +125,10 @@ Separate repo: `ch3mistocampus/upset-landing`
 - [x] Terms of service URL (/terms)
 - [x] Domain configured (upsetmma.app)
 - [x] TestFlight builds (internal + external testers on build 5)
-- [ ] Enable leaked password protection (Supabase Auth dashboard)
 - [x] Test OAuth on real iOS device (native Google Sign-In implemented, pending build)
 - [x] Verify deep links for auth callbacks (deep link handler added to useAuth)
-- [ ] Add Android OAuth client ID
-- [ ] App Store assets (screenshots, description)
+- [x] Add Android OAuth client ID
+- [ ] App Store assets (see `mobile/app-store-assets/APP_STORE_CHECKLIST.md`)
 
 ## Admin Portal
 Access via Settings (admin users only):

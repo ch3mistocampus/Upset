@@ -1,6 +1,6 @@
 # Android OAuth Setup Guide
 
-**Status**: Not configured
+**Status**: Configured
 **Required for**: Google Sign-In on Android devices
 
 ## Quick Setup Steps
@@ -63,7 +63,7 @@ eas env:create --name EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID \
 |----------|-----------|--------|
 | Web | `429619189202-r4olt9m9ig24rgqb491i81t2smgq1gu5.apps.googleusercontent.com` | Configured |
 | iOS | `429619189202-h3nep1c2aj7r3bcqmanq80n0mq7ci1io.apps.googleusercontent.com` | Configured |
-| Android | Not configured | **TODO** |
+| Android | `945182306864-b9q3k72p82rppl7gueu7kh3c7dbp7op3.apps.googleusercontent.com` | Configured |
 
 ## Notes
 
