@@ -71,7 +71,7 @@ function RootNavigator() {
         <Stack.Screen name="post/search" options={{ title: 'Search', headerBackTitle: 'Back' }} />
         <Stack.Screen name="post/create" options={{ headerShown: false }} />
         <Stack.Screen name="post/[id]" options={{ headerShown: false, animation: 'fade', animationDuration: 200 }} />
-        <Stack.Screen name="fighter/[id]" options={{ headerShown: false, animation: 'fade', animationDuration: 200 }} />
+        <Stack.Screen name="fighter/[id]/index" options={{ headerShown: false, animation: 'fade', animationDuration: 200 }} />
         <Stack.Screen
           name="fighters"
           options={{
