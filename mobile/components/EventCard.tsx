@@ -13,6 +13,7 @@ import { useTheme } from '../lib/theme';
 import { spacing, radius, typography, displayTypography } from '../lib/tokens';
 import { SurfaceCard } from './ui';
 import { Event } from '../types/database';
+import { useSubscription } from '../hooks/useSubscription';
 
 interface EventCardProps {
   event: Event;
@@ -25,6 +26,7 @@ interface EventCardProps {
 export function EventCard({ event, picksCount, totalBouts, isFirstUpcoming, isSubmitted }: EventCardProps) {
   const router = useRouter();
   const { colors } = useTheme();
+  const { isPro, remainingEvents } = useSubscription();
 
   // Press animation
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -188,6 +190,16 @@ export function EventCard({ event, picksCount, totalBouts, isFirstUpcoming, isSu
               </Text>
             </View>
 
+            {/* Free tier remaining events hint */}
+            {!isPro && remainingEvents !== null && remainingEvents <= 1 && !isLocked && (
+              <View style={[styles.freeHintBadge, { backgroundColor: colors.warningSoft }]}>
+                <Ionicons name="star-outline" size={12} color={colors.warning} />
+                <Text style={[styles.freeHintText, { color: colors.warning }]}>
+                  {remainingEvents === 0 ? 'Pro required' : '1 free event left'}
+                </Text>
+              </View>
+            )}
+
             {isSubmitted && !isLocked ? (
               <View style={[styles.submittedBadge, { backgroundColor: colors.accent + '20' }]}>
                 <Ionicons name="checkmark-circle" size={14} color={colors.accent} />
@@ -322,5 +334,17 @@ const styles = StyleSheet.create({
   },
   lockedText: {
     ...typography.meta,
+  },
+  freeHintBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
+  },
+  freeHintText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

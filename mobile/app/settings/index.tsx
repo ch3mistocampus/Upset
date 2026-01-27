@@ -9,12 +9,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useRef, useEffect } from 'react';
 import * as Linking from 'expo-linking';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { useIsAdmin } from '../../hooks/useAdmin';
+import { useSubscription } from '../../hooks/useSubscription';
 import { useTheme } from '../../lib/theme';
 import { spacing, radius, typography, displayTypography } from '../../lib/tokens';
 import * as Sentry from '@sentry/react-native';
+import { supabase } from '../../lib/supabase';
 import { SettingsRow } from '../../components/SettingsRow';
 import { SurfaceCard, SegmentedControl } from '../../components/ui';
 import { GlobalTabBar } from '../../components/navigation/GlobalTabBar';
@@ -26,6 +29,8 @@ export default function Settings() {
   const { signOut, user, isGuest, resetForTesting } = useAuth();
   const toast = useToast();
   const { data: isAdmin } = useIsAdmin();
+  const { isPro, showPaywall, setSubscriptionStatus } = useSubscription();
+  const queryClient = useQueryClient();
 
   // Entrance animation
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -176,6 +181,51 @@ export default function Settings() {
           </View>
         )}
 
+        {/* Subscription Section */}
+        {!isGuest && user && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>SUBSCRIPTION</Text>
+            <SurfaceCard noPadding>
+              {isPro ? (
+                <>
+                  <SettingsRow
+                    icon="diamond-outline"
+                    label="Upset Pro"
+                    type="link"
+                    subtitle="Active"
+                    onPress={() => router.push('/settings/subscription')}
+                  />
+                  <SettingsRow
+                    icon="card-outline"
+                    label="Manage Subscription"
+                    type="link"
+                    onPress={() => Linking.openURL('https://apps.apple.com/account/subscriptions')}
+                  />
+                </>
+              ) : (
+                <SettingsRow
+                  icon="diamond-outline"
+                  label="Upgrade to Pro"
+                  type="button"
+                  subtitle="Unlimited picks, posts, and more"
+                  onPress={() => showPaywall('app_open', () => {})}
+                />
+              )}
+              <SettingsRow
+                icon="refresh-outline"
+                label="Restore Purchases"
+                type="button"
+                onPress={() => {
+                  // Superwall handles restore internally via paywall UI
+                  showPaywall('app_open', () => {
+                    toast.showSuccess('Purchases restored');
+                  });
+                }}
+              />
+            </SurfaceCard>
+          </View>
+        )}
+
         {/* Content Section - Authenticated users only */}
         {!isGuest && user && (
           <View style={styles.section}>
@@ -287,6 +337,41 @@ export default function Settings() {
                   Sentry.captureException(new Error('Test error from Upset Settings'));
                   console.log('[Test] Sent! Check Sentry dashboard.');
                   toast.showSuccess('Test sent to Sentry - check dashboard');
+                }}
+              />
+              <SettingsRow
+                icon="diamond-outline"
+                label={isPro ? 'Revoke Pro (Testing)' : 'Grant Pro (Testing)'}
+                type="button"
+                subtitle="Toggle subscription status for testing"
+                onPress={async () => {
+                  if (isPro) {
+                    await setSubscriptionStatus({ status: 'INACTIVE' });
+                    toast.showSuccess('Pro revoked (testing)');
+                  } else {
+                    await setSubscriptionStatus({ status: 'ACTIVE' });
+                    toast.showSuccess('Pro granted (testing)');
+                  }
+                }}
+              />
+              <SettingsRow
+                icon="trash-outline"
+                label="Reset Usage Counters"
+                type="button"
+                subtitle="Reset event/post usage to 0"
+                onPress={async () => {
+                  if (!user?.id) return;
+                  await supabase
+                    .from('usage_tracking')
+                    .update({
+                      events_picked_count: 0,
+                      posts_created_count: 0,
+                      events_picked_ids: [],
+                      updated_at: new Date().toISOString(),
+                    })
+                    .eq('user_id', user.id);
+                  queryClient.invalidateQueries({ queryKey: ['usage_tracking'] });
+                  toast.showSuccess('Usage counters reset');
                 }}
               />
             </SurfaceCard>

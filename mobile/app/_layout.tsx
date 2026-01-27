@@ -13,16 +13,38 @@ import * as SplashScreen from 'expo-splash-screen';
 import { ToastProvider } from '../hooks/useToast';
 import { OnboardingProvider } from '../hooks/useOnboarding';
 import { GuestPicksProvider } from '../hooks/useGuestPicks';
-import { AuthProvider } from '../hooks/useAuth';
+import { AuthProvider, useAuth } from '../hooks/useAuth';
 import { ThemeProvider, useTheme } from '../lib/theme';
 import { DrawerProvider } from '../lib/DrawerContext';
 import { AppDrawer } from '../components/navigation/AppDrawer';
 import { AppErrorBoundary } from '../components/ErrorBoundary';
 import { initSentry } from '../lib/sentry';
 import { NetworkStatusBanner } from '../components/ui';
+import { SuperwallProvider } from 'expo-superwall';
+import { useUser } from 'expo-superwall';
+import { SUPERWALL_API_KEYS } from '../lib/superwall';
 
 // Keep splash screen visible while loading fonts
 SplashScreen.preventAutoHideAsync();
+
+/**
+ * Syncs Superwall user identity with auth state.
+ * Renders nothing - just runs identify/signOut side effects.
+ */
+function SuperwallIdentifier() {
+  const { user, isGuest } = useAuth();
+  const { identify, signOut: swSignOut } = useUser();
+
+  useEffect(() => {
+    if (user?.id && !isGuest) {
+      identify(user.id);
+    } else {
+      swSignOut();
+    }
+  }, [user?.id, isGuest, identify, swSignOut]);
+
+  return null;
+}
 
 function RootNavigator() {
   const { colors, isDark } = useTheme();
@@ -131,17 +153,20 @@ export default function RootLayout() {
     <AppErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <GuestPicksProvider>
-            <OnboardingProvider>
-              <ThemeProvider>
-                <DrawerProvider>
-                  <ToastProvider>
-                    <RootNavigator />
-                  </ToastProvider>
-                </DrawerProvider>
-              </ThemeProvider>
-            </OnboardingProvider>
-          </GuestPicksProvider>
+          <SuperwallProvider apiKeys={SUPERWALL_API_KEYS}>
+            <SuperwallIdentifier />
+            <GuestPicksProvider>
+              <OnboardingProvider>
+                <ThemeProvider>
+                  <DrawerProvider>
+                    <ToastProvider>
+                      <RootNavigator />
+                    </ToastProvider>
+                  </DrawerProvider>
+                </ThemeProvider>
+              </OnboardingProvider>
+            </GuestPicksProvider>
+          </SuperwallProvider>
         </AuthProvider>
       </QueryClientProvider>
     </AppErrorBoundary>

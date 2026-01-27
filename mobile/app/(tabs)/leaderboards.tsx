@@ -22,6 +22,8 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../hooks/useAuth';
 import { useAuthGate } from '../../hooks/useAuthGate';
 import { useLeaderboard } from '../../hooks/useLeaderboard';
+import { useSubscription } from '../../hooks/useSubscription';
+import { PLACEMENTS } from '../../lib/superwall';
 import { useTheme } from '../../lib/theme';
 import { spacing, radius, typography } from '../../lib/tokens';
 import { ErrorState } from '../../components/ErrorState';
@@ -166,6 +168,7 @@ export default function Leaderboards() {
   const { user } = useAuth();
   const { colors } = useTheme();
   const { showGate, closeGate, openGate, isGuest, gateContext } = useAuthGate();
+  const { canSeeRank, showPaywall } = useSubscription();
   // Global leaderboard only
   const [refreshing, setRefreshing] = useState(false);
   const [gateDismissed, setGateDismissed] = useState(false);
@@ -253,6 +256,7 @@ export default function Leaderboards() {
 
   const renderListItem = (entry: LeaderboardEntry, index: number) => {
     const isMe = entry.user_id === user?.id;
+    const rankHidden = isMe && !canSeeRank;
 
     return (
       <AnimatedItem key={entry.user_id} index={index} delay={200}>
@@ -264,7 +268,13 @@ export default function Leaderboards() {
               borderColor: isMe ? colors.accent : colors.border,
             },
           ]}
-          onPress={() => handleUserPress(entry.user_id)}
+          onPress={() => {
+            if (rankHidden) {
+              showPaywall(PLACEMENTS.EVENT_LIMIT_REACHED, () => {});
+            } else {
+              handleUserPress(entry.user_id);
+            }
+          }}
           activeOpacity={0.8}
         >
           {/* Rank number */}
@@ -274,7 +284,7 @@ export default function Leaderboards() {
               { color: isMe ? '#fff' : colors.textTertiary },
             ]}
           >
-            {entry.rank}
+            {rankHidden ? '' : entry.rank}
           </Text>
 
           {/* Avatar */}
@@ -294,15 +304,22 @@ export default function Leaderboards() {
             {isMe ? 'You' : entry.username}
           </Text>
 
-          {/* Accuracy */}
-          <Text
-            style={[
-              styles.listAccuracy,
-              { color: isMe ? '#fff' : colors.text },
-            ]}
-          >
-            {entry.accuracy.toFixed(1)}%
-          </Text>
+          {/* Accuracy - hidden for free users on their own row */}
+          {rankHidden ? (
+            <View style={styles.lockedRank}>
+              <Ionicons name="lock-closed" size={14} color="#fff" />
+              <Text style={styles.lockedRankText}>PRO</Text>
+            </View>
+          ) : (
+            <Text
+              style={[
+                styles.listAccuracy,
+                { color: isMe ? '#fff' : colors.text },
+              ]}
+            >
+              {entry.accuracy.toFixed(1)}%
+            </Text>
+          )}
         </TouchableOpacity>
       </AnimatedItem>
     );
@@ -360,6 +377,28 @@ export default function Leaderboards() {
                     );
                   })}
                 </View>
+              </AnimatedItem>
+            )}
+
+            {/* Upgrade banner for free users */}
+            {!canSeeRank && myRank && (
+              <AnimatedItem index={1} delay={100}>
+                <TouchableOpacity
+                  style={[styles.upgradeBanner, { backgroundColor: colors.accent }]}
+                  onPress={() => showPaywall(PLACEMENTS.EVENT_LIMIT_REACHED, () => {})}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.upgradeBannerContent}>
+                    <Ionicons name="lock-closed" size={18} color="#fff" />
+                    <View style={styles.upgradeBannerText}>
+                      <Text style={styles.upgradeBannerTitle}>Your rank is hidden</Text>
+                      <Text style={styles.upgradeBannerSubtitle}>Upgrade to Pro to see your ranking</Text>
+                    </View>
+                  </View>
+                  <View style={styles.upgradeButton}>
+                    <Text style={styles.upgradeButtonText}>Upgrade</Text>
+                  </View>
+                </TouchableOpacity>
               </AnimatedItem>
             )}
 
@@ -536,5 +575,57 @@ const styles = StyleSheet.create({
   userThresholdText: {
     fontSize: 14,
     fontWeight: '500',
+  },
+
+  // Locked rank styles
+  lockedRank: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  lockedRankText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: 0.5,
+  },
+
+  // Upgrade banner
+  upgradeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.md,
+    borderRadius: radius.card,
+  },
+  upgradeBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
+  },
+  upgradeBannerText: {
+    flex: 1,
+  },
+  upgradeBannerTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  upgradeBannerSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 1,
+  },
+  upgradeButton: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+  },
+  upgradeButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
   },
 });

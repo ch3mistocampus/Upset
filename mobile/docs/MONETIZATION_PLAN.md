@@ -1,102 +1,81 @@
-# Monetization Plan (TODO)
+# Monetization Plan - Upset Pro
 
-> **Status**: Planning phase - not yet implemented
-> **Target**: Post-launch (revisit after initial user feedback)
-
----
-
-## Overview
-
-This document outlines the planned monetization strategy for Upset using Superwall for paywall management.
+> **Status**: Implemented
+> **Stack**: Superwall (expo-superwall) + App Store IAP + Supabase usage tracking
 
 ---
 
-## Technology Stack (Planned)
+## Tiers
 
-- **Superwall** - Paywall presentation and A/B testing
-- **App Store / Play Store** - Native in-app purchases
-- **Supabase** - Subscription status storage and entitlement checking
-
----
-
-## Monetization Options Under Consideration
-
-### Option A: Freemium (Feature-gated)
-
-| Free | Premium |
-|------|---------|
-| 3 picks per event | Unlimited picks |
-| Basic fighter stats | Advanced stats (strike accuracy, td defense, etc.) |
-| Global leaderboard | Friends leaderboard + event leaderboards |
-| View feed | Post to feed |
-
-### Option B: Usage Limits
-
-| Free | Premium |
-|------|---------|
-| 5 picks per month | Unlimited picks |
-| All features available | Same features, no limits |
-
-### Option C: Advanced Analytics
-
-| Free | Premium |
-|------|---------|
-| All picks, all events | Same |
-| Basic accuracy % | Detailed stats (by weight class, method predictions, streaks) |
-| Basic fighter info | Full tale of the tape, historical matchup data |
-
-### Option D: Social Paywall
-
-| Free | Premium |
-|------|---------|
-| Make picks, view stats | Same |
-| View feed only | Post, comment, participate in discussions |
-| See own stats | Compare stats with friends |
+| Feature | Free | Upset Pro |
+|---|---|---|
+| Event picks | 2 events | Unlimited |
+| Text posts | 5 posts | Unlimited |
+| Image attachments | No | Yes |
+| Leaderboard | View only (rank hidden) | Full ranking |
+| Stats, fighters, feed browsing | Full | Full |
 
 ---
 
-## Pricing Options (TBD)
+## Pricing
 
-- Monthly: ~$4.99/month
-- Yearly: ~$29.99/year (save 50%)
-- Lifetime: ~$79.99 (one-time)
-
----
-
-## Implementation Checklist
-
-When ready to implement:
-
-- [ ] Create Superwall account and configure paywalls
-- [ ] Install `@superwall/react-native-superwall` package
-- [ ] Create `lib/superwall.ts` configuration
-- [ ] Add subscription tables to Supabase:
-  - `subscriptions` - User subscription records
-  - `subscription_plans` - Available plans
-- [ ] Create `hooks/useSubscription.ts` for entitlement checking
-- [ ] Add paywall triggers at appropriate screens
-- [ ] Implement restore purchases functionality
-- [ ] Add subscription management in Settings
-- [ ] Test purchase flow on TestFlight
+- **Monthly**: $3.99 (launch: $1.99)
+- **Yearly**: $29.99 with 7-day free trial (launch: $14.99)
+- No lifetime deal
 
 ---
 
-## Questions to Answer Before Implementation
+## Paywall Triggers
 
-1. **What's the main value prop?** What keeps users coming back - the picks, the stats, or the community?
-2. **Pricing model preference?** Monthly, yearly, or lifetime?
-3. **How aggressive?** Should free users get a solid experience, or is it mainly a trial?
-4. **When to show paywall?** On app open, on feature access, or both?
+### Hard paywalls (blocks action)
+- `event_limit_reached` - 3rd event pick attempt
+- `post_limit_reached` - 6th post creation attempt
+- `image_attachment` - Any image attach attempt (free users)
 
----
-
-## Notes
-
-- Superwall allows A/B testing different paywalls without app updates
-- Consider offering a 7-day free trial for new users
-- Monitor conversion rates and adjust based on user feedback
-- Free tier should still provide value to drive word-of-mouth growth
+### Soft paywalls (dismissable)
+- `app_open` - After 5th session, then every ~10 sessions
+- `milestone_nudge` - After notable accuracy (stretch goal)
 
 ---
 
-*Last updated: January 2026*
+## Implementation
+
+### Database
+- `subscriptions` table - tracks user plan status
+- `usage_tracking` table - tracks event/post counts
+- RPCs: `increment_event_usage`, `increment_post_usage`
+- Auto-created via triggers on profile creation
+- Backfill migration for existing users
+
+### Frontend
+- `lib/superwall.ts` - Config constants
+- `hooks/useSubscription.ts` - Central gating hook
+- `hooks/useSessionPaywall.ts` - Soft paywall logic
+- `app/settings/subscription.tsx` - Subscription detail screen
+
+### Gated screens
+- `app/event/[id].tsx` - Event pick + submit gates
+- `app/post/create/index.tsx` - Post create + image attach gates
+- `app/(tabs)/leaderboards.tsx` - Rank visibility gate
+- `components/EventCard.tsx` - Remaining events hint badge
+
+### Settings
+- Subscription section (upgrade/manage/restore)
+- Dev toggles: Toggle Pro, Reset Usage Counters
+
+---
+
+## App Store Connect Setup
+
+- [x] Create subscription group "Upset Pro"
+- [x] Add products:
+  - `com.getupset.app.pro.monthly` ($3.99, launch $1.99)
+  - `com.getupset.app.pro.yearly` ($29.99, launch $14.99, 7-day free trial)
+
+## Superwall Dashboard Setup
+
+- [x] Create app, get API key
+- [x] Set `EXPO_PUBLIC_SUPERWALL_IOS_KEY` in EAS secrets
+- [x] Create 5 placements: `event_limit_reached`, `post_limit_reached`, `image_attachment`, `app_open`, `milestone_nudge`
+- [x] Design paywall (accent #B0443F, monthly + yearly with yearly highlighted, trial badge, feature list, restore link)
+- [x] Create campaigns linking placements to paywall

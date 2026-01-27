@@ -37,6 +37,7 @@
     "expo-router": "^6.0.21",
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
+    "expo-superwall": "^1.0.1",
     "expo-updates": "~29.0.16",
     "expo-web-browser": "~15.0.4",
     "react": "19.1.0",

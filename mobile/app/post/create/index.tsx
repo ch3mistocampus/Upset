@@ -31,6 +31,8 @@ import { spacing, radius, typography } from '../../../lib/tokens';
 import { useCreatePost } from '../../../hooks/usePosts';
 import { useToast } from '../../../hooks/useToast';
 import { useAuth } from '../../../hooks/useAuth';
+import { useSubscription } from '../../../hooks/useSubscription';
+import { PLACEMENTS } from '../../../lib/superwall';
 import { supabase } from '../../../lib/supabase';
 import { logger } from '../../../lib/logger';
 import { Avatar } from '../../../components/Avatar';
@@ -53,6 +55,7 @@ export default function CreatePostScreen() {
   const toast = useToast();
   const createPost = useCreatePost();
   const { user, profile, isGuest } = useAuth();
+  const { canCreatePost, canAttachImages, showPaywall, recordPostCreated } = useSubscription();
 
   const [content, setContent] = useState('');
   const [images, setImages] = useState<SelectedImage[]>([]);
@@ -90,6 +93,12 @@ export default function CreatePostScreen() {
   };
 
   const pickImage = async () => {
+    // Pro-only: image attachments
+    if (!canAttachImages) {
+      showPaywall(PLACEMENTS.IMAGE_ATTACHMENT, () => pickImage());
+      return;
+    }
+
     if (images.length >= MAX_IMAGES) {
       toast.showError(`Maximum ${MAX_IMAGES} images allowed`);
       return;
@@ -227,6 +236,12 @@ export default function CreatePostScreen() {
   const handleSubmit = async () => {
     if (!canSubmit) return;
 
+    // Free tier post limit check
+    if (!canCreatePost) {
+      showPaywall(PLACEMENTS.POST_LIMIT_REACHED, () => handleSubmit());
+      return;
+    }
+
     const trimmedContent = content.trim();
 
     if (trimmedContent.length === 0) {
@@ -263,6 +278,8 @@ export default function CreatePostScreen() {
       });
 
       toast.showSuccess('Post created!');
+      // Record post usage for free tier tracking
+      recordPostCreated();
       router.replace(`/post/${postId}`);
     } catch (error: any) {
       logger.error('Failed to create post', error);
@@ -389,18 +406,25 @@ export default function CreatePostScreen() {
 
         {/* Bottom Toolbar */}
         <View style={[styles.toolbar, { borderTopColor: colors.border, paddingBottom: insets.bottom > 0 ? insets.bottom : spacing.sm }]}>
-          <TouchableOpacity
-            style={styles.toolbarButton}
-            onPress={pickImage}
-            disabled={images.length >= MAX_IMAGES}
-            accessibilityLabel="Add photo"
-          >
-            <Ionicons
-              name="image-outline"
-              size={22}
-              color={images.length >= MAX_IMAGES ? colors.textTertiary : colors.accent}
-            />
-          </TouchableOpacity>
+          <View>
+            <TouchableOpacity
+              style={styles.toolbarButton}
+              onPress={pickImage}
+              disabled={images.length >= MAX_IMAGES && canAttachImages}
+              accessibilityLabel="Add photo"
+            >
+              <Ionicons
+                name="image-outline"
+                size={22}
+                color={images.length >= MAX_IMAGES ? colors.textTertiary : colors.accent}
+              />
+            </TouchableOpacity>
+            {!canAttachImages && (
+              <View style={[styles.proBadge, { backgroundColor: colors.accent }]}>
+                <Text style={styles.proBadgeText}>PRO</Text>
+              </View>
+            )}
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -516,5 +540,19 @@ const styles = StyleSheet.create({
   },
   toolbarButton: {
     padding: spacing.xs,
+  },
+  proBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -4,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  proBadgeText: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: 0.5,
   },
 });

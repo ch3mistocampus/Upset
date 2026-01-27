@@ -13,6 +13,8 @@ import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
 import { useAuthGate } from '../../hooks/useAuthGate';
+import { useSubscription } from '../../hooks/useSubscription';
+import { PLACEMENTS } from '../../lib/superwall';
 import { useEvent, useBoutsForEvent, useUpsertPick, useDeletePick, isEventLocked } from '../../hooks/useQueries';
 import { useEventCommunityPercentages } from '../../hooks/useLeaderboard';
 import { useToast } from '../../hooks/useToast';
@@ -151,6 +153,7 @@ export default function EventDetail() {
   const { showGate, gateContext, openGate, closeGate } = useAuthGate();
   const toast = useToast();
   const { shouldShowLockExplainer, shouldShowCompareTooltip, shouldShowFighterInfoTooltip, markSeen } = useOnboarding();
+  const { canPickEvent, showPaywall, recordEventPick } = useSubscription();
 
   const [showLockExplainer, setShowLockExplainer] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
@@ -260,6 +263,12 @@ export default function EventDetail() {
       return;
     }
 
+    // Free tier event limit check
+    if (!canPickEvent(id!)) {
+      showPaywall(PLACEMENTS.EVENT_LIMIT_REACHED, () => setShowSubmitModal(true));
+      return;
+    }
+
     setShowSubmitModal(true);
   };
 
@@ -272,6 +281,9 @@ export default function EventDetail() {
     setIsSubmitted(true);
     setShowSubmitModal(false);
     toast.showNeutral('Picks submitted!');
+
+    // Record event usage for free tier tracking
+    recordEventPick(id);
   };
 
   // Handle editing picks after submission
@@ -298,6 +310,12 @@ export default function EventDetail() {
     // If not authenticated and not in guest mode, show auth prompt
     if (!user && !isGuest) {
       openGate('picks');
+      return;
+    }
+
+    // Free tier event limit check (skip for guests - they use local storage)
+    if (!isGuest && !canPickEvent(event.id)) {
+      showPaywall(PLACEMENTS.EVENT_LIMIT_REACHED, () => handlePickFighter(bout, corner));
       return;
     }
 

@@ -47,6 +47,9 @@ yarn-error.*
 *.swo
 *~
 
+# Claude Code
+.claude/
+
 # Misc
 .cache/
 temp/

@@ -9,6 +9,7 @@ MMA fan app for predicting UFC fight outcomes. Track pick accuracy, discuss figh
 - **Mobile**: Expo 54, React Native, TypeScript, Expo Router
 - **Data**: React Query, Supabase (Postgres + Edge Functions + Auth)
 - **Monitoring**: Sentry (error tracking, crash reporting)
+- **Monetization**: Superwall (expo-superwall) + App Store IAP
 - **Scraping**: Deno Edge Functions + Cheerio (UFCStats.com)
 
 ## Structure
@@ -16,8 +17,8 @@ MMA fan app for predicting UFC fight outcomes. Track pick accuracy, discuss figh
 mobile/
   app/              # Screens (file-based routing)
   components/       # UI components
-  hooks/            # React Query hooks (useAuth, useQueries, useFighterStats)
-  lib/              # supabase.ts, theme.tsx, tokens.ts, sentry.ts
+  hooks/            # React Query hooks (useAuth, useQueries, useFighterStats, useSubscription, useSessionPaywall)
+  lib/              # supabase.ts, theme.tsx, tokens.ts, sentry.ts, superwall.ts
   types/            # database.ts (auto-generated)
 supabase/
   functions/        # Edge Functions (sync-events, sync-results)
@@ -84,6 +85,9 @@ EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB=
 
 # Monitoring
 EXPO_PUBLIC_SENTRY_DSN=
+
+# Monetization
+EXPO_PUBLIC_SUPERWALL_IOS_KEY=
 ```
 
 ## EAS Configuration
@@ -139,6 +143,27 @@ Access via Settings (admin users only):
 
 Admin users are stored in `admin_users` table with roles: `moderator`, `admin`, `super_admin`
 
+## Monetization (Upset Pro)
+Free tier with limits, Pro unlocks everything via Superwall + App Store IAP.
+
+**Tiers**: Free (2 events, 5 posts, no images) → Pro (unlimited)
+
+**Key files**:
+- `lib/superwall.ts` — Config constants and placement names
+- `hooks/useSubscription.ts` — Central gating hook (checks subscription + usage)
+- `hooks/useSessionPaywall.ts` — Soft paywall logic (session-based triggers)
+- `app/settings/subscription.tsx` — Subscription detail/manage screen
+
+**Gated screens**: `event/[id]`, `post/create`, `leaderboards`, `EventCard`
+
+**Database**: `subscriptions` table, `usage_tracking` table, RPCs (`increment_event_usage`, `increment_post_usage`)
+
+**Superwall placements**: `event_limit_reached`, `post_limit_reached`, `image_attachment`, `app_open`, `milestone_nudge`
+
+**Dev toggles** (Settings, dev mode only): Toggle Pro status, Reset Usage Counters
+
+See `mobile/docs/MONETIZATION_PLAN.md` for pricing, paywall trigger details, and setup steps.
+
 ## Promo Video (`promo-video/`)
 Built with Remotion (React video framework). 16-second portrait video for TikTok/Reels/Stories.
 
@@ -156,12 +181,11 @@ npx remotion render UpsetPromoPortrait out/promo-portrait.mp4
 See `promo-video/README.md` for full documentation.
 
 ## Post-Launch TODO
-- [ ] **Superwall Integration** - Paywall and subscription management
-  - See `mobile/docs/MONETIZATION_PLAN.md` for options
-  - Decide on free vs premium features
-  - Configure pricing (monthly/yearly/lifetime)
-- [ ] **Payment Processing** - App Store in-app purchases
-- [ ] **Subscription Database** - Track user entitlements
+- [x] **Superwall Integration** - Paywall and subscription management
+  - See `mobile/docs/MONETIZATION_PLAN.md` for details
+  - Free vs Pro tiers defined, pricing configured
+- [x] **Payment Processing** - App Store in-app purchases via Superwall
+- [x] **Subscription Database** - `subscriptions` + `usage_tracking` tables with RPCs
 
 ## Permissions
 YOLO mode enabled via `.claude/settings.json` - Claude executes all tools without confirmation prompts.

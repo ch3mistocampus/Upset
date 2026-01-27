@@ -27,6 +27,7 @@ import {
   type NextEvent,
 } from '../../components/home';
 import { generateAvatarUrl } from '../../components/Avatar';
+import { useSessionPaywall } from '../../hooks/useSessionPaywall';
 import { useState } from 'react';
 
 export default function Home() {
@@ -35,6 +36,9 @@ export default function Home() {
   const { user, isGuest, profile } = useAuth();
   const { openDrawer } = useDrawer();
   const insets = useSafeAreaInsets();
+
+  // Soft paywall on app open (session-based)
+  useSessionPaywall();
 
   const { data: nextEvent, isLoading: eventLoading, isError: eventError, refetch: refetchEvent } = useNextEvent();
   const { data: bouts, isLoading: boutsLoading, refetch: refetchBouts } = useBoutsForEvent(

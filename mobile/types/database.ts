@@ -853,6 +853,48 @@ export type Database = {
           },
         ]
       }
+      subscriptions: {
+        Row: {
+          cancelled_at: string | null
+          created_at: string
+          expires_at: string | null
+          original_transaction_id: string | null
+          plan: string | null
+          product_id: string | null
+          started_at: string | null
+          status: string
+          trial_started_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cancelled_at?: string | null
+          created_at?: string
+          expires_at?: string | null
+          original_transaction_id?: string | null
+          plan?: string | null
+          product_id?: string | null
+          started_at?: string | null
+          status?: string
+          trial_started_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cancelled_at?: string | null
+          created_at?: string
+          expires_at?: string | null
+          original_transaction_id?: string | null
+          plan?: string | null
+          product_id?: string | null
+          started_at?: string | null
+          status?: string
+          trial_started_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ufc_events: {
         Row: {
           created_at: string
@@ -1277,6 +1319,33 @@ export type Database = {
           row_counts?: Json | null
           snapshot_id?: string
           source?: string
+        }
+        Relationships: []
+      }
+      usage_tracking: {
+        Row: {
+          created_at: string
+          events_picked_count: number
+          events_picked_ids: string[] | null
+          posts_created_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          events_picked_count?: number
+          events_picked_ids?: string[] | null
+          posts_created_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          events_picked_count?: number
+          events_picked_ids?: string[] | null
+          posts_created_count?: number
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1768,6 +1837,8 @@ export type Database = {
           username: string
         }[]
       }
+      increment_event_usage: { Args: { p_event_id: string }; Returns: Json }
+      increment_post_usage: { Args: never; Returns: number }
       is_admin: { Args: never; Returns: boolean }
       is_blocked: { Args: { user_a: string; user_b: string }; Returns: boolean }
       is_event_locked: { Args: { target_event_id: string }; Returns: boolean }
@@ -1968,117 +2039,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
-// =============================================================================
-// CONVENIENCE TYPE EXPORTS
-// These are derived types for easy import throughout the app
-// =============================================================================
-
-/** Event row type from the events table */
-export type Event = Database['public']['Tables']['events']['Row'];
-
-/** Bout row type from the bouts table */
-export type Bout = Database['public']['Tables']['bouts']['Row'];
-
-/** Pick row type from the picks table */
-export type Pick = Database['public']['Tables']['picks']['Row'];
-
-/** Pick insert type for creating new picks */
-export type PickInsert = Database['public']['Tables']['picks']['Insert'];
-
-/** Result row type from the results table */
-export type Result = Database['public']['Tables']['results']['Row'];
-
-/** Profile row type from the profiles table */
-export type Profile = Database['public']['Tables']['profiles']['Row'];
-
-/** User stats row type from the user_stats table */
-export type UserStats = Database['public']['Tables']['user_stats']['Row'];
-
-/** UFC Fighter row type from the ufc_fighters table */
-export type UFCFighter = Database['public']['Tables']['ufc_fighters']['Row'];
-
-/** UFC Fighter search result from the search_ufc_fighters RPC function */
-export type UFCFighterSearchResult = {
-  fighter_id: string;
-  full_name: string;
-  nickname: string | null;
-  record: string;
-  weight_lbs: number | null;
-};
-
-/** Bout with optional user pick attached (for event detail screens) */
-export type BoutWithPick = Bout & {
-  result?: Result | null;
-  pick?: Pick | null;
-  /** Red corner fighter record (e.g., "24-4") */
-  red_record?: string | null;
-  /** Blue corner fighter record (e.g., "21-3") */
-  blue_record?: string | null;
-};
-
-/** Fight history item for fighter profiles (returned by get_fighter_profile_and_history RPC) */
-export type FightHistoryItem = {
-  fight_id: string;
-  event_name: string;
-  event_date: string;
-  opponent_name: string;
-  opponent_id: string | null;
-  result: 'Win' | 'Loss' | 'Draw' | 'NC';
-  result_method: string | null;
-  result_method_details: string | null;
-  result_round: number | null;
-  result_time_seconds: number | null;
-  weight_class: string | null;
-  is_title_fight: boolean;
-  totals?: {
-    sig_str_landed?: number;
-    sig_str_attempted?: number;
-    td_landed?: number;
-    td_attempted?: number;
-    ctrl_time_seconds?: number;
-    knockdowns?: number;
-  } | null;
-};
-
-/** Fighter record breakdown */
-export type FighterRecord = {
-  wins: number;
-  losses: number;
-  draws: number;
-  nc: number;
-};
-
-/** Fighter career stats */
-export type FighterCareerStats = {
-  str_acc: number | null;
-  str_def: number | null;
-  slpm: number | null;
-  sapm: number | null;
-  td_acc: number | null;
-  td_def: number | null;
-  td_avg: number | null;
-  sub_avg: number | null;
-};
-
-/** Fighter profile with nested record and career_stats (returned by get_fighter_profile_and_history RPC) */
-export type FighterProfile = {
-  fighter_id: string;
-  full_name: string;
-  nickname: string | null;
-  dob: string | null;
-  height_inches: number | null;
-  reach_inches: number | null;
-  weight_lbs: number | null;
-  weight_class: string | null;
-  stance: string | null;
-  ranking: number | null;
-  record: FighterRecord;
-  career_stats: FighterCareerStats | null;
-};
-
-/** Fighter profile with fight history (returned by get_fighter_profile_and_history RPC) */
-export type FighterProfileAndHistory = {
-  fighter: FighterProfile | null;
-  history: FightHistoryItem[];
-};
