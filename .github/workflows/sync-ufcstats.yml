@@ -3,12 +3,16 @@ name: Sync UFC Stats Data
 on:
   # Scheduled runs
   schedule:
-    # Daily at 6am UTC - sync events
-    - cron: '0 6 * * *'
+    # Weekly Monday at 6am UTC - sync events list
+    - cron: '0 6 * * 1'
     # Daily at 12pm UTC - sync next event card
     - cron: '0 12 * * *'
-    # Every 6 hours - sync results and grade picks
-    - cron: '0 */6 * * *'
+    # Every 3 hours - sync results and grade picks (baseline)
+    - cron: '0 */3 * * *'
+    # Fight night coverage: Saturdays hourly 10pm-6am UTC (Sat 6pm-Sun 2am ET)
+    # Most UFC events run during this window
+    - cron: '0 22-23 * * 6'
+    - cron: '0 0-6 * * 0'
 
   # Allow manual trigger
   workflow_dispatch:
@@ -27,12 +31,15 @@ on:
 jobs:
   sync-events:
     runs-on: ubuntu-latest
-    if: github.event.schedule == '0 6 * * *' || github.event_name == 'workflow_dispatch' && (github.event.inputs.function == 'all' || github.event.inputs.function == 'sync-events')
+    if: >-
+      github.event.schedule == '0 6 * * 1' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (github.event.inputs.function == 'all' || github.event.inputs.function == 'sync-events'))
 
     steps:
       - name: Sync Events
         run: |
-          response=$(curl -X POST "${{ secrets.SUPABASE_FUNCTION_URL }}/sync-events" \
+          response=$(curl -s -X POST "${{ secrets.SUPABASE_FUNCTION_URL }}/sync-events?force=true" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/json")
 
@@ -40,51 +47,59 @@ jobs:
 
           # Check if request was successful
           if [[ $response == *"\"success\":true"* ]]; then
-            echo "✅ Events synced successfully"
+            echo "Events synced successfully"
           else
-            echo "❌ Failed to sync events"
+            echo "Failed to sync events"
             echo "$response"
             exit 1
           fi
 
   sync-next-event-card:
     runs-on: ubuntu-latest
-    if: github.event.schedule == '0 12 * * *' || github.event_name == 'workflow_dispatch' && (github.event.inputs.function == 'all' || github.event.inputs.function == 'sync-next-event-card')
+    if: >-
+      github.event.schedule == '0 12 * * *' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (github.event.inputs.function == 'all' || github.event.inputs.function == 'sync-next-event-card'))
 
     steps:
       - name: Sync Next Event Card
         run: |
-          response=$(curl -X POST "${{ secrets.SUPABASE_FUNCTION_URL }}/sync-next-event-card" \
+          response=$(curl -s -X POST "${{ secrets.SUPABASE_FUNCTION_URL }}/sync-next-event-card" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/json")
 
           echo "Response: $response"
 
           if [[ $response == *"\"success\":true"* ]]; then
-            echo "✅ Next event card synced successfully"
+            echo "Next event card synced successfully"
           else
-            echo "❌ Failed to sync next event card"
+            echo "Failed to sync next event card"
             echo "$response"
             exit 1
           fi
 
   sync-results-and-grade:
     runs-on: ubuntu-latest
-    if: github.event.schedule == '0 */6 * * *' || github.event_name == 'workflow_dispatch' && (github.event.inputs.function == 'all' || github.event.inputs.function == 'sync-recent-results-and-grade')
+    if: >-
+      github.event.schedule == '0 */3 * * *' ||
+      github.event.schedule == '0 22-23 * * 6' ||
+      github.event.schedule == '0 0-6 * * 0' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (github.event.inputs.function == 'all' || github.event.inputs.function == 'sync-recent-results-and-grade'))
 
     steps:
       - name: Sync Results and Grade Picks
         run: |
-          response=$(curl -X POST "${{ secrets.SUPABASE_FUNCTION_URL }}/sync-recent-results-and-grade" \
+          response=$(curl -s -X POST "${{ secrets.SUPABASE_FUNCTION_URL }}/sync-recent-results-and-grade?force=true" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
             -H "Content-Type: application/json")
 
           echo "Response: $response"
 
           if [[ $response == *"\"success\":true"* ]]; then
-            echo "✅ Results synced and picks graded successfully"
+            echo "Results synced and picks graded successfully"
           else
-            echo "❌ Failed to sync results"
+            echo "Failed to sync results"
             echo "$response"
             exit 1
           fi

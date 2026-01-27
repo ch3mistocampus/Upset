@@ -409,32 +409,89 @@ export async function scrapeFightDetails(fightUrl: string) {
     let time: string | null = null;
     let details: string | null = null;
 
-    detailsItems.each((_: number, el: any) => {
-      const text = $(el).text();
+    // First try: look for individual <i> label elements within detail items
+    // UFCStats uses <i class="b-fight-details__label"> for each field
+    detailsItems.find("i.b-fight-details__text-item, i.b-fight-details__text-item_first").each((_: number, el: any) => {
+      const label = $(el).find("i.b-fight-details__label").text().trim().toLowerCase();
+      const fullText = $(el).text().trim();
+      const labelText = $(el).find("i.b-fight-details__label").text().trim();
+      const value = fullText.replace(labelText, "").trim();
 
-      if (text.includes("Method:")) {
-        method = text.replace("Method:", "").trim();
-        // Clean up extra whitespace
-        method = method.replace(/\s+/g, " ");
-      } else if (text.includes("Round:")) {
-        const roundText = text.replace("Round:", "").trim();
-        round = parseInt(roundText) || null;
-      } else if (text.includes("Time:")) {
-        time = text.replace("Time:", "").trim();
-      } else if (text.includes("Details:")) {
-        details = text.replace("Details:", "").trim();
-        details = details.replace(/\s+/g, " ");
+      if (label.includes("method") && !method) {
+        method = value.replace(/\s+/g, " ");
+      } else if (label.includes("round") && !round) {
+        round = parseInt(value) || null;
+      } else if (label === "time:" && !time) {
+        time = value;
+      } else if (label.includes("details") && !details) {
+        details = value.replace(/\s+/g, " ");
       }
     });
 
-    // Fallback: try to find method/round/time in any text element
+    // Second try: parse from the combined text using regex
+    // This handles cases where the HTML structure varies
+    if (!method || round === null || !time) {
+      detailsItems.each((_: number, el: any) => {
+        const text = $(el).text();
+
+        if (!method && text.includes("Method:")) {
+          // Extract method - everything between "Method:" and the next label
+          const methodMatch = text.match(/Method:\s*(.+?)(?:\s*Round:|\s*Time:|\s*Details:|$)/s);
+          if (methodMatch) {
+            method = methodMatch[1].trim().replace(/\s+/g, " ");
+          }
+        }
+        if (round === null && text.includes("Round:")) {
+          const roundMatch = text.match(/Round:\s*(\d+)/);
+          if (roundMatch) {
+            round = parseInt(roundMatch[1]) || null;
+          }
+        }
+        if (!time && text.includes("Time:")) {
+          const timeMatch = text.match(/Time:\s*(\d{1,2}:\d{2})/);
+          if (timeMatch) {
+            time = timeMatch[1];
+          }
+        }
+        if (!details && text.includes("Details:")) {
+          const detailsMatch = text.match(/Details:\s*(.+?)(?:\s*Round:|\s*Time:|\s*Method:|$)/s);
+          if (detailsMatch) {
+            details = detailsMatch[1].trim().replace(/\s+/g, " ");
+          }
+        }
+      });
+    }
+
+    // Third fallback: search all text elements on the page
     if (!method) {
       $("*").each((_: number, el: any) => {
         const text = $(el).text();
         if (text.includes("Method:") && !method) {
-          const match = text.match(/Method:\s*([^R]+?)(?:Round:|Time:|$)/);
+          const match = text.match(/Method:\s*(.+?)(?:\s*Round:|\s*Time:|$)/s);
           if (match) {
-            method = match[1].trim();
+            method = match[1].trim().replace(/\s+/g, " ");
+          }
+        }
+      });
+    }
+    if (round === null) {
+      $("*").each((_: number, el: any) => {
+        const text = $(el).text();
+        if (text.includes("Round:") && round === null) {
+          const match = text.match(/Round:\s*(\d+)/);
+          if (match) {
+            round = parseInt(match[1]) || null;
+          }
+        }
+      });
+    }
+    if (!time) {
+      $("*").each((_: number, el: any) => {
+        const text = $(el).text();
+        if (text.includes("Time:") && !time) {
+          const match = text.match(/Time:\s*(\d{1,2}:\d{2})/);
+          if (match) {
+            time = match[1];
           }
         }
       });

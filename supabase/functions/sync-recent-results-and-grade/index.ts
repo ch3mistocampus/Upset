@@ -69,19 +69,39 @@ serve(async (req) => {
       // Find recent events that might have results
       // Events in the past that aren't marked as completed
       logger.info("Finding recent events to check for results");
-      const { data, error } = await supabase
+      const { data: pendingEvents, error: pendingError } = await supabase
         .from("events")
         .select("*")
         .lte("event_date", new Date().toISOString())
         .neq("status", "completed")
         .order("event_date", { ascending: false })
-        .limit(2);
+        .limit(5);
 
-      if (error) {
-        throw error;
+      if (pendingError) {
+        throw pendingError;
       }
 
-      eventsToProcess = data || [];
+      // Safety net: also find completed events that still have ungraded picks
+      const { data: ungradedEvents, error: ungradedError } = await supabase
+        .rpc("get_events_with_ungraded_picks");
+
+      if (ungradedError) {
+        logger.error("Error fetching ungraded events", ungradedError);
+      }
+
+      // Merge and deduplicate by event ID
+      const eventMap = new Map<string, any>();
+      for (const event of (pendingEvents || [])) {
+        eventMap.set(event.id, event);
+      }
+      for (const event of (ungradedEvents || [])) {
+        if (!eventMap.has(event.id)) {
+          logger.info("Found completed event with ungraded picks", { name: event.name });
+          eventMap.set(event.id, event);
+        }
+      }
+
+      eventsToProcess = Array.from(eventMap.values());
     }
 
     if (eventsToProcess.length === 0) {
@@ -124,14 +144,36 @@ serve(async (req) => {
           continue;
         }
 
-        logger.debug("Found bouts for event", { count: bouts.length, event: event.name });
+        // Separate active bouts from canceled/replaced ones for completion tracking
+        const activeBouts = bouts.filter(
+          (b: any) => b.status !== "canceled" && b.status !== "replaced"
+        );
+        const canceledCount = bouts.length - activeBouts.length;
+
+        logger.debug("Found bouts for event", {
+          count: bouts.length,
+          active: activeBouts.length,
+          canceled: canceledCount,
+          event: event.name,
+        });
 
         let resultsSynced = 0;
         let boutsWithResults = 0;
 
-        // Process each bout
+        // Process each bout (only active ones need result fetching)
         for (const bout of bouts) {
           try {
+            // Skip canceled/replaced bouts
+            if (bout.status === "canceled" || bout.status === "replaced") {
+              logger.debug("Skipping canceled/replaced bout", {
+                boutId: bout.id,
+                redName: bout.red_name,
+                blueName: bout.blue_name,
+                status: bout.status,
+              });
+              continue;
+            }
+
             // Get the UFCStats fight ID
             const fightExternalId = bout.ufcstats_fight_id;
 
@@ -255,9 +297,13 @@ serve(async (req) => {
         }
 
         // Check if event is fully completed
-        // (all bouts have results)
-        if (boutsWithResults === bouts.length) {
-          logger.info("Event complete - all fights have results", { name: event.name });
+        // (all active/non-canceled bouts have results)
+        if (activeBouts.length > 0 && boutsWithResults === activeBouts.length) {
+          logger.info("Event complete - all active fights have results", {
+            name: event.name,
+            activeBouts: activeBouts.length,
+            canceled: canceledCount,
+          });
 
           await supabase
             .from("events")
@@ -269,7 +315,8 @@ serve(async (req) => {
           logger.info("Event not complete", {
             name: event.name,
             boutsWithResults,
-            totalBouts: bouts.length,
+            activeBouts: activeBouts.length,
+            canceled: canceledCount,
           });
 
           // Update to in_progress if at least one result
