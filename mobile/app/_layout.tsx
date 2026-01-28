@@ -20,9 +20,11 @@ import { AppDrawer } from '../components/navigation/AppDrawer';
 import { AppErrorBoundary } from '../components/ErrorBoundary';
 import { initSentry } from '../lib/sentry';
 import { NetworkStatusBanner } from '../components/ui';
-import { SuperwallProvider } from 'expo-superwall';
-import { useUser } from 'expo-superwall';
+import { SuperwallProvider, useUser } from 'expo-superwall';
 import { SUPERWALL_API_KEYS } from '../lib/superwall';
+
+// Check if Superwall is configured (has API key)
+const SUPERWALL_ENABLED = Boolean(SUPERWALL_API_KEYS.ios);
 
 // Keep splash screen visible while loading fonts
 SplashScreen.preventAutoHideAsync();
@@ -30,12 +32,15 @@ SplashScreen.preventAutoHideAsync();
 /**
  * Syncs Superwall user identity with auth state.
  * Renders nothing - just runs identify/signOut side effects.
+ * Only active when Superwall is properly configured.
  */
 function SuperwallIdentifier() {
   const { user, isGuest } = useAuth();
   const { identify, signOut: swSignOut } = useUser();
 
   useEffect(() => {
+    if (!SUPERWALL_ENABLED) return;
+
     if (user?.id && !isGuest) {
       identify(user.id);
     } else {
@@ -149,24 +154,33 @@ export default function RootLayout() {
     return null;
   }
 
+  // Conditionally wrap with SuperwallProvider only if API key is configured
+  const appContent = (
+    <GuestPicksProvider>
+      <OnboardingProvider>
+        <ThemeProvider>
+          <DrawerProvider>
+            <ToastProvider>
+              <RootNavigator />
+            </ToastProvider>
+          </DrawerProvider>
+        </ThemeProvider>
+      </OnboardingProvider>
+    </GuestPicksProvider>
+  );
+
   return (
     <AppErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <SuperwallProvider apiKeys={SUPERWALL_API_KEYS}>
-            <SuperwallIdentifier />
-            <GuestPicksProvider>
-              <OnboardingProvider>
-                <ThemeProvider>
-                  <DrawerProvider>
-                    <ToastProvider>
-                      <RootNavigator />
-                    </ToastProvider>
-                  </DrawerProvider>
-                </ThemeProvider>
-              </OnboardingProvider>
-            </GuestPicksProvider>
-          </SuperwallProvider>
+          {SUPERWALL_ENABLED ? (
+            <SuperwallProvider apiKeys={SUPERWALL_API_KEYS}>
+              <SuperwallIdentifier />
+              {appContent}
+            </SuperwallProvider>
+          ) : (
+            appContent
+          )}
         </AuthProvider>
       </QueryClientProvider>
     </AppErrorBoundary>

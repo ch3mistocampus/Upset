@@ -1,14 +1,41 @@
 /**
  * Central premium gating hook
  * Manages subscription status, usage tracking, and paywall triggers
+ *
+ * When Superwall is not configured (no API key), the hook operates in
+ * "free mode" - all premium features are unlocked and paywall triggers are no-ops.
  */
 
 import { useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useUser, usePlacement } from 'expo-superwall';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './useAuth';
-import { FREE_LIMITS } from '../lib/superwall';
+import { FREE_LIMITS, SUPERWALL_API_KEYS } from '../lib/superwall';
+
+// Check if Superwall is configured
+const SUPERWALL_ENABLED = Boolean(SUPERWALL_API_KEYS.ios);
+
+// Conditionally import Superwall hooks only when enabled
+// This prevents crashes when SuperwallProvider isn't mounted
+let useUser: any = () => ({
+  subscriptionStatus: null,
+  setSubscriptionStatus: () => {},
+  identify: () => {},
+  signOut: () => {},
+});
+let usePlacement: any = () => ({
+  registerPlacement: async () => {},
+});
+
+if (SUPERWALL_ENABLED) {
+  try {
+    const superwall = require('expo-superwall');
+    useUser = superwall.useUser;
+    usePlacement = superwall.usePlacement;
+  } catch {
+    // Superwall not available
+  }
+}
 
 interface UsageData {
   events_picked_count: number;
@@ -25,7 +52,9 @@ export function useSubscription() {
   const queryClient = useQueryClient();
   const { subscriptionStatus, setSubscriptionStatus, identify, signOut: swSignOut } = useUser();
 
-  const isPro = subscriptionStatus?.status === 'ACTIVE';
+  // When Superwall is not configured, treat all users as Pro (no restrictions)
+  // This allows the app to function normally until monetization is set up
+  const isPro = !SUPERWALL_ENABLED || subscriptionStatus?.status === 'ACTIVE';
 
   // Fetch usage data from DB (only for non-Pro authenticated users)
   const { data: usage } = useQuery<UsageData | null>({
