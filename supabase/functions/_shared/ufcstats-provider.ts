@@ -47,15 +47,16 @@ export class UFCStatsProvider implements DataProvider {
     return events
       .map((event) => {
         const date = parseUFCStatsDate(event.date_text);
+        if (!date) return null; // Skip events with unparseable dates
         return {
           externalId: event.ufcstats_event_id,
           name: event.name,
           date,
           location: event.location,
-          status: (date && date > now ? "upcoming" : "completed") as EventData["status"],
+          status: (date > now ? "upcoming" : "completed") as EventData["status"],
         };
       })
-      .filter((event) => event.status === "upcoming")
+      .filter((event): event is EventData => event !== null && event.status === "upcoming")
       .sort((a, b) => {
         if (!a.date || !b.date) return 0;
         return a.date.getTime() - b.date.getTime();
@@ -69,20 +70,57 @@ export class UFCStatsProvider implements DataProvider {
     return events
       .map((event) => {
         const date = parseUFCStatsDate(event.date_text);
+        if (!date) return null; // Skip events with unparseable dates
         return {
           externalId: event.ufcstats_event_id,
           name: event.name,
           date,
           location: event.location,
-          status: (date && date < now ? "completed" : "upcoming") as EventData["status"],
+          status: (date < now ? "completed" : "upcoming") as EventData["status"],
         };
       })
-      .filter((event) => event.status === "completed")
+      .filter((event): event is EventData => event !== null && event.status === "completed")
       .sort((a, b) => {
         if (!a.date || !b.date) return 0;
         return b.date.getTime() - a.date.getTime();
       })
       .slice(0, limit);
+  }
+
+  async getAllEvents(completedLimit = 50): Promise<{ upcoming: EventData[]; completed: EventData[] }> {
+    const events = await scrapeEventsList();
+    const now = new Date();
+
+    const upcoming: EventData[] = [];
+    const completed: EventData[] = [];
+
+    for (const event of events) {
+      const date = parseUFCStatsDate(event.date_text);
+      if (!date) continue; // Skip events with unparseable dates
+
+      const mapped: EventData = {
+        externalId: event.ufcstats_event_id,
+        name: event.name,
+        date,
+        location: event.location,
+        status: date > now ? "upcoming" : "completed",
+      };
+
+      if (mapped.status === "upcoming") {
+        upcoming.push(mapped);
+      } else {
+        completed.push(mapped);
+      }
+    }
+
+    // Sort upcoming by date ascending, completed by date descending
+    upcoming.sort((a, b) => (a.date!.getTime() - b.date!.getTime()));
+    completed.sort((a, b) => (b.date!.getTime() - a.date!.getTime()));
+
+    return {
+      upcoming,
+      completed: completed.slice(0, completedLimit),
+    };
   }
 
   async getEventFightCard(eventExternalId: string): Promise<FightData[]> {

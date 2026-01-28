@@ -34,7 +34,7 @@ export function useDataSourceSettings() {
       const { data, error } = await (supabase.rpc as any)('get_data_source_settings');
 
       if (error) {
-        console.error('Error fetching data source settings:', error);
+        if (__DEV__) console.error('Error fetching data source settings:', error);
         throw error;
       }
 
@@ -56,7 +56,7 @@ export function useShouldSync(syncType: 'events' | 'fighters' | 'results') {
       });
 
       if (error) {
-        console.error('Error checking sync status:', error);
+        if (__DEV__) console.error('Error checking sync status:', error);
         return true; // Default to syncing on error
       }
 

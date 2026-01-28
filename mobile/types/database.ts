@@ -137,6 +137,7 @@ export type Database = {
           created_at: string
           event_id: string
           id: string
+          is_title_bout: boolean | null
           last_synced_at: string | null
           order_index: number
           red_fighter_ufcstats_id: string
@@ -153,6 +154,7 @@ export type Database = {
           created_at?: string
           event_id: string
           id?: string
+          is_title_bout?: boolean | null
           last_synced_at?: string | null
           order_index: number
           red_fighter_ufcstats_id: string
@@ -169,6 +171,7 @@ export type Database = {
           created_at?: string
           event_id?: string
           id?: string
+          is_title_bout?: boolean | null
           last_synced_at?: string | null
           order_index?: number
           red_fighter_ufcstats_id?: string
@@ -1073,6 +1076,7 @@ export type Database = {
           first_name: string | null
           full_name: string
           height_inches: number | null
+          is_interim_champion: boolean | null
           ko_percentage: number | null
           ko_tko_wins: number | null
           last_name: string | null
@@ -1108,6 +1112,7 @@ export type Database = {
           first_name?: string | null
           full_name: string
           height_inches?: number | null
+          is_interim_champion?: boolean | null
           ko_percentage?: number | null
           ko_tko_wins?: number | null
           last_name?: string | null
@@ -1143,6 +1148,7 @@ export type Database = {
           first_name?: string | null
           full_name?: string
           height_inches?: number | null
+          is_interim_champion?: boolean | null
           ko_percentage?: number | null
           ko_tko_wins?: number | null
           last_name?: string | null
@@ -2039,3 +2045,7 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
+// Convenience type aliases
+export type UFCFighter = Tables<'ufc_fighters'>
+export type UFCFighterSearchResult = Database['public']['Functions']['search_ufc_fighters']['Returns'][number]

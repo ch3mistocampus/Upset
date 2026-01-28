@@ -28,10 +28,9 @@ class Logger {
    * Sent to Sentry in production as warnings
    */
   warn(message: string, context?: LogContext): void {
-    console.warn(`[WARN] ${message}`, context || '');
-
-    // Send to Sentry in production
-    if (!__DEV__) {
+    if (__DEV__) {
+      console.warn(`[WARN] ${message}`, context || '');
+    } else {
       Sentry.captureMessage(message, 'warning', context);
     }
   }
@@ -41,10 +40,9 @@ class Logger {
    * Always sent to Sentry in production
    */
   error(message: string, error?: Error | unknown, context?: LogContext): void {
-    console.error(`[ERROR] ${message}`, error || '', context || '');
-
-    // Send to Sentry in production
-    if (!__DEV__) {
+    if (__DEV__) {
+      console.error(`[ERROR] ${message}`, error || '', context || '');
+    } else {
       if (error instanceof Error) {
         Sentry.captureException(error, { message, ...context });
       } else {

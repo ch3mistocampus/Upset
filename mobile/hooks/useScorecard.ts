@@ -20,7 +20,6 @@ import type {
   UpdateRoundStateResponse,
   LiveFight,
   AdminAction,
-  RoundPhase,
 } from '../types/scorecard';
 
 // =============================================================================
@@ -141,8 +140,6 @@ export const scorecardKeys = {
  * Includes round state, aggregates, and user's submissions
  */
 export function useFightScorecard(boutId: string | undefined, options?: { refetchInterval?: number | false }) {
-  const { user } = useAuth();
-
   return useQuery({
     queryKey: scorecardKeys.fight(boutId || ''),
     queryFn: async (): Promise<FightScorecard> => {
@@ -187,7 +184,7 @@ export function useEventScorecards(eventId: string | undefined, options?: { refe
 
       if (error) {
         // Return empty scorecards instead of throwing for graceful degradation
-        console.warn('Failed to fetch event scorecards:', error.message);
+        logger.warn('Failed to fetch event scorecards', { message: error.message });
         return { event_id: eventId || '', scorecards: [] } as EventScorecards;
       }
       return data as unknown as EventScorecards;
@@ -300,13 +297,8 @@ export function useSubmitScore() {
         throw error;
       }
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (data) => {
       if (data.success) {
-        // Invalidate scorecard to refresh with new data
-        queryClient.invalidateQueries({
-          queryKey: scorecardKeys.fight(variables.boutId),
-        });
-        // Also invalidate event scorecards if available
         queryClient.invalidateQueries({
           queryKey: scorecardKeys.all,
         });
@@ -562,6 +554,14 @@ export function getScorecardErrorMessage(error: ScorecardError): string {
  * Check if a specific bout has an active scorecard (is live or scoring)
  * Note: Returns default (not live) if round_state table doesn't exist
  */
+const DEFAULT_BOUT_STATUS = {
+  isLive: false,
+  isActive: false,
+  phase: null,
+  currentRound: null,
+  scheduledRounds: null,
+} as const;
+
 export function useBoutLiveStatus(boutId: string | undefined) {
   return useQuery({
     queryKey: [...scorecardKeys.fight(boutId || ''), 'status'],
@@ -576,15 +576,7 @@ export function useBoutLiveStatus(boutId: string | undefined) {
           .eq('bout_id', boutId)
           .maybeSingle();
 
-        // Gracefully handle missing table (404) or other errors
-        if (error) {
-          // Return default state - scorecard feature not active
-          return { isLive: false, isActive: false, phase: null, currentRound: null, scheduledRounds: null };
-        }
-
-        if (!data) {
-          return { isLive: false, isActive: false, phase: null, currentRound: null, scheduledRounds: null };
-        }
+        if (error || !data) return DEFAULT_BOUT_STATUS;
 
         const isLive = data.phase === 'ROUND_LIVE' || data.phase === 'ROUND_BREAK';
         const isActive = data.phase !== 'FIGHT_ENDED' && data.phase !== null;
@@ -597,8 +589,7 @@ export function useBoutLiveStatus(boutId: string | undefined) {
           scheduledRounds: data.scheduled_rounds as number,
         };
       } catch {
-        // Gracefully handle any unexpected errors
-        return { isLive: false, isActive: false, phase: null, currentRound: null, scheduledRounds: null };
+        return DEFAULT_BOUT_STATUS;
       }
     },
     enabled: !!boutId,
@@ -730,7 +721,6 @@ export function useScorecardRealtime(
   options: RealtimeOptions = {}
 ) {
   const queryClient = useQueryClient();
-  const channelRef = useRef<RealtimeChannel | null>(null);
   const { autoRefetch = true, onRoundStateChange, onAggregatesUpdate } = options;
 
   const invalidateScorecard = useCallback(() => {
@@ -796,13 +786,9 @@ export function useScorecardRealtime(
         logger.info('Realtime subscription status', { boutId, status });
       });
 
-    channelRef.current = channel;
-
-    // Cleanup on unmount
     return () => {
       logger.info('Unsubscribing from realtime channel', { boutId });
       channel.unsubscribe();
-      channelRef.current = null;
     };
   }, [boutId, autoRefetch, invalidateScorecard, onRoundStateChange, onAggregatesUpdate]);
 
@@ -822,7 +808,6 @@ export function useEventScorecardRealtime(
   options: { autoRefetch?: boolean } = {}
 ) {
   const queryClient = useQueryClient();
-  const channelRef = useRef<RealtimeChannel | null>(null);
   const { autoRefetch = true } = options;
 
   useEffect(() => {
@@ -881,11 +866,8 @@ export function useEventScorecardRealtime(
         logger.info('Event realtime subscription status', { eventId, status });
       });
 
-    channelRef.current = channel;
-
     return () => {
       channel.unsubscribe();
-      channelRef.current = null;
     };
   }, [eventId, boutIds.join(','), autoRefetch, queryClient]);
 }

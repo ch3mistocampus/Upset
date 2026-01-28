@@ -357,10 +357,10 @@ export default function FighterDetailScreen() {
               {fighter.ranking !== null && fighter.ranking !== undefined && (
                 <View style={[
                   styles.rankBadge,
-                  { backgroundColor: fighter.ranking === 0 ? colors.gold : colors.danger }
+                  { backgroundColor: (fighter.ranking === 0 || fighter.is_interim_champion) ? colors.gold : colors.danger }
                 ]}>
                   <Text style={styles.rankBadgeText}>
-                    {fighter.ranking === 0 ? 'C' : `#${fighter.ranking}`}
+                    {fighter.ranking === 0 ? 'C' : fighter.is_interim_champion ? 'IC' : `#${fighter.ranking}`}
                   </Text>
                 </View>
               )}

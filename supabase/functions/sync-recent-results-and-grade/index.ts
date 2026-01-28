@@ -7,6 +7,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 import { createUFCStatsProvider } from "../_shared/ufcstats-provider.ts";
+import { scrapeFighterProfile, sleep } from "../_shared/ufcstats-scraper.ts";
 import { createLogger } from "../_shared/logger.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -238,41 +239,29 @@ serve(async (req) => {
 
               boutsWithResults++;
 
-              // Grade picks for this bout
-              const { data: picks } = await supabase
-                .from("picks")
-                .select("*")
-                .eq("bout_id", bout.id)
-                .eq("status", "active");
+              // Grade picks for this bout atomically via RPC
+              const { data: gradeResult, error: gradeError } = await supabase
+                .rpc("grade_bout_picks", {
+                  p_bout_id: bout.id,
+                  p_winner_corner: winnerCorner,
+                  p_event_date: event.event_date,
+                });
 
-              if (picks && picks.length > 0) {
-                logger.debug("Grading picks", { count: picks.length, bout: bout.id });
-
-                for (const pick of picks) {
-                  let newStatus: string;
-                  let score: number | null;
-
-                  if (winnerCorner === "draw" || winnerCorner === "nc") {
-                    // Void picks for draws and no contests
-                    newStatus = "voided";
-                    score = null;
-                  } else {
-                    // Grade as correct (1) or incorrect (0)
-                    newStatus = "graded";
-                    score = pick.picked_corner === winnerCorner ? 1 : 0;
-                  }
-
-                  await supabase
-                    .from("picks")
-                    .update({
-                      status: newStatus,
-                      score,
-                      locked_at: event.event_date, // Set lock time to event start
-                    })
-                    .eq("id", pick.id);
-
-                  affectedUsers.add(pick.user_id);
-                  totalPicksGraded++;
+              if (gradeError) {
+                logger.error("Error grading picks", gradeError, { boutId: bout.id });
+                errors.push({
+                  bout: `${bout.red_name} vs ${bout.blue_name}`,
+                  error: `Grading failed: ${gradeError.message}`,
+                });
+              } else if (gradeResult) {
+                const graded = gradeResult.graded || 0;
+                const users = gradeResult.affected_users || [];
+                totalPicksGraded += graded;
+                for (const userId of users) {
+                  affectedUsers.add(userId);
+                }
+                if (graded > 0) {
+                  logger.debug("Graded picks", { count: graded, bout: bout.id });
                 }
               }
 
@@ -281,6 +270,51 @@ serve(async (req) => {
                 .from("bouts")
                 .update({ status: "completed" })
                 .eq("id", bout.id);
+
+              // Auto-detect champion change from title bout results
+              if (bout.is_title_bout && winnerCorner !== 'draw' && winnerCorner !== 'nc') {
+                const winnerFighterId = winnerCorner === 'red'
+                  ? bout.red_fighter_ufcstats_id
+                  : bout.blue_fighter_ufcstats_id;
+                const loserFighterId = winnerCorner === 'red'
+                  ? bout.blue_fighter_ufcstats_id
+                  : bout.red_fighter_ufcstats_id;
+
+                if (winnerFighterId && bout.weight_class) {
+                  // Normalize weight class (strip "Title Bout", "Championship" etc.)
+                  const normalizedWeightClass = bout.weight_class
+                    .replace(/\s*(title|championship)\s*(bout|fight)?/gi, '')
+                    .replace(/^ufc\s*/i, '')
+                    .trim();
+
+                  logger.info("Title bout result — updating champion", {
+                    weightClass: normalizedWeightClass,
+                    winner: winnerCorner === 'red' ? bout.red_name : bout.blue_name,
+                    winnerId: winnerFighterId,
+                  });
+
+                  // Clear previous champion for this weight class
+                  await supabase
+                    .from("ufc_fighters")
+                    .update({ ranking: null, is_interim_champion: false })
+                    .eq("weight_class", normalizedWeightClass)
+                    .eq("ranking", 0);
+
+                  // Set new champion
+                  await supabase
+                    .from("ufc_fighters")
+                    .update({ ranking: 0, is_interim_champion: false, weight_class: normalizedWeightClass })
+                    .eq("fighter_id", winnerFighterId);
+
+                  // If the loser was interim champion, clear that flag
+                  if (loserFighterId) {
+                    await supabase
+                      .from("ufc_fighters")
+                      .update({ is_interim_champion: false })
+                      .eq("fighter_id", loserFighterId);
+                  }
+                }
+              }
             } else {
               logger.debug("No result yet", { fight: `${bout.red_name} vs ${bout.blue_name}` });
             }
@@ -311,6 +345,48 @@ serve(async (req) => {
             .eq("id", event.id);
 
           eventsCompleted++;
+
+          // Refresh fighter records/stats after event completion
+          // Their win/loss records and career stats change after each fight
+          const fighterIds = new Set<string>();
+          for (const bout of bouts) {
+            if (bout.red_fighter_ufcstats_id) fighterIds.add(bout.red_fighter_ufcstats_id);
+            if (bout.blue_fighter_ufcstats_id) fighterIds.add(bout.blue_fighter_ufcstats_id);
+          }
+
+          logger.info("Refreshing fighter records after event completion", {
+            event: event.name,
+            fighters: fighterIds.size,
+          });
+
+          for (const fighterId of fighterIds) {
+            try {
+              await sleep(2000);
+              const profile = await scrapeFighterProfile(fighterId);
+              if (profile) {
+                await supabase
+                  .from("ufc_fighters")
+                  .update({
+                    record_wins: profile.record_wins,
+                    record_losses: profile.record_losses,
+                    record_draws: profile.record_draws,
+                    record_nc: profile.record_nc,
+                    slpm: profile.slpm,
+                    sapm: profile.sapm,
+                    str_acc: profile.str_acc,
+                    str_def: profile.str_def,
+                    td_avg: profile.td_avg,
+                    td_acc: profile.td_acc,
+                    td_def: profile.td_def,
+                    sub_avg: profile.sub_avg,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("fighter_id", fighterId);
+              }
+            } catch (err) {
+              logger.error("Error refreshing fighter", err, { fighterId });
+            }
+          }
         } else {
           logger.info("Event not complete", {
             name: event.name,
@@ -365,15 +441,16 @@ serve(async (req) => {
 
     const duration = Date.now() - startTime;
 
+    const hasErrors = errors.length > 0;
     const result = {
-      success: true,
+      success: !hasErrors,
       provider: provider.name,
       events_processed: eventsToProcess.length,
       events_completed: eventsCompleted,
       results_synced: totalResultsSynced,
       picks_graded: totalPicksGraded,
       users_updated: affectedUsers.size,
-      errors: errors.length > 0 ? errors : undefined,
+      errors: hasErrors ? errors : undefined,
       duration_ms: duration,
     };
 

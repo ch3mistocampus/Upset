@@ -66,26 +66,36 @@ async function syncFighters(
 
   logger.info(`Syncing ${fighterIds.size} unique fighters for ${eventName}`);
 
-  // Check which fighters already exist in ufc_fighters
+  // Check which fighters already exist and when they were last updated
   const { data: existingFighters } = await supabase
     .from("ufc_fighters")
-    .select("fighter_id")
+    .select("fighter_id, updated_at")
     .in("fighter_id", Array.from(fighterIds));
 
-  const existingIds = new Set(existingFighters?.map((f: any) => f.fighter_id) || []);
+  const existingMap = new Map(
+    (existingFighters || []).map((f: any) => [f.fighter_id, f.updated_at])
+  );
+
+  const STALE_DAYS = 7;
+  const staleThreshold = new Date(Date.now() - STALE_DAYS * 24 * 60 * 60 * 1000);
 
   // Sync each fighter (with rate limiting)
   for (const fighterId of fighterIds) {
     try {
-      // Skip if already exists (we can add a force refresh option later)
-      if (existingIds.has(fighterId)) {
-        logger.info(`Fighter ${fighterId} already exists, skipping`);
+      // Skip if exists and was updated recently (within 7 days)
+      const lastUpdated = existingMap.get(fighterId);
+      if (lastUpdated && new Date(lastUpdated) > staleThreshold) {
+        logger.info(`Fighter ${fighterId} is fresh (updated ${lastUpdated}), skipping`);
         result.skipped++;
         continue;
       }
 
+      if (lastUpdated) {
+        logger.info(`Fighter ${fighterId} is stale (updated ${lastUpdated}), re-syncing`);
+      }
+
       // Rate limit to avoid overwhelming UFCStats
-      await sleep(500);
+      await sleep(2000);
 
       // Scrape fighter profile
       const profile = await scrapeFighterProfile(fighterId);
@@ -259,15 +269,15 @@ serve(async (req) => {
     // Run provider health check first
     logger.info("Running provider health check");
     const health = await provider.healthCheck();
-    if (health.status === 'unhealthy') {
-      logger.error("Provider health check failed", new Error(health.error || 'Unknown error'));
+    if (health.status === 'unhealthy' || health.status === 'degraded') {
+      logger.error("Provider health check failed", new Error(health.error || `Status: ${health.status}`));
       return new Response(
         JSON.stringify({
           success: false,
-          error: "Provider unhealthy",
+          error: `Provider ${health.status}`,
           health,
           provider: provider.name,
-          message: `${provider.name} is not responding correctly`,
+          message: `${provider.name} is ${health.status} — aborting sync to prevent partial data`,
         }),
         { status: 503, headers: { "Content-Type": "application/json" } }
       );
@@ -345,6 +355,11 @@ serve(async (req) => {
 
     for (const fight of fights) {
       try {
+        // Detect title bouts from weight class text
+        const isTitleBout = fight.weightClass
+          ? /title|championship/i.test(fight.weightClass)
+          : false;
+
         if (existingFightIds.has(fight.externalId)) {
           // Update existing bout
           const { error } = await supabase
@@ -356,6 +371,8 @@ serve(async (req) => {
               blue_name: fight.blueFighter.name,
               red_fighter_ufcstats_id: fight.redFighter.externalId,
               blue_fighter_ufcstats_id: fight.blueFighter.externalId,
+              scheduled_rounds: fight.scheduledRounds,
+              is_title_bout: isTitleBout || undefined,
               last_synced_at: new Date().toISOString(),
             })
             .eq("ufcstats_fight_id", fight.externalId);
@@ -375,6 +392,8 @@ serve(async (req) => {
               blue_name: fight.blueFighter.name,
               red_fighter_ufcstats_id: fight.redFighter.externalId,
               blue_fighter_ufcstats_id: fight.blueFighter.externalId,
+              scheduled_rounds: fight.scheduledRounds,
+              is_title_bout: isTitleBout,
               status: "scheduled",
               last_synced_at: new Date().toISOString(),
             });

@@ -6,12 +6,10 @@
 
 import { useCallback } from 'react';
 import {
-  View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Share,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -78,10 +76,12 @@ function formatGlobalScorecard(
 
   const roundScores = aggregates
     .map((a) => {
-      const winner =
-        a.mean_red && a.mean_blue && a.mean_red > a.mean_blue ? redName.split(' ').pop() :
-        a.mean_red && a.mean_blue && a.mean_blue > a.mean_red ? blueName.split(' ').pop() :
-        'Even';
+      let winner = 'Even';
+      if (a.mean_red && a.mean_blue && a.mean_red > a.mean_blue) {
+        winner = redName.split(' ').pop() ?? redName;
+      } else if (a.mean_red && a.mean_blue && a.mean_blue > a.mean_red) {
+        winner = blueName.split(' ').pop() ?? blueName;
+      }
       return `R${a.round_number}: ${a.mean_red?.toFixed(1)}-${a.mean_blue?.toFixed(1)} (${winner})`;
     })
     .join('\n');
@@ -174,7 +174,7 @@ export function ShareScorecard({
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     } catch (error) {
-      console.error('Error sharing:', error);
+      if (__DEV__) console.error('Error sharing:', error);
     }
   }, [redName, blueName, eventName, userScores, aggregates]);
 
@@ -222,4 +222,3 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ShareScorecard;

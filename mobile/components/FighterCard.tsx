@@ -43,8 +43,10 @@ export function FighterCard({ fighter, compact = false }: FighterCardProps) {
 
   // Get ranking if available
   const ranking = 'ranking' in fighter ? fighter.ranking : null;
+  const isInterimChampion = 'is_interim_champion' in fighter && fighter.is_interim_champion;
   const getRankingLabel = (rank: number) => {
-    if (rank === 0) return 'C'; // Champion
+    if (rank === 0) return 'C';
+    if (isInterimChampion) return 'IC';
     return `#${rank}`;
   };
 
@@ -110,7 +112,7 @@ export function FighterCard({ fighter, compact = false }: FighterCardProps) {
           )}
           <View style={styles.badges}>
             {ranking !== null && (
-              <View style={[styles.rankBadge, { backgroundColor: ranking === 0 ? colors.gold : colors.accent }]}>
+              <View style={[styles.rankBadge, { backgroundColor: (ranking === 0 || isInterimChampion) ? colors.gold : colors.accent }]}>
                 <Text style={styles.rankBadgeText}>
                   {getRankingLabel(ranking)}
                 </Text>

@@ -9,10 +9,8 @@ on:
     - cron: '0 12 * * *'
     # Every 3 hours - sync results and grade picks (baseline)
     - cron: '0 */3 * * *'
-    # Fight night coverage: Saturdays hourly 10pm-6am UTC (Sat 6pm-Sun 2am ET)
-    # Most UFC events run during this window
-    - cron: '0 22-23 * * 6'
-    - cron: '0 0-6 * * 0'
+    # Sunday 2pm UTC (9am ET) - results catch-up after Saturday night events
+    - cron: '0 14 * * 0'
 
   # Allow manual trigger
   workflow_dispatch:
@@ -31,6 +29,9 @@ on:
 jobs:
   sync-events:
     runs-on: ubuntu-latest
+    concurrency:
+      group: sync-events
+      cancel-in-progress: false
     if: >-
       github.event.schedule == '0 6 * * 1' ||
       (github.event_name == 'workflow_dispatch' &&
@@ -56,6 +57,9 @@ jobs:
 
   sync-next-event-card:
     runs-on: ubuntu-latest
+    concurrency:
+      group: sync-next-event-card
+      cancel-in-progress: false
     if: >-
       github.event.schedule == '0 12 * * *' ||
       (github.event_name == 'workflow_dispatch' &&
@@ -80,10 +84,12 @@ jobs:
 
   sync-results-and-grade:
     runs-on: ubuntu-latest
+    concurrency:
+      group: sync-results-and-grade
+      cancel-in-progress: false
     if: >-
       github.event.schedule == '0 */3 * * *' ||
-      github.event.schedule == '0 22-23 * * 6' ||
-      github.event.schedule == '0 0-6 * * 0' ||
+      github.event.schedule == '0 14 * * 0' ||
       (github.event_name == 'workflow_dispatch' &&
        (github.event.inputs.function == 'all' || github.event.inputs.function == 'sync-recent-results-and-grade'))
 

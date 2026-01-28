@@ -6,7 +6,7 @@
 import { load } from "https://esm.sh/cheerio@1.0.0-rc.12";
 
 const BASE_URL = "http://ufcstats.com/statistics";
-const DELAY_MS = 800; // Rate limiting between requests
+const DELAY_MS = 2000; // Rate limiting between requests (2s to be respectful)
 const REQUEST_TIMEOUT_MS = 30000; // 30 second timeout
 
 interface ScraperOptions {
@@ -199,7 +199,7 @@ export async function scrapeEventsList() {
   try {
     // Fetch BOTH upcoming and completed events for comprehensive data
     const upcomingUrl = `${BASE_URL}/events/upcoming`;
-    const completedUrl = `${BASE_URL}/events/completed?page=all`;
+    const completedUrl = `${BASE_URL}/events/completed`;
 
     console.log("Fetching upcoming events...");
     const upcomingEvents = await scrapeEventsPage(upcomingUrl);

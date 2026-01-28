@@ -6,7 +6,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { createUFCStatsProvider } from "../_shared/ufcstats-provider.ts";
+import { UFCStatsProvider } from "../_shared/ufcstats-provider.ts";
 import { healthCheck as scraperHealthCheck } from "../_shared/ufcstats-scraper.ts";
 import { createLogger } from "../_shared/logger.ts";
 
@@ -58,33 +58,30 @@ serve(async (req) => {
     logger.info("Using data source: UFCStats");
 
     // Create UFCStats provider
-    const provider = createUFCStatsProvider();
+    const provider = new UFCStatsProvider();
 
     // Run health check first
     logger.info("Running provider health check");
     const health = await provider.healthCheck();
-    if (health.status === 'unhealthy') {
-      logger.error("Provider health check failed", new Error(health.error || 'Unknown error'));
+    if (health.status === 'unhealthy' || health.status === 'degraded') {
+      logger.error("Provider health check failed", new Error(health.error || `Status: ${health.status}`));
       return new Response(
         JSON.stringify({
           success: false,
-          error: "Provider unhealthy",
+          error: `Provider ${health.status}`,
           health,
           provider: provider.name,
-          message: `${provider.name} is not responding correctly`,
+          message: `${provider.name} is ${health.status} — aborting sync to prevent partial data`,
         }),
         { status: 503, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // Fetch events
+    // Fetch all events in a single scrape call (2 HTTP requests instead of 4)
     logger.info("Fetching events from provider");
-    const [upcomingEvents, completedEvents] = await Promise.all([
-      provider.getUpcomingEvents(),
-      provider.getCompletedEvents(50), // Limit completed events
-    ]);
+    const { upcoming: upcomingEvents, completed: completedEvents } = await provider.getAllEvents(50);
 
-    // Merge events
+    // Merge events (upcoming takes priority for duplicates)
     const eventMap = new Map<string, any>();
     for (const event of upcomingEvents) {
       eventMap.set(event.externalId, { ...event, status: 'upcoming' });
@@ -132,11 +129,14 @@ serve(async (req) => {
         // Check if event exists by ufcstats_event_id
         const { data: existing } = await supabase
           .from("events")
-          .select("id")
+          .select("id, status")
           .eq('ufcstats_event_id', event.externalId)
           .single();
 
         if (existing) {
+          // Don't revert completed events back to upcoming
+          const newStatus = existing.status === 'completed' ? 'completed' : event.status;
+
           // Update existing event
           const { error } = await supabase
             .from("events")
@@ -144,7 +144,7 @@ serve(async (req) => {
               name: event.name,
               event_date: event.date.toISOString(),
               location: event.location,
-              status: event.status,
+              status: newStatus,
               last_synced_at: new Date().toISOString(),
             })
             .eq('ufcstats_event_id', event.externalId);
