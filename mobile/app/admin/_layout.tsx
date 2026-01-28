@@ -72,13 +72,6 @@ export default function AdminLayout() {
         }}
       />
       <Stack.Screen
-        name="users"
-        options={{
-          title: 'Users',
-          headerBackTitle: 'Dashboard',
-        }}
-      />
-      <Stack.Screen
         name="scorecards"
         options={{
           title: 'Live Scorecards',

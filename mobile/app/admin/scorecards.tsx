@@ -1,8 +1,8 @@
 /**
- * Admin Scorecards Dashboard
+ * Admin Scorecards Dashboard (Read-Only)
  *
- * Control panel for managing live fight scorecards.
- * Allows admins to start/end rounds, open/close scoring windows.
+ * View-only display of live fight status and submission counts.
+ * Full fight controls available at upsetmma.app/admin.
  */
 
 import { useState, useCallback } from 'react';
@@ -11,20 +11,16 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../lib/theme';
 import { spacing, radius, typography } from '../../lib/tokens';
-import { useAdminLiveFights, useAdminUpdateRoundState } from '../../hooks/useScorecard';
-import { useToast } from '../../hooks/useToast';
+import { useAdminLiveFights } from '../../hooks/useScorecard';
 import { SurfaceCard, EmptyState } from '../../components/ui';
-import type { LiveFight, AdminAction, RoundPhase } from '../../types/scorecard';
+import type { LiveFight, RoundPhase } from '../../types/scorecard';
 
 // Phase colors and labels
 const PHASE_CONFIG: Record<RoundPhase, { color: string; label: string; icon: keyof typeof Ionicons.glyphMap }> = {
@@ -35,62 +31,12 @@ const PHASE_CONFIG: Record<RoundPhase, { color: string; label: string; icon: key
   FIGHT_ENDED: { color: '#6B7280', label: 'Fight Ended', icon: 'checkmark-circle-outline' },
 };
 
-// Action buttons based on current phase
-const getAvailableActions = (phase: RoundPhase): { action: AdminAction; label: string; color: string; icon: keyof typeof Ionicons.glyphMap }[] => {
-  switch (phase) {
-    case 'PRE_FIGHT':
-      return [{ action: 'START_ROUND', label: 'Start Round 1', color: '#10B981', icon: 'play' }];
-    case 'ROUND_LIVE':
-      return [{ action: 'END_ROUND', label: 'End Round', color: '#F59E0B', icon: 'stop' }];
-    case 'ROUND_BREAK':
-      return [
-        { action: 'START_ROUND', label: 'Start Next Round', color: '#10B981', icon: 'play' },
-        { action: 'CLOSE_SCORING', label: 'Close Scoring', color: '#F59E0B', icon: 'lock-closed' },
-        { action: 'END_FIGHT', label: 'End Fight', color: '#EF4444', icon: 'flag' },
-      ];
-    case 'ROUND_CLOSED':
-      return [
-        { action: 'START_ROUND', label: 'Start Next Round', color: '#10B981', icon: 'play' },
-        { action: 'END_FIGHT', label: 'End Fight', color: '#EF4444', icon: 'flag' },
-      ];
-    default:
-      return [];
-  }
-};
-
-// Live Fight Card Component
-interface LiveFightCardProps {
-  fight: LiveFight;
-  onAction: (action: AdminAction, roundNumber?: number) => void;
-  isLoading: boolean;
-}
-
-function LiveFightCard({ fight, onAction, isLoading }: LiveFightCardProps) {
+// Live Fight Card Component (read-only)
+function LiveFightCard({ fight }: { fight: LiveFight }) {
   const { colors } = useTheme();
   const phaseConfig = PHASE_CONFIG[fight.phase as RoundPhase] || PHASE_CONFIG.PRE_FIGHT;
-  const availableActions = getAvailableActions(fight.phase as RoundPhase);
 
   const totalSubmissions = fight.submission_counts?.reduce((sum, s) => sum + s.count, 0) || 0;
-
-  const handleAction = (action: AdminAction) => {
-    const actionLabel = availableActions.find(a => a.action === action)?.label || action;
-
-    Alert.alert(
-      'Confirm Action',
-      `Are you sure you want to "${actionLabel}" for ${fight.red_name} vs ${fight.blue_name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          style: action === 'END_FIGHT' ? 'destructive' : 'default',
-          onPress: () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            onAction(action, action === 'START_ROUND' ? fight.current_round + 1 : undefined);
-          },
-        },
-      ]
-    );
-  };
 
   return (
     <SurfaceCard style={styles.fightCard}>
@@ -160,34 +106,6 @@ function LiveFightCard({ fight, onAction, isLoading }: LiveFightCardProps) {
           </View>
         </View>
       )}
-
-      {/* Action Buttons */}
-      {availableActions.length > 0 && (
-        <View style={styles.actionsContainer}>
-          {availableActions.map((actionConfig) => (
-            <TouchableOpacity
-              key={actionConfig.action}
-              style={[
-                styles.actionButton,
-                { backgroundColor: actionConfig.color },
-                isLoading && styles.actionButtonDisabled,
-              ]}
-              onPress={() => handleAction(actionConfig.action)}
-              disabled={isLoading}
-              activeOpacity={0.8}
-            >
-              {isLoading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Ionicons name={actionConfig.icon} size={16} color="#fff" />
-                  <Text style={styles.actionButtonText}>{actionConfig.label}</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
     </SurfaceCard>
   );
 }
@@ -196,45 +114,15 @@ function LiveFightCard({ fight, onAction, isLoading }: LiveFightCardProps) {
 export default function AdminScorecardsScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const toast = useToast();
   const [refreshing, setRefreshing] = useState(false);
-  const [actioningBoutId, setActioningBoutId] = useState<string | null>(null);
 
-  const { data: liveFights, isLoading, isError, refetch } = useAdminLiveFights();
-  const updateRoundState = useAdminUpdateRoundState();
+  const { data: liveFights, isLoading, refetch } = useAdminLiveFights();
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await refetch();
     setRefreshing(false);
   }, [refetch]);
-
-  const handleAction = useCallback(
-    async (boutId: string, action: AdminAction, roundNumber?: number) => {
-      setActioningBoutId(boutId);
-      try {
-        const result = await updateRoundState.mutateAsync({
-          boutId,
-          action,
-          roundNumber,
-        });
-
-        if (result.success) {
-          toast.showNeutral(result.message || `Action "${action}" completed`);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        } else {
-          toast.showError(result.error || 'Action failed');
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        }
-      } catch (error: any) {
-        toast.showError(error.message || 'Failed to update round state');
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      } finally {
-        setActioningBoutId(null);
-      }
-    },
-    [updateRoundState, toast]
-  );
 
   if (isLoading && !liveFights) {
     return (
@@ -289,11 +177,11 @@ export default function AdminScorecardsScreen() {
         </View>
       </View>
 
-      {/* Info Banner */}
-      <View style={[styles.infoBanner, { backgroundColor: colors.warningSoft }]}>
-        <Ionicons name="information-circle" size={20} color={colors.warning} />
-        <Text style={[styles.infoBannerText, { color: colors.warning }]}>
-          Changes are logged. Be careful with END_FIGHT - it cannot be undone.
+      {/* Web admin note */}
+      <View style={[styles.webNote, { backgroundColor: colors.card }]}>
+        <Ionicons name="desktop-outline" size={16} color={colors.accent} />
+        <Text style={[styles.webNoteText, { color: colors.textSecondary }]}>
+          Manage fight controls at upsetmma.app/admin
         </Text>
       </View>
 
@@ -301,62 +189,16 @@ export default function AdminScorecardsScreen() {
       {fights.length > 0 ? (
         <View style={styles.fightsList}>
           {fights.map((fight) => (
-            <LiveFightCard
-              key={fight.bout_id}
-              fight={fight}
-              onAction={(action, roundNumber) => handleAction(fight.bout_id, action, roundNumber)}
-              isLoading={actioningBoutId === fight.bout_id}
-            />
+            <LiveFightCard key={fight.bout_id} fight={fight} />
           ))}
         </View>
       ) : (
         <EmptyState
           icon="stats-chart-outline"
           title="No Active Scorecards"
-          message="There are no fights with active scorecards right now. Start scoring from the event page."
-          actionLabel="View Events"
-          onAction={() => router.push('/(tabs)/home')}
+          message="There are no fights with active scorecards right now."
         />
       )}
-
-      {/* Quick Start Guide */}
-      <View style={[styles.guideCard, { backgroundColor: colors.surface }]}>
-        <Text style={[styles.guideTitle, { color: colors.text }]}>Quick Start Guide</Text>
-        <View style={styles.guideSteps}>
-          <View style={styles.guideStep}>
-            <View style={[styles.guideStepNumber, { backgroundColor: colors.accent }]}>
-              <Text style={styles.guideStepNumberText}>1</Text>
-            </View>
-            <Text style={[styles.guideStepText, { color: colors.textSecondary }]}>
-              Press "Start Round" when the round begins
-            </Text>
-          </View>
-          <View style={styles.guideStep}>
-            <View style={[styles.guideStepNumber, { backgroundColor: colors.accent }]}>
-              <Text style={styles.guideStepNumberText}>2</Text>
-            </View>
-            <Text style={[styles.guideStepText, { color: colors.textSecondary }]}>
-              Press "End Round" when the bell sounds - scoring window opens
-            </Text>
-          </View>
-          <View style={styles.guideStep}>
-            <View style={[styles.guideStepNumber, { backgroundColor: colors.accent }]}>
-              <Text style={styles.guideStepNumberText}>3</Text>
-            </View>
-            <Text style={[styles.guideStepText, { color: colors.textSecondary }]}>
-              Wait ~90 seconds for users to score, then start the next round
-            </Text>
-          </View>
-          <View style={styles.guideStep}>
-            <View style={[styles.guideStepNumber, { backgroundColor: colors.accent }]}>
-              <Text style={styles.guideStepNumberText}>4</Text>
-            </View>
-            <Text style={[styles.guideStepText, { color: colors.textSecondary }]}>
-              Press "End Fight" when the fight is over (finish or decision)
-            </Text>
-          </View>
-        </View>
-      </View>
     </ScrollView>
   );
 }
@@ -399,19 +241,18 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // Info Banner
-  infoBanner: {
+  // Web Note
+  webNote: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     padding: spacing.md,
-    borderRadius: radius.sm,
+    borderRadius: radius.lg,
     marginBottom: spacing.md,
   },
-  infoBannerText: {
+  webNoteText: {
     flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: typography.sizes.sm,
   },
 
   // Fight Card
@@ -504,69 +345,5 @@ const styles = StyleSheet.create({
   roundSubmissionText: {
     fontSize: 11,
     fontWeight: '500',
-  },
-
-  // Actions
-  actionsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginTop: spacing.md,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.1)',
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.sm,
-  },
-  actionButtonDisabled: {
-    opacity: 0.6,
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-
-  // Guide
-  guideCard: {
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    marginTop: spacing.lg,
-  },
-  guideTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: spacing.md,
-  },
-  guideSteps: {
-    gap: spacing.sm,
-  },
-  guideStep: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  guideStepNumber: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  guideStepNumberText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  guideStepText: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
   },
 });

@@ -27,6 +27,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useSegments } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import Constants from 'expo-constants';
 import { useTheme } from '../../lib/theme';
 import { useAuth } from '../../hooks/useAuth';
 import { useDrawer } from '../../lib/DrawerContext';
@@ -439,7 +440,7 @@ export function AppDrawer() {
         {/* App Version */}
         <View style={styles.footer}>
           <Text style={[styles.versionText, { color: colors.textTertiary }]}>
-            Upset v1.0.0
+            Upset v{Constants.expoConfig?.version ?? '1.0.0'}
           </Text>
         </View>
       </Animated.View>

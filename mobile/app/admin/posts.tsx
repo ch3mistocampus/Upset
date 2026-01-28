@@ -1,6 +1,6 @@
 /**
- * Admin Posts Moderation Screen
- * Review and manage reported posts and comments
+ * Admin Posts Screen (Read-Only)
+ * View reported posts and comments. Full moderation at upsetmma.app/admin.
  */
 
 import {
@@ -11,19 +11,17 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useState, useCallback } from 'react';
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../../lib/theme';
 import { spacing, radius, typography } from '../../lib/tokens';
 import { supabase } from '../../lib/supabase';
 import { logger } from '../../lib/logger';
-import { useToast } from '../../hooks/useToast';
 import { EmptyState } from '../../components/EmptyState';
 
 type ReportType = 'all' | 'post' | 'comment';
@@ -57,8 +55,6 @@ interface CommentReport {
 export default function AdminPostsScreen() {
   const router = useRouter();
   const { colors } = useTheme();
-  const toast = useToast();
-  const queryClient = useQueryClient();
 
   const [reportType, setReportType] = useState<ReportType>('all');
 
@@ -79,93 +75,6 @@ export default function AdminPostsScreen() {
       return data as { post_reports: PostReport[]; comment_reports: CommentReport[] };
     },
   });
-
-  const resolveReport = useMutation({
-    mutationFn: async ({
-      reportId,
-      reportType,
-      status,
-      deleteContent,
-    }: {
-      reportId: string;
-      reportType: 'post' | 'comment';
-      status: 'reviewed' | 'action_taken' | 'dismissed';
-      deleteContent: boolean;
-    }) => {
-      const { data, error } = await (supabase.rpc as any)('admin_resolve_report', {
-        p_report_id: reportId,
-        p_report_type: reportType,
-        p_status: status,
-        p_admin_notes: null,
-        p_delete_content: deleteContent,
-      });
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminReports'] });
-    },
-  });
-
-  const handleResolve = (
-    reportId: string,
-    type: 'post' | 'comment',
-    action: 'dismiss' | 'delete'
-  ) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    if (action === 'dismiss') {
-      Alert.alert(
-        'Dismiss Report',
-        'Are you sure you want to dismiss this report?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Dismiss',
-            onPress: async () => {
-              try {
-                await resolveReport.mutateAsync({
-                  reportId,
-                  reportType: type,
-                  status: 'dismissed',
-                  deleteContent: false,
-                });
-                toast.showNeutral('Report dismissed');
-              } catch (error: any) {
-                toast.showError(error.message || 'Failed to dismiss report');
-              }
-            },
-          },
-        ]
-      );
-    } else {
-      Alert.alert(
-        'Delete Content',
-        `Are you sure you want to delete this ${type}? This action cannot be undone.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                await resolveReport.mutateAsync({
-                  reportId,
-                  reportType: type,
-                  status: 'action_taken',
-                  deleteContent: true,
-                });
-                toast.showSuccess(`${type === 'post' ? 'Post' : 'Comment'} deleted`);
-              } catch (error: any) {
-                toast.showError(error.message || 'Failed to delete content');
-              }
-            },
-          },
-        ]
-      );
-    }
-  };
 
   const renderPostReport = useCallback(
     ({ item }: { item: PostReport }) => (
@@ -214,22 +123,6 @@ export default function AdminPostsScreen() {
             <Ionicons name="eye-outline" size={18} color={colors.text} />
             <Text style={[styles.actionButtonText, { color: colors.text }]}>View</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: colors.surfaceAlt }]}
-            onPress={() => handleResolve(item.id, 'post', 'dismiss')}
-          >
-            <Ionicons name="checkmark-outline" size={18} color={colors.success} />
-            <Text style={[styles.actionButtonText, { color: colors.success }]}>Dismiss</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: `${colors.danger}20` }]}
-            onPress={() => handleResolve(item.id, 'post', 'delete')}
-          >
-            <Ionicons name="trash-outline" size={18} color={colors.danger} />
-            <Text style={[styles.actionButtonText, { color: colors.danger }]}>Delete</Text>
-          </TouchableOpacity>
         </View>
       </View>
     ),
@@ -276,22 +169,6 @@ export default function AdminPostsScreen() {
           >
             <Ionicons name="eye-outline" size={18} color={colors.text} />
             <Text style={[styles.actionButtonText, { color: colors.text }]}>View</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: colors.surfaceAlt }]}
-            onPress={() => handleResolve(item.id, 'comment', 'dismiss')}
-          >
-            <Ionicons name="checkmark-outline" size={18} color={colors.success} />
-            <Text style={[styles.actionButtonText, { color: colors.success }]}>Dismiss</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: `${colors.danger}20` }]}
-            onPress={() => handleResolve(item.id, 'comment', 'delete')}
-          >
-            <Ionicons name="trash-outline" size={18} color={colors.danger} />
-            <Text style={[styles.actionButtonText, { color: colors.danger }]}>Delete</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -346,6 +223,14 @@ export default function AdminPostsScreen() {
           headerTintColor: colors.text,
         }}
       />
+
+      {/* Web admin note */}
+      <View style={[styles.webNote, { backgroundColor: colors.card }]}>
+        <Ionicons name="desktop-outline" size={16} color={colors.accent} />
+        <Text style={[styles.webNoteText, { color: colors.textSecondary }]}>
+          Manage moderation at upsetmma.app/admin
+        </Text>
+      </View>
 
       {/* Filter Tabs */}
       <View style={[styles.filterContainer, { borderBottomColor: colors.border }]}>
@@ -492,5 +377,18 @@ const styles = StyleSheet.create({
   loadingText: {
     ...typography.body,
     marginTop: spacing.md,
+  },
+  webNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    borderRadius: radius.lg,
+  },
+  webNoteText: {
+    flex: 1,
+    fontSize: typography.sizes.sm,
   },
 });

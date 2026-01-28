@@ -1,25 +1,21 @@
 /**
- * Reports Moderation Screen
+ * Reports Screen (Read-Only)
  *
- * Admin screen for reviewing and resolving user reports.
+ * View-only list of pending user reports.
+ * Full moderation actions available at upsetmma.app/admin.
  */
 
-import { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   RefreshControl,
-  Alert,
-  TextInput,
-  Modal,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../lib/theme';
-import { usePendingReports, useReviewReport, Report } from '../../hooks/useAdmin';
+import { usePendingReports, Report } from '../../hooks/useAdmin';
 import { spacing, radius, typography } from '../../lib/tokens';
 
 const REASON_LABELS: Record<string, string> = {
@@ -33,11 +29,10 @@ const REASON_LABELS: Record<string, string> = {
 
 interface ReportCardProps {
   report: Report;
-  onReview: (report: Report) => void;
   colors: ReturnType<typeof useTheme>['colors'];
 }
 
-function ReportCard({ report, onReview, colors }: ReportCardProps) {
+function ReportCard({ report, colors }: ReportCardProps) {
   const timeAgo = getTimeAgo(report.created_at);
 
   return (
@@ -76,16 +71,6 @@ function ReportCard({ report, onReview, colors }: ReportCardProps) {
           <Text style={[styles.detailsText, { color: colors.text }]}>{report.details}</Text>
         </View>
       )}
-
-      {/* Actions */}
-      <View style={styles.actionsRow}>
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: colors.primary }]}
-          onPress={() => onReview(report)}
-        >
-          <Text style={styles.actionButtonText}>Review</Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }
@@ -106,41 +91,6 @@ function getTimeAgo(dateString: string): string {
 export default function ReportsScreen() {
   const { colors } = useTheme();
   const { data: reports, isLoading, refetch } = usePendingReports();
-  const reviewReport = useReviewReport();
-
-  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
-  const [adminNotes, setAdminNotes] = useState('');
-  const [showModal, setShowModal] = useState(false);
-
-  const handleReview = (report: Report) => {
-    setSelectedReport(report);
-    setAdminNotes('');
-    setShowModal(true);
-  };
-
-  const handleAction = async (action: 'resolved' | 'dismissed') => {
-    if (!selectedReport) return;
-
-    try {
-      await reviewReport.mutateAsync({
-        reportId: selectedReport.id,
-        action,
-        notes: adminNotes || undefined,
-      });
-
-      setShowModal(false);
-      setSelectedReport(null);
-
-      Alert.alert(
-        'Report ' + (action === 'resolved' ? 'Resolved' : 'Dismissed'),
-        action === 'resolved'
-          ? 'The report has been resolved and action logged.'
-          : 'The report has been dismissed.'
-      );
-    } catch (error) {
-      Alert.alert('Error', 'Failed to review report. Please try again.');
-    }
-  };
 
   if (isLoading) {
     return (
@@ -174,6 +124,14 @@ export default function ReportsScreen() {
           />
         }
       >
+        {/* Web admin note */}
+        <View style={[styles.webNote, { backgroundColor: colors.card }]}>
+          <Ionicons name="desktop-outline" size={16} color={colors.accent} />
+          <Text style={[styles.webNoteText, { color: colors.textSecondary }]}>
+            Manage reports at upsetmma.app/admin
+          </Text>
+        </View>
+
         <Text style={[styles.countText, { color: colors.textSecondary }]}>
           {reports.length} pending report{reports.length !== 1 ? 's' : ''}
         </Text>
@@ -182,109 +140,10 @@ export default function ReportsScreen() {
           <ReportCard
             key={report.id}
             report={report}
-            onReview={handleReview}
             colors={colors}
           />
         ))}
       </ScrollView>
-
-      {/* Review Modal */}
-      <Modal
-        visible={showModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowModal(false)}
-      >
-        <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowModal(false)}>
-              <Text style={[styles.modalCancel, { color: colors.primary }]}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Review Report</Text>
-            <View style={{ width: 60 }} />
-          </View>
-
-          <ScrollView style={styles.modalContent}>
-            {selectedReport && (
-              <>
-                <View style={[styles.modalCard, { backgroundColor: colors.card }]}>
-                  <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>Reason</Text>
-                  <Text style={[styles.modalValue, { color: colors.text }]}>
-                    {REASON_LABELS[selectedReport.reason] || selectedReport.reason}
-                  </Text>
-                </View>
-
-                <View style={[styles.modalCard, { backgroundColor: colors.card }]}>
-                  <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>Reporter</Text>
-                  <Text style={[styles.modalValue, { color: colors.text }]}>
-                    @{selectedReport.reporter?.username || 'Unknown'}
-                  </Text>
-                </View>
-
-                <View style={[styles.modalCard, { backgroundColor: colors.card }]}>
-                  <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>
-                    Reported User
-                  </Text>
-                  <Text style={[styles.modalValue, { color: colors.text }]}>
-                    @{selectedReport.reported_user?.username || 'Unknown'}
-                  </Text>
-                </View>
-
-                {selectedReport.details && (
-                  <View style={[styles.modalCard, { backgroundColor: colors.card }]}>
-                    <Text style={[styles.modalLabel, { color: colors.textSecondary }]}>Details</Text>
-                    <Text style={[styles.modalValue, { color: colors.text }]}>
-                      {selectedReport.details}
-                    </Text>
-                  </View>
-                )}
-
-                <Text style={[styles.notesLabel, { color: colors.textSecondary }]}>
-                  Admin Notes (optional)
-                </Text>
-                <TextInput
-                  style={[
-                    styles.notesInput,
-                    { backgroundColor: colors.card, color: colors.text, borderColor: colors.border },
-                  ]}
-                  placeholder="Add notes about your decision..."
-                  placeholderTextColor={colors.textTertiary}
-                  value={adminNotes}
-                  onChangeText={setAdminNotes}
-                  multiline
-                  numberOfLines={3}
-                />
-
-                <View style={styles.modalActions}>
-                  <TouchableOpacity
-                    style={[styles.modalButton, { backgroundColor: colors.textSecondary }]}
-                    onPress={() => handleAction('dismissed')}
-                    disabled={reviewReport.isPending}
-                  >
-                    <Ionicons name="close-circle" size={20} color="#FFFFFF" />
-                    <Text style={styles.modalButtonText}>Dismiss</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.modalButton, { backgroundColor: colors.accent }]}
-                    onPress={() => handleAction('resolved')}
-                    disabled={reviewReport.isPending}
-                  >
-                    {reviewReport.isPending ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <>
-                        <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
-                        <Text style={styles.modalButtonText}>Resolve</Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-          </ScrollView>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -355,91 +214,21 @@ const styles = StyleSheet.create({
   detailsBox: {
     padding: spacing.sm,
     borderRadius: radius.md,
-    marginBottom: spacing.md,
   },
   detailsText: {
     fontSize: typography.sizes.sm,
     lineHeight: 20,
   },
-  actionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  actionButton: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-  },
-  actionButtonText: {
-    color: '#FFFFFF',
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.semibold as '600',
-  },
-  // Modal styles
-  modalContainer: {
-    flex: 1,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
-  },
-  modalCancel: {
-    fontSize: typography.sizes.md,
-  },
-  modalTitle: {
-    fontSize: typography.sizes.lg,
-    fontWeight: typography.weights.semibold as '600',
-  },
-  modalContent: {
-    flex: 1,
-    padding: spacing.md,
-  },
-  modalCard: {
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    marginBottom: spacing.sm,
-  },
-  modalLabel: {
-    fontSize: typography.sizes.sm,
-    marginBottom: spacing.xs,
-  },
-  modalValue: {
-    fontSize: typography.sizes.md,
-  },
-  notesLabel: {
-    fontSize: typography.sizes.sm,
-    marginTop: spacing.md,
-    marginBottom: spacing.xs,
-  },
-  notesInput: {
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    fontSize: typography.sizes.md,
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.lg,
-  },
-  modalButton: {
-    flex: 1,
+  webNote: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    paddingVertical: spacing.md,
+    gap: spacing.sm,
+    padding: spacing.md,
     borderRadius: radius.lg,
+    marginBottom: spacing.md,
   },
-  modalButtonText: {
-    color: '#FFFFFF',
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.semibold as '600',
+  webNoteText: {
+    flex: 1,
+    fontSize: typography.sizes.sm,
   },
 });

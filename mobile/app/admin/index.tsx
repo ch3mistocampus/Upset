@@ -122,7 +122,7 @@ export default function AdminDashboard() {
 
       <QuickAction
         title="Reports"
-        subtitle="Review user reports"
+        subtitle="View user reports"
         icon="flag"
         badge={stats?.pending_reports}
         onPress={() => router.push('/admin/reports')}
@@ -130,10 +130,10 @@ export default function AdminDashboard() {
       />
 
       <QuickAction
-        title="Users"
-        subtitle="Search and manage users"
-        icon="person-circle"
-        onPress={() => router.push('/admin/users')}
+        title="Posts"
+        subtitle="View reported posts and comments"
+        icon="chatbubble-ellipses"
+        onPress={() => router.push('/admin/posts')}
         colors={colors}
       />
 
@@ -141,7 +141,7 @@ export default function AdminDashboard() {
 
       <QuickAction
         title="Live Scorecards"
-        subtitle="Control round state for live fights"
+        subtitle="View live fight status"
         icon="stats-chart"
         onPress={() => router.push('/admin/scorecards')}
         colors={colors}
@@ -157,11 +157,11 @@ export default function AdminDashboard() {
         colors={colors}
       />
 
-      {/* Info */}
+      {/* Web Admin Banner */}
       <View style={[styles.infoCard, { backgroundColor: colors.card }]}>
-        <Ionicons name="information-circle" size={20} color={colors.textSecondary} />
+        <Ionicons name="desktop-outline" size={20} color={colors.accent} />
         <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-          Admin actions are logged. Use moderation tools responsibly.
+          Full admin tools available at upsetmma.app/admin
         </Text>
       </View>
     </ScrollView>

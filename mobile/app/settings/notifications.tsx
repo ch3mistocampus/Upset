@@ -23,6 +23,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../lib/theme';
 import { spacing, radius, typography } from '../../lib/tokens';
 import { useNotifications, NotificationPreferences, NotificationLogItem } from '../../hooks/useNotifications';
+import { SurfaceCard } from '../../components/ui';
+import { SettingsRow } from '../../components/SettingsRow';
 
 // Helper to format notification time
 function formatNotificationTime(dateString: string): string {
@@ -159,6 +161,19 @@ export default function NotificationSettingsScreen() {
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Notifications</Text>
         <View style={styles.headerSpacer} />
+      </View>
+
+      {/* Post Activity Link */}
+      <View style={{ marginHorizontal: spacing.md, marginBottom: spacing.lg }}>
+        <SurfaceCard noPadding>
+          <SettingsRow
+            icon="chatbubble-ellipses-outline"
+            label="Post Activity"
+            type="link"
+            subtitle="Comments and replies on your posts"
+            onPress={() => router.push('/post/notifications')}
+          />
+        </SurfaceCard>
       </View>
 
       {/* Activity Notifications */}

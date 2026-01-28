@@ -16,6 +16,7 @@ import { useIsAdmin } from '../../hooks/useAdmin';
 import { useSubscription } from '../../hooks/useSubscription';
 import { useTheme } from '../../lib/theme';
 import { spacing, radius, typography, displayTypography } from '../../lib/tokens';
+import Constants from 'expo-constants';
 import * as Sentry from '@sentry/react-native';
 import { supabase } from '../../lib/supabase';
 import { SettingsRow } from '../../components/SettingsRow';
@@ -165,12 +166,6 @@ export default function Settings() {
             <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>ACCOUNT</Text>
             <SurfaceCard noPadding>
               <SettingsRow
-                icon="eye-outline"
-                label="View Public Profile"
-                type="link"
-                onPress={() => router.push(`/user/${user?.id}`)}
-              />
-              <SettingsRow
                 icon="person-outline"
                 label="Account Settings"
                 type="link"
@@ -226,26 +221,10 @@ export default function Settings() {
           </View>
         )}
 
-        {/* Content Section - Authenticated users only */}
+        {/* Preferences Section - Authenticated users only */}
         {!isGuest && user && (
           <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>CONTENT</Text>
-            <SurfaceCard noPadding>
-              <SettingsRow
-                icon="chatbubble-ellipses-outline"
-                label="Post Activity"
-                type="link"
-                subtitle="Comments and replies on your posts"
-                onPress={() => router.push('/post/notifications')}
-              />
-            </SurfaceCard>
-          </View>
-        )}
-
-        {/* Privacy & Notifications Section - Authenticated users only */}
-        {!isGuest && user && (
-          <View style={styles.section}>
-            <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>PRIVACY & NOTIFICATIONS</Text>
+            <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>PREFERENCES</Text>
             <SurfaceCard noPadding>
               <SettingsRow
                 icon="notifications-outline"
@@ -381,8 +360,7 @@ export default function Settings() {
         {/* App Version & Disclaimer */}
         <View style={styles.versionContainer}>
           <Text style={[styles.versionText, { color: colors.text }]}>Upset</Text>
-          <Text style={[styles.versionNumber, { color: colors.textTertiary }]}>Version 1.0.0</Text>
-          <Text style={[styles.versionSubtext, { color: colors.textMuted }]}>Built with React Native & Expo</Text>
+          <Text style={[styles.versionNumber, { color: colors.textTertiary }]}>Version {Constants.expoConfig?.version ?? '1.0.0'}</Text>
           <Text style={[styles.disclaimer, { color: colors.textMuted }]}>
             Fight schedules, matchups, and statistics are compiled from publicly available sources and maintained in our own database. This app is not affiliated with or endorsed by the UFC or any other promotion.
           </Text>
@@ -455,9 +433,6 @@ const styles = StyleSheet.create({
   versionNumber: {
     ...typography.meta,
     marginBottom: spacing.xs,
-  },
-  versionSubtext: {
-    fontSize: 11,
   },
   disclaimer: {
     fontSize: 11,

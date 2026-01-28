@@ -29,8 +29,8 @@ import {
 import { EmptyState } from '../../components/EmptyState';
 import { formatRelativeTime } from '../../hooks/usePosts';
 
-// Toggle this to show mock data for preview
-const USE_MOCK_DATA = true;
+// Toggle this to show mock data for preview (set to true for dev only)
+const USE_MOCK_DATA = false;
 
 // Mock notifications using REAL post IDs, comment IDs, and user data from the database
 const MOCK_NOTIFICATIONS: PostNotification[] = [

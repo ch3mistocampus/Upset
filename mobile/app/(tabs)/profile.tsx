@@ -44,6 +44,7 @@ import { useTheme } from '../../lib/theme';
 import { supabase } from '../../lib/supabase';
 import { logger } from '../../lib/logger';
 import { spacing, radius, displayTypography } from '../../lib/tokens';
+import Constants from 'expo-constants';
 import { isEventSubmitted } from '../../lib/storage';
 import { SurfaceCard, Button, SegmentedControl, EmptyState } from '../../components/ui';
 import { ErrorState } from '../../components/ErrorState';
@@ -519,7 +520,7 @@ export default function Profile() {
           />
         </SurfaceCard>
 
-        <Text style={[styles.appVersion, { color: colors.textTertiary }]}>Upset v1.0.0</Text>
+        <Text style={[styles.appVersion, { color: colors.textTertiary }]}>Upset v{Constants.expoConfig?.version ?? '1.0.0'}</Text>
       </ScrollView>
     );
   }
