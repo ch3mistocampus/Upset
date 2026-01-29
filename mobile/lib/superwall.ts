@@ -8,6 +8,9 @@ export const SUPERWALL_API_KEYS = {
   ios: process.env.EXPO_PUBLIC_SUPERWALL_IOS_KEY || '',
 };
 
+// Check if Superwall is properly configured (key exists and is non-empty)
+export const IS_SUPERWALL_CONFIGURED = Boolean(process.env.EXPO_PUBLIC_SUPERWALL_IOS_KEY);
+
 // App Store product identifiers
 export const PRODUCT_IDS = {
   MONTHLY: 'com.getupset.app.pro.monthly',

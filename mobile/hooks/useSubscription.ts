@@ -5,10 +5,10 @@
 
 import { useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useUser, usePlacement } from 'expo-superwall';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './useAuth';
 import { FREE_LIMITS } from '../lib/superwall';
+import { useSafeSuperwallContext } from '../lib/SuperwallSafeProvider';
 
 interface UsageData {
   events_picked_count: number;
@@ -23,7 +23,13 @@ interface ShowPaywallOptions {
 export function useSubscription() {
   const { user, isGuest } = useAuth();
   const queryClient = useQueryClient();
-  const { subscriptionStatus, setSubscriptionStatus, identify, signOut: swSignOut } = useUser();
+  const {
+    subscriptionStatus,
+    setSubscriptionStatus,
+    identify,
+    signOut: swSignOut,
+    registerPlacement,
+  } = useSafeSuperwallContext();
 
   const isPro = subscriptionStatus?.status === 'ACTIVE';
 
@@ -46,15 +52,6 @@ export function useSubscription() {
     },
     enabled: !!user?.id && !isGuest && !isPro,
     staleTime: 2 * 60 * 1000, // 2 minutes
-  });
-
-  // Placement hook for triggering paywalls
-  const { registerPlacement } = usePlacement({
-    onDismiss: (_info, result) => {
-      if (result.type === 'purchased' || result.type === 'restored') {
-        queryClient.invalidateQueries({ queryKey: ['usage_tracking'] });
-      }
-    },
   });
 
   const canPickEvent = useCallback(

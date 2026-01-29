@@ -20,9 +20,7 @@ import { AppDrawer } from '../components/navigation/AppDrawer';
 import { AppErrorBoundary } from '../components/ErrorBoundary';
 import { initSentry } from '../lib/sentry';
 import { NetworkStatusBanner } from '../components/ui';
-import { SuperwallProvider } from 'expo-superwall';
-import { useUser } from 'expo-superwall';
-import { SUPERWALL_API_KEYS } from '../lib/superwall';
+import { SuperwallSafeProvider, useSafeSuperwallContext } from '../lib/SuperwallSafeProvider';
 
 // Keep splash screen visible while loading fonts
 SplashScreen.preventAutoHideAsync();
@@ -33,15 +31,17 @@ SplashScreen.preventAutoHideAsync();
  */
 function SuperwallIdentifier() {
   const { user, isGuest } = useAuth();
-  const { identify, signOut: swSignOut } = useUser();
+  const { identify, signOut: swSignOut, isAvailable } = useSafeSuperwallContext();
 
   useEffect(() => {
+    if (!isAvailable) return;
+
     if (user?.id && !isGuest) {
       identify(user.id);
     } else {
       swSignOut();
     }
-  }, [user?.id, isGuest, identify, swSignOut]);
+  }, [user?.id, isGuest, identify, swSignOut, isAvailable]);
 
   return null;
 }
@@ -153,7 +153,7 @@ export default function RootLayout() {
     <AppErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <SuperwallProvider apiKeys={SUPERWALL_API_KEYS}>
+          <SuperwallSafeProvider>
             <SuperwallIdentifier />
             <GuestPicksProvider>
               <OnboardingProvider>
@@ -166,7 +166,7 @@ export default function RootLayout() {
                 </ThemeProvider>
               </OnboardingProvider>
             </GuestPicksProvider>
-          </SuperwallProvider>
+          </SuperwallSafeProvider>
         </AuthProvider>
       </QueryClientProvider>
     </AppErrorBoundary>
