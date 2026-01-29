@@ -52,7 +52,8 @@
     "production": {
       "ios": {
         "appleId": "chemistoncampusx@gmail.com",
-        "appleTeamId": "25U35YQ8ZZ"
+        "appleTeamId": "25U35YQ8ZZ",
+        "ascAppId": "6757907043"
       },
       "android": {
         "track": "internal"
